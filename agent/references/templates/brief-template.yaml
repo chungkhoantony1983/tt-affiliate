@@ -1,0 +1,184 @@
+# ブリーフテンプレート v2.0
+# 用途: /ai-slides Phase 0（ブリーフ作成）でこのテンプレートを基に brief.yaml を生成する
+# 参照: presentation-frameworks.md（フレームワーク定義）
+#
+# v2.0 変更点:
+#   - act_structure: Act別スライド分類（Act1:サマリー / Act2:詳細 / Act3:総括）
+#   - metrics_catalog: Act別メトリクス制約（SL-049/SL-050 の構造的実装）
+#   - metric_refs: 各スライドのメトリクスを型レベルで制約
+#   - brief_validator.py が act_structure を参照してメトリクス混入を機械的にブロック
+#
+# フレームワーク体現型: ブリーフがストーリーの「設計図」。
+# 各スライドに sds: または prep: 構造を持たせ、メッセージ・データ・ビジュアル方向性を定義する。
+# スライド生成（Phase 5）はブリーフの意図を忠実に視覚表現する「施工」。
+
+# --- メタ情報 ---
+title: ""                    # 資料タイトル
+subtitle: ""                 # サブタイトル（1行でメッセージを凝縮）
+audience: ""                 # 想定聴衆（役職・関心事を具体的に）
+purpose: ""                  # 資料の目的（何を達成したいか）
+tone: ""                     # トーン（プロフェッショナル / カジュアル / データドリブン 等）
+theme: project               # テーマプリセット（project / project-dark / minimal / pitch）
+slide_count: 5               # スライド枚数
+
+# --- フレームワーク選択（presentation-frameworks.md 参照）---
+# overall: 資料全体の構成フレームワーク
+# per_slide: 各スライドのデフォルト内部構成
+# per_argument: 各論点のデフォルト展開方法
+framework:
+  overall: PASONA            # PASONA / TAPS / DESC / AIDMA / SDS
+  per_slide: SDS             # SDS / PREP
+  per_argument: PREP         # PREP
+
+# --- PASONA マッピング（overall: PASONA の場合）---
+# 各ステップをどのスライドに割り当てるか
+pasona_mapping:
+  problem: slide_01
+  affinity: slide_02
+  solution: slide_03
+  offer: slide_04
+  narrow_and_action: slide_05
+
+# --- セクション構造（SL-039 / SL-040 / SL-041） ---
+# デッキは「Title → Agenda → Section 01 → Section 02 → ... → Thank You」で構成する。
+# ★ Title と Thank You は構造的ブックエンド。Agenda のセクションとして含めない（SL-039）。
+# ★ Agenda に定義した全セクションに TYPE-C セクション区切りページを必ず配置する（SL-040）。
+# ★ TYPE-A ヘッダーは「会社名 | セクション名」。デッキタイトル等の汎用テキスト禁止（SL-041）。
+sections:
+  section_01:
+    name: ""                    # セクション名（例: 本プロジェクトの概要）
+    divider: slide_NN           # セクション区切りページ番号
+    range: "NN-NN"              # コンテンツスライド範囲（区切りページ除く）
+    header_text: ""             # TYPE-A ヘッダーに表示するテキスト
+  # section_02: ...
+  # section_03: ...
+
+# --- Act構造（v2.0: SL-049/SL-050 の構造的実装）---
+# 各スライドをAct1(サマリー/意思決定) / Act2(詳細分析) / Act3(総括)に分類。
+# brief_validator.py がこの分類に基づいてメトリクス使用を機械的に検証する。
+act_structure:
+  act1: []                      # Act1 slide IDs (例: [sl1, sl2, sl3, sl4, sl5])
+  act2: []                      # Act2 slide IDs (例: [sl6, sl7, ..., sl19])
+  act3: []                      # Act3 slide IDs (例: [sl20, sl21, sl22, sl23, sl24])
+
+# --- メトリクスカタログ（Act別制約）---
+# Act1/Act3 で許可されるメトリクスタイプを定義（ホワイトリスト方式）。
+# ここに定義されていないメトリクスタイプはAct2でのみ使用可。
+metrics_catalog:
+  act1_act3_allowed:
+    - auc                       # モデル識別力
+    - calibration_ratio         # PD精度（キャリブレーション比）
+    - filtered_count            # モデル適用可能件数
+    - coverage                  # scored/QURIOS（モデル到達範囲）
+    - qualitative               # 課題・前提条件（定性テキスト）
+    - population_total          # QURIOS全体N
+    - filtered_total            # Filtered全体N
+  act2_only:
+    - scored_acceptance_rate    # スコア済みサブセット応諾率
+    - scored_df_rate            # スコア済みサブセットDF率
+    - model_acceptance_rate     # モデル応諾率（scored内）
+    - qurios_acceptance_rate    # QURIOS応諾率（業務実績）
+    - acceptance_improvement    # 応諾率改善幅
+    - df_rate_improvement       # DF率改善幅
+    - actual_accept_rate        # 実績応諾率
+
+# --- ルール遵守チェック ---
+rules:
+  - "GN-001: 通貨は日本円（¥ / 円）"
+  - "GN-002: テキストは日本語"
+  - "GN-003: 数値は出典のあるもののみ使用"
+  - "SL-039: Agenda にはコンテンツセクションのみ（Title/Thank You は含めない）"
+  - "SL-040: 全セクションに TYPE-C 区切りページを配置"
+  - "SL-041: ヘッダーは「会社名 | セクション名」（汎用テキスト禁止）"
+  - "SL-049: Act1/Act3指標ホワイトリスト（上記 metrics_catalog 参照）"
+  - "SL-050: 分母ファイアウォール（scored分母はAct2のみ）"
+
+# --- スライド定義 ---
+# 各スライドに sds: または prep: でフレームワーク構造を定義する
+# layout: title / title_with_problem / data_comparison / three_columns /
+#          three_solutions / impact_metrics / roadmap_with_cta 等
+slides:
+  - number: 1
+    title: ""
+    subtitle: ""
+    layout: title_with_problem
+    pasona: "Problem（課題提起）"
+    sds:
+      summary: ""              # 冒頭結論: 課題の本質を1文で
+      detail:
+        - ""                   # 課題の詳細1
+        - ""                   # 課題の詳細2
+        - ""                   # 課題の詳細3
+      summary_repeat: ""       # 末尾結論: ソリューションへの橋渡し
+    visual: |
+      ビジュアル方向性を記述
+      （レイアウト構成、カード配置、チャートの種類等）
+    notes: |
+      生成時の注意点
+      （出典、用語、表現の制約等）
+
+  - number: 2
+    title: ""
+    subtitle: ""
+    layout: data_comparison
+    pasona: "Affinity（実績共有・信頼構築）"
+    # PREP構造の例（per_slide のデフォルト SDS を個別にオーバーライド可能）
+    prep:
+      point: ""                # 主張
+      reason: ""               # 理由
+      example:
+        - heading: ""
+          content: ""
+          data: ""             # 数値データ（出典必須 GN-003）
+      point_repeat: ""         # 主張の再強調
+    notes: ""
+
+  - number: 3
+    title: ""
+    subtitle: ""
+    layout: three_solutions
+    pasona: "Solution（解決策の提示）"
+    sds:
+      summary: ""
+      detail:
+        - solution: ""
+          description: ""
+          effect: ""
+      summary_repeat: ""
+    notes: ""
+
+  - number: 4
+    title: ""
+    subtitle: ""
+    layout: impact_metrics
+    pasona: "Offer（具体的な提案）"
+    prep:
+      point: ""
+      reason: ""
+      example:
+        - heading: ""
+          metrics:
+            - label: ""
+              value: ""
+              detail: ""
+      point_repeat: ""
+    notes: ""
+
+  - number: 5
+    title: ""
+    subtitle: ""
+    layout: roadmap_with_cta
+    pasona: "Narrow + Action（絞り込み + 行動喚起）"
+    sds:
+      summary: ""
+      detail:
+        - phase: ""
+          highlight: true      # Phase 1 を大きくハイライト
+          deliverables: []
+        - phase: ""
+          highlight: false
+          actions: []
+      summary_repeat: ""
+    cta:
+      primary: ""              # 行動喚起メッセージ
+    notes: ""

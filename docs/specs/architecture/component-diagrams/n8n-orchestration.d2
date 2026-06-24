@@ -1,0 +1,153 @@
+direction: down
+
+title: |md
+  # N8N Orchestration — Component Diagram
+  4-Layer Internal Architecture
+|
+
+# === External Systems ===
+external: External Systems {
+  style.fill: "#e8f5e9"
+  style.border-radius: 8
+
+  triggers: Triggers {
+    style.fill: "#c8e6c9"
+    cron: Cron Scheduler
+    webhook: Webhook Events
+  }
+  outputs: Outputs {
+    style.fill: "#c8e6c9"
+    fastapi: FastAPI Endpoints
+    telegram: Telegram Alerts
+  }
+}
+
+# === Capability: N8N Orchestration ===
+n8n_orchestration: N8N Orchestration Capability {
+  style.fill: "#e8eaf6"
+  style.border-radius: 8
+
+  # Layer 1: Adapters (Workflows)
+  workflows: Workflows (W1-W5) {
+    style.fill: "#c5cae9"
+    style.border-radius: 6
+
+    w1: W1 — Shopee Sync {
+      style.fill: "#9fa8da"
+      tooltip: "Every 6h: sync products from Shopee"
+    }
+    w2: W2 — Script Generation {
+      style.fill: "#9fa8da"
+      tooltip: "On ProductCreated: generate script"
+    }
+    w3: W3 — Video Render {
+      style.fill: "#9fa8da"
+      tooltip: "On ScriptReady: render video"
+    }
+    w4: W4 — TikTok Publish {
+      style.fill: "#9fa8da"
+      tooltip: "On VideoReady: publish to TikTok"
+    }
+    w5: W5 — Analytics & Report {
+      style.fill: "#9fa8da"
+      tooltip: "Daily 23:00: collect metrics & report"
+    }
+
+    w1 -> w2: ProductCreated {style.stroke: "#ff9800"}
+    w2 -> w3: ScriptReady {style.stroke: "#ff9800"}
+    w3 -> w4: VideoReady {style.stroke: "#ff9800"}
+    w4 -> w5: VideoPublished {style.stroke: "#ff9800"}
+  }
+
+  # Layer 2: Internal (Core Logic)
+  internal: Internal (Core Logic) {
+    style.fill: "#bbdefb"
+    style.border-radius: 6
+
+    error_handler: ErrorHandler {
+      style.fill: "#90caf9"
+    }
+    retry_policy: RetryPolicy {
+      style.fill: "#90caf9"
+    }
+    dlq: Dead Letter Queue (DLQ) {
+      style.fill: "#ef9a9a"
+    }
+  }
+
+  # Layer 3: Contracts
+  contracts: Contracts (Data Types / Events) {
+    style.fill: "#fff9c4"
+    style.border-radius: 6
+
+    workflow_event: WorkflowEvent {
+      style.fill: "#fff59d"
+    }
+    error_record: ErrorRecord {
+      style.fill: "#fff59d"
+    }
+    retry_config: RetryConfig {
+      style.fill: "#fff59d"
+    }
+  }
+
+  # Layer 4: Scripts (Config)
+  scripts: Scripts (Config) {
+    style.fill: "#e0f2f1"
+    style.border-radius: 6
+
+    n8n_workflows: n8n/workflows/*.json {
+      style.fill: "#b2dfdb"
+    }
+    retry_rules: retry_rules.yaml {
+      style.fill: "#b2dfdb"
+    }
+    cron_schedule: cron_schedule.yaml {
+      style.fill: "#b2dfdb"
+    }
+  }
+
+  # Internal flows
+  workflows.w1 -> internal.error_handler: on failure
+  workflows.w2 -> internal.error_handler: on failure
+  workflows.w3 -> internal.error_handler: on failure
+  workflows.w4 -> internal.error_handler: on failure
+  internal.error_handler -> internal.retry_policy: check retry
+  internal.retry_policy -> internal.dlq: max retries exceeded
+  internal.error_handler -> contracts.error_record: log error
+  internal.retry_policy -> contracts.retry_config: apply policy
+  scripts.n8n_workflows -> workflows.w1: define
+  scripts.n8n_workflows -> workflows.w2: define
+  scripts.n8n_workflows -> workflows.w3: define
+  scripts.n8n_workflows -> workflows.w4: define
+  scripts.n8n_workflows -> workflows.w5: define
+  scripts.retry_rules -> internal.retry_policy: config
+  scripts.cron_schedule -> workflows.w1: "*/6h"
+  scripts.cron_schedule -> workflows.w5: "daily 23:00"
+}
+
+# === Data Flows (External) ===
+external.triggers.cron -> n8n_orchestration.workflows.w1: every 6 hours {
+  style.stroke: "#4caf50"
+}
+external.triggers.cron -> n8n_orchestration.workflows.w5: daily 23:00 {
+  style.stroke: "#4caf50"
+}
+external.triggers.webhook -> n8n_orchestration.workflows.w2: event trigger {
+  style.stroke: "#4caf50"
+}
+n8n_orchestration.workflows.w1 -> external.outputs.fastapi: POST /sync {
+  style.stroke: "#2196f3"
+}
+n8n_orchestration.workflows.w3 -> external.outputs.fastapi: POST /render {
+  style.stroke: "#2196f3"
+}
+n8n_orchestration.workflows.w4 -> external.outputs.fastapi: POST /publish {
+  style.stroke: "#2196f3"
+}
+n8n_orchestration.internal.dlq -> external.outputs.telegram: alert on DLQ {
+  style.stroke: "#f44336"
+}
+n8n_orchestration.internal.error_handler -> external.outputs.telegram: error notification {
+  style.stroke: "#f44336"
+}

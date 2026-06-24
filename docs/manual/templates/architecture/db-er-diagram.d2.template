@@ -1,0 +1,71 @@
+# scope: L3 ER図（導出成果物。cross-Cap aggregate）
+# spec: docs/manual/design-process-guide.md §10
+# 配置先: docs/specs/architecture/db-er-diagram.d2
+# Input: capabilities.md §データ
+# 禁止: 実装コード、インフラ構成（§2c）
+# ============================================================================
+# DB ER Diagram — {{PJ 名}} (cross-Cap、ID 参照のみ FK 禁止)
+# ============================================================================
+# input: modeling/{{domain}}-model.md (Bounded Context 別 Aggregate) + capabilities.md §①' Aggregate
+# output: data-consistency-audit (L4a) + DFD scenario (PII 流通の Aggregate 識別)
+# 規範: §3.A.16 (chain primary 静的)、cross-Cap FK 禁止 (ID 参照のみ、Cap 境界保護)
+#
+# 重要原則 (§3.A.16 §6 品質 gate):
+#   - **cross-Cap FK 禁止**: 別 Cap の Aggregate に対する FK 制約は declared しない
+#     (Cap 境界を破壊、data-consistency-audit で違反検出)
+#   - **ID 参照のみ**: 値オブジェクトとして ID column は持つが、DB FK 制約は同一 Cap
+#     内 Aggregate 間のみ
+#   - **本 template の relation edge は全て comment 形式** (D2 node として書かず、
+#     intent を comment で記録、validator が cross-Cap FK 不在を機械検証可能化)
+
+direction: down
+
+# ============================================================================
+# Cap-A の Aggregate (capabilities.md §①' から参照)
+# ============================================================================
+cap_a_aggregate1: "{{Aggregate 名}}" {
+  shape: sql_table
+
+  id: "{{ID column}} {primary_key}"
+  field1: "{{属性 1}} {NOT NULL}"
+  field2: "{{属性 2}}"
+  cap_b_ref_id: "{{Cap-B の Aggregate ID 参照}} {NOT NULL}  # ID 参照のみ、cross-Cap FK 禁止"
+}
+
+cap_a_aggregate2: "{{Aggregate 名 2}}" {
+  shape: sql_table
+
+  id: "{{ID}} {primary_key}"
+  parent_id: "cap_a_aggregate1.id {foreign_key}  # 同一 Cap 内 FK は許容"
+  field: "{{属性}}"
+}
+
+# ============================================================================
+# Cap-B の Aggregate
+# ============================================================================
+cap_b_aggregate1: "{{Aggregate 名}}" {
+  shape: sql_table
+
+  id: "{{ID}} {primary_key}"
+  field: "{{属性}}"
+}
+
+# ============================================================================
+# Relations (cross-Cap は comment intent のみ、同一 Cap 内 FK は D2 edge OK)
+# ============================================================================
+# 同一 Cap 内 FK relation: D2 edge として記述してよい (FK 制約あり、本 template の例:
+#   cap_a_aggregate1 -> cap_a_aggregate2: "1..N (同一 Cap 内 FK)"  ← 実 PJ で D2 化 OK)
+#
+# Cross-Cap ID 参照 (FK 禁止、ID column のみ持ち、整合性は app layer / event 駆動):
+#   cap_a_aggregate1.cap_b_ref_id ⇒ cap_b_aggregate1.id (concept、DB FK なし)
+#
+# 検証: data-consistency-audit (L4a §3.A.29) で cross-Cap FK 不在を機械検証
+# (capabilities.md §①' Aggregate 境界 + 本 template の comment 注記の整合)
+
+# ============================================================================
+# Notes
+# ============================================================================
+# - 本 ER 図は cross-Cap aggregate の関係を visualize するが、**FK 制約は宣言しない**
+# - app layer での参照整合性は Event 駆動 (capabilities.md §②' AsyncAPI) で確保
+# - PII 区分 (Low/Medium/High) は DFD/{{scenario-id}}.d2 で declared、本 template では
+#   sql_table の column comment で参照のみ (例: `field: "name {NOT NULL} # PII-Medium"`)

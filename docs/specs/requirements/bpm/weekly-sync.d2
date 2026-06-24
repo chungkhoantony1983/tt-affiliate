@@ -1,0 +1,74 @@
+# BPM: Weekly Sync Flow
+# Render: d2 format
+
+direction: down
+
+title: "Weekly Product Sync" {
+  shape: text
+  style.font-size: 24
+}
+
+operator: "Admin (Operator)" {
+  shape: person
+  style.fill: "#E8F5E9"
+}
+
+n8n: "N8N Orchestrator" {
+  style.fill: "#E3F2FD"
+
+  trigger: "Cron: Every 6 hours" {shape: oval}
+  call-sync: "HTTP POST /api/sync"
+  check-result: "Check response"
+  alert-fail: "Send Telegram alert\n(sync failed)" {style.fill: "#FFCDD2"}
+  log-success: "Log: sync completed"
+}
+
+backend: "FastAPI Backend" {
+  style.fill: "#FFF3E0"
+
+  fetch: "Fetch products\nfrom Shopee API\n(paginated)"
+  detect-changes: "ChangeDetector:\ncompare fetched vs DB"
+  calc-priority: "PriorityCalculator:\nrank by commission×rating×trend"
+  upsert: "Upsert products to DB\n(new/updated/deactivated)"
+  emit-events: "Emit events:\nProductCreated\nProductUpdated\nProductDeactivated"
+}
+
+shopee: "Shopee Affiliate API" {
+  style.fill: "#F3E5F5"
+  products-endpoint: "GET /affiliate/products"
+  commission-endpoint: "GET /affiliate/commission"
+}
+
+db: "PostgreSQL" {
+  style.fill: "#ECEFF1"
+  products-table: "products table"
+}
+
+telegram: "Telegram Bot" {
+  style.fill: "#FCE4EC"
+  notify: "Send notification"
+}
+
+# Flow
+n8n.trigger -> n8n.call-sync
+n8n.call-sync -> backend.fetch
+backend.fetch -> shopee.products-endpoint: "API call"
+shopee.products-endpoint -> backend.fetch: "product list"
+backend.fetch -> shopee.commission-endpoint: "get rates"
+shopee.commission-endpoint -> backend.fetch: "commission data"
+
+backend.fetch -> backend.detect-changes
+backend.detect-changes -> db.products-table: "read existing"
+backend.detect-changes -> backend.calc-priority
+backend.calc-priority -> backend.upsert
+backend.upsert -> db.products-table: "write"
+backend.upsert -> backend.emit-events
+
+backend.emit-events -> n8n.check-result: "response: success/fail"
+n8n.check-result -> n8n.log-success: "success"
+n8n.check-result -> n8n.alert-fail: "failure"
+n8n.alert-fail -> telegram.notify
+
+# Operator notification
+backend.emit-events -> telegram.notify: "N new, M updated"
+operator -> telegram.notify: "receives" {style.stroke-dash: 5}

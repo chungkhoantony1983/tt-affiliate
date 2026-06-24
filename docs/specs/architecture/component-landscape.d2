@@ -1,0 +1,84 @@
+# Component Landscape — All Caps Public Adapters
+# D2 format: Cap::AdapterName nodes + inter-adapter edges
+
+direction: right
+
+# === CAP-01: shopee-sync ===
+shopee-sync: "shopee-sync" {
+  style.fill: "#E3F2FD"
+  SyncOrchestrator: "SyncOrchestrator"
+  PlatformSyncAdapter: "PlatformSyncAdapter\n«interface»" {style.stroke-dash: 5}
+  ShopeeAffiliate: "ShopeeAffiliate\n(adapter)"
+  ChangeDetector: "ChangeDetector"
+  PriorityCalculator: "PriorityCalculator"
+}
+
+# === CAP-02: script-gen ===
+script-gen: "script-gen" {
+  style.fill: "#E8F5E9"
+  ScriptGenerator: "ScriptGenerator"
+  LLMAdapter: "LLMAdapter\n«interface»" {style.stroke-dash: 5}
+  GroqAdapter: "GroqAdapter"
+  GeminiAdapter: "GeminiAdapter"
+  TemplateLoader: "TemplateLoader"
+  QualityChecker: "QualityChecker"
+}
+
+# === CAP-03: video-render ===
+video-render: "video-render" {
+  style.fill: "#FFF3E0"
+  VideoRenderer: "VideoRenderer"
+  TTSEngine: "TTSEngine\n«interface»" {style.stroke-dash: 5}
+  EdgeTTS: "EdgeTTS\n(adapter)"
+  FFmpegComposer: "FFmpegComposer"
+  AssetManager: "AssetManager"
+  StorageManager: "StorageManager"
+}
+
+# === CAP-04: tiktok-publish ===
+tiktok-publish: "tiktok-publish" {
+  style.fill: "#F3E5F5"
+  PublishOrchestrator: "PublishOrchestrator"
+  PlatformPublishAdapter: "PlatformPublishAdapter\n«interface»" {style.stroke-dash: 5}
+  TikTokV2: "TikTokV2\n(adapter)"
+  AuthManager: "AuthManager"
+  ScheduleManager: "ScheduleManager"
+}
+
+# === CAP-05: analytics ===
+analytics: "analytics" {
+  style.fill: "#FCE4EC"
+  AnalyticsEngine: "AnalyticsEngine"
+  MetricFetcher: "MetricFetcher"
+  ReportGenerator: "ReportGenerator"
+  AlertManager: "AlertManager"
+  TelegramNotifier: "TelegramNotifier"
+}
+
+# === CAP-06: n8n-orchestration ===
+n8n-orchestration: "n8n-orchestration" {
+  style.fill: "#ECEFF1"
+  WorkflowEngine: "N8N Workflows"
+  W1: "W1: daily-pipeline"
+  W2: "W2: sync-only"
+  W3: "W3: publish-queue"
+  W4: "W4: daily-analytics"
+  W5: "W5: error-recovery"
+}
+
+# === Inter-Cap Edges (data flow) ===
+shopee-sync.SyncOrchestrator -> script-gen.ScriptGenerator: "ProductCreated event\n(product_id)" {style.stroke: "#1565C0"}
+script-gen.ScriptGenerator -> video-render.VideoRenderer: "ScriptReady event\n(script_id)" {style.stroke: "#2E7D32"}
+video-render.VideoRenderer -> tiktok-publish.PublishOrchestrator: "VideoReady event\n(video_path)" {style.stroke: "#E65100"}
+tiktok-publish.PublishOrchestrator -> analytics.MetricFetcher: "VideoPublished event\n(post_id)" {style.stroke: "#6A1B9A"}
+
+# N8N triggers all caps
+n8n-orchestration.W1 -> shopee-sync.SyncOrchestrator: "trigger" {style.stroke-dash: 5}
+n8n-orchestration.W1 -> script-gen.ScriptGenerator: "trigger" {style.stroke-dash: 5}
+n8n-orchestration.W1 -> video-render.VideoRenderer: "trigger" {style.stroke-dash: 5}
+n8n-orchestration.W3 -> tiktok-publish.PublishOrchestrator: "trigger" {style.stroke-dash: 5}
+n8n-orchestration.W4 -> analytics.AnalyticsEngine: "trigger" {style.stroke-dash: 5}
+
+# Analytics reads from all
+analytics.AnalyticsEngine -> analytics.TelegramNotifier: "report"
+analytics.AlertManager -> analytics.TelegramNotifier: "alert"

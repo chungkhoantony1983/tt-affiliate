@@ -1,0 +1,96 @@
+# artifact-graph.yaml スキーマ定義 (v1.0)
+#
+# 各PJフォルダ直下に配置する成果物依存グラフ。
+# /change-impact スキルが依存走査に使用し、/pj-init スキルが初期生成する。
+#
+# 目的:
+#   1. 前提条件変更時に影響を受ける成果物を機械的に特定する
+#   2. 成果物間の依存関係を可視化・管理する
+#   3. 自動導出スクリプトとの紐付けにより、再導出可能な成果物を識別する
+#
+# 出典: IDM-001-PJ定義の「参照先」列 + 各ドキュメントの相互参照パターンから構造化
+
+schema_version: "1.0"
+project_id: ""              # PJ略称（pj-config.yaml の project.id と一致）— 必須
+
+# ============================================================
+# 成果物ノード
+# ============================================================
+# 各成果物を一意のIDで定義する。
+# IDの命名規則: "{ドキュメント種別コード3桁}-{タイトル}"
+# 例: "001-PJ定義", "002-WBS", "201-機能要件定義"
+artifacts:
+  - id: ""                  # 成果物ID — 必須（PJ内でユニーク）
+    doc_id: ""              # ドキュメントID（例: IDM-001）— 必須
+    title: ""               # 成果物名 — 必須
+    category: ""            # 格納先フォルダ（例: 0_Project, 2_Scope）— 必須
+    gate: ""                # 作成タイミングのゲートID（例: G0, G1）— 必須
+    format: ""              # ファイル形式: md / csv / xlsx / docx — 必須
+    status: "active"        # ステータス: active / draft / archived — デフォルト active
+    version: "0.1.0"        # 現在のバージョン — デフォルト 0.1.0
+    derived_by: null        # 自動導出スクリプト名（あれば）— 任意
+                            # 値が設定されている場合、/change-impact は自動再導出を提案する
+                            # 例: "derive_resources", "derive_estimate", "derive_wbs_schedule"
+
+# ============================================================
+# 依存関係エッジ
+# ============================================================
+# 成果物間の依存関係を有向エッジで定義する。
+# from → to の方向は「from が変わると to に影響する」を意味する。
+#
+# type の定義:
+#   - derives:    from のデータから to が導出される（最も強い依存）
+#   - references: to が from を参照している（内容変更時に確認が必要）
+#   - constrains: from の制約が to に適用される（制約違反チェック用）
+dependencies:
+  - from: ""                # 依存元の成果物ID — 必須
+    to: ""                  # 依存先の成果物ID — 必須
+    type: ""                # 依存種別: derives / references / constrains — 必須
+    description: ""         # 依存関係の説明（影響分析レポートで表示）— 任意
+
+# ============================================================
+# 変更カテゴリ
+# ============================================================
+# /change-impact スキルで変更種別を選択した際に、
+# 依存グラフの走査を開始する起点ノードを定義する。
+change_categories:
+  scope:
+    label: "スコープ変更"
+    description: "機能追加/削除 → 機能要件 → WBS → リソース → 見積"
+    entry_points: []        # 起点となる成果物IDリスト
+
+  schedule:
+    label: "スケジュール変更"
+    description: "マイルストーン変更 → WBS → リソース → 見積"
+    entry_points: []
+
+  sla:
+    label: "SLA変更"
+    description: "SLA条件変更 → 非機能要件 → インフラ構成"
+    entry_points: []
+
+  cost:
+    label: "コスト変更"
+    description: "単価変更/体制変更 → 見積 → 支払計画"
+    entry_points: []
+
+  team:
+    label: "体制変更"
+    description: "ロール追加/削除 → FTE計画 → 見積"
+    entry_points: []
+
+  model:
+    label: "モデル/分析変更"
+    description: "分析手法変更 → レポート → 機能要件"
+    entry_points: []
+
+# ============================================================
+# 整合性ルール（validate_artifact_graph.py が検証）
+# ============================================================
+# 1. 全ノードIDがPJ内でユニーク
+# 2. 全エッジの from/to がノードに存在
+# 3. 循環依存がない（DAG: 有向非巡回グラフ）
+# 4. 各ノードの category が README.md のフォルダ構成ルールに準拠
+# 5. derived_by で参照されるスクリプトが .claude/scripts/ に存在
+# 6. change_categories の entry_points が全てノードに存在
+# 7. project_id が pj-config.yaml の project.id と一致

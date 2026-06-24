@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram name="d2-converted" id="d2map">
+    <mxGraphModel dx="687" dy="2996" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="687" pageHeight="2996" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="shape_0" value="顧客企業アクター" style="shape=swimlane;startSize=20;horizontal=0;rounded=0;whiteSpace=wrap;html=1;fillColor=#E3E9FD;strokeColor=#0D32B2;strokeWidth=2;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="1341" height="264" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_1" value="業務システム" style="shape=swimlane;startSize=20;horizontal=0;rounded=0;whiteSpace=wrap;html=1;fillColor=#E3E9FD;strokeColor=#0D32B2;strokeWidth=2;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="0" y="264" width="1341" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_2" value="外部組織" style="shape=swimlane;startSize=20;horizontal=0;rounded=0;whiteSpace=wrap;html=1;fillColor=#E3E9FD;strokeColor=#0D32B2;strokeWidth=2;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="0" y="384" width="1341" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_3" value="外部システム" style="shape=swimlane;startSize=20;horizontal=0;rounded=0;whiteSpace=wrap;html=1;fillColor=#E3E9FD;strokeColor=#0D32B2;strokeWidth=2;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="0" y="504" width="1341" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_4" value="アクター A" style="shape=swimlane;startSize=20;horizontal=0;rounded=0;whiteSpace=wrap;html=1;fillColor=#EDF0FD;strokeColor=#0D32B2;strokeWidth=2;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="shape_0">
+          <mxGeometry x="20" y="0" width="1321" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_5" value="アクター B" style="shape=swimlane;startSize=20;horizontal=0;rounded=0;whiteSpace=wrap;html=1;fillColor=#EDF0FD;strokeColor=#0D32B2;strokeWidth=2;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="shape_0">
+          <mxGeometry x="20" y="132" width="1321" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_6" value="システム" style="shape=swimlane;startSize=20;horizontal=0;rounded=0;whiteSpace=wrap;html=1;fillColor=#EDF0FD;strokeColor=#0D32B2;strokeWidth=2;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="shape_1">
+          <mxGeometry x="20" y="0" width="1321" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_7" value="外部組織 A" style="shape=swimlane;startSize=20;horizontal=0;rounded=0;whiteSpace=wrap;html=1;fillColor=#EDF0FD;strokeColor=#0D32B2;strokeWidth=2;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="shape_2">
+          <mxGeometry x="20" y="0" width="1321" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_8" value="外部システム A" style="shape=swimlane;startSize=20;horizontal=0;rounded=0;whiteSpace=wrap;html=1;fillColor=#EDF0FD;strokeColor=#0D32B2;strokeWidth=2;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="shape_3">
+          <mxGeometry x="20" y="0" width="1321" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_9" value="開始" style="ellipse;rounded=0;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#92400e;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="shape_4">
+          <mxGeometry x="80" y="33" width="111" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_10" value="業務アクション" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F8FE;strokeColor=#0D32B2;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="shape_4">
+          <mxGeometry x="221" y="33" width="185" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_11" value="判断" style="rhombus;rounded=0;whiteSpace=wrap;html=1;fillColor=#fde68a;strokeColor=#92400e;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="shape_4">
+          <mxGeometry x="436" y="20" width="110" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_12" value="業務アクション" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F8FE;strokeColor=#0D32B2;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="shape_5">
+          <mxGeometry x="576" y="33" width="185" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_13" value="自動処理" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F8FE;strokeColor=#0D32B2;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="shape_6">
+          <mxGeometry x="791" y="27" width="124" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_14" value="外部組織処理" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F8FE;strokeColor=#0D32B2;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="shape_7">
+          <mxGeometry x="945" y="27" width="165" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="shape_15" value="終了" style="ellipse;rounded=0;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#92400e;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="shape_8">
+          <mxGeometry x="1140" y="27" width="111" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_0" value="次" style="endArrow=classic;html=1;rounded=1;strokeColor=#475569;strokeWidth=2;fontSize=11;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shape_9" target="shape_10">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_1" value="次" style="endArrow=classic;html=1;rounded=1;strokeColor=#475569;strokeWidth=2;fontSize=11;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shape_10" target="shape_11">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_2" value="分岐" style="endArrow=classic;html=1;rounded=1;strokeColor=#475569;strokeWidth=2;fontSize=11;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shape_11" target="shape_12">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="688" y="66" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_3" value="操作意図 (message flow)" style="endArrow=classic;html=1;rounded=1;strokeColor=#475569;strokeWidth=2;fontSize=11;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shape_12" target="shape_13">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="873" y="198" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_4" value="送付 (message flow)" style="endArrow=classic;html=1;rounded=1;strokeColor=#475569;strokeWidth=2;fontSize=11;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shape_13" target="shape_14">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1048" y="324" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_5" value="連携 (message flow)" style="endArrow=classic;html=1;rounded=1;strokeColor=#475569;strokeWidth=2;fontSize=11;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shape_14" target="shape_15">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1216" y="444" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

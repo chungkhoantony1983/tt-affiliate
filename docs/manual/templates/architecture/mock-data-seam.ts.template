@@ -1,0 +1,69 @@
+/**
+ * L2 画面モックの view-model seam スケルトン (= 3 層分離: Pure / データ取得 / ビュー)。
+ * 規範 = design-process-guide §5 §mock 技術選定基準。
+ *
+ * 配置 (web-spa/ standalone area の下):
+ *   web-spa/src/models/{{domain}}/types.ts          … 本ファイルの型部分
+ *   web-spa/src/models/{{domain}}/{{entity}}.ts     … 本ファイルの純関数部分
+ *   web-spa/src/hooks/{{domain}}/fixtures.ts        … Mock データ源 (hook だけが参照)
+ *   web-spa/src/hooks/{{domain}}/types.ts           … QueryResult 等の共通返り値型
+ *   web-spa/src/hooks/{{domain}}/use{{Concern}}.ts  … 1 file = 1 hook (= seam 本体)
+ *
+ * 本番差し替えは hook 内のみ (Mock=fixture → Demo=@mswjs/data → 本番=実 API)。
+ * 返り値の形 { data, isLoading, error } は全段階で不変 → 画面は無変更。
+ *
+ * 粒度: 1 file = 1 hook = 1 concern。画面単位でも DB テーブル単位でもない
+ * (1 画面が複数 concern hook = 取得 / 選択 / 検索 等 を使ってよい)。
+ */
+
+// ── models/{{domain}}/types.ts ────────────────────────────────
+export type {{Entity}}VM = {
+  id: string;
+  // view-model の形 (= 画面が必要とする項目。本番でも変えない)
+};
+
+// ── models/{{domain}}/{{entity}}.ts (Pure: framework 非依存の純関数) ──
+// 例: 状態 → 表示 variant のマッピング、金額 format 等
+// export const {{ENTITY}}_STATUS_VARIANT: Record<...> = { ... };
+
+// ── hooks/{{domain}}/types.ts (共通返り値型) ──────────────────
+export type QueryResult<T> = { data: T; isLoading: boolean; error: string | null };
+
+// ── hooks/{{domain}}/use{{Concern}}.ts (★ view-model seam、1 file 1 hook) ──
+import { useEffect, useRef, useState } from "react";
+// import { {{ENTITY}}_FIXTURE } from "./fixtures";  // Mock 段階のみ
+// import { QueryResult } from "./types";
+
+export function use{{Concern}}(/* params */): QueryResult<{{Entity}}VM[]> {
+  const [data, setData] = useState<{{Entity}}VM[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    setIsLoading(true);
+    // Mock = 同期 fixture。Demo/本番で await api(...) に差し替える際は
+    // async IIFE + AbortController で wrap し、abort 時の error を無視する
+    // (例: const ac = new AbortController(); ...; return () => { mountedRef.current=false; ac.abort(); })
+    try {
+      // ★差し替え点: Mock = fixture 返却 / Demo = @mswjs/data / 本番 = await api(..., { signal: ac.signal })
+      // const rows = {{ENTITY}}_FIXTURE;
+      const rows: {{Entity}}VM[] = [];
+      if (mountedRef.current) { setData(rows); setError(null); }
+    } catch {
+      if (mountedRef.current) setError("{{entity}} の取得に失敗しました。");
+    } finally {
+      if (mountedRef.current) setIsLoading(false);
+    }
+    return () => { mountedRef.current = false; };
+  }, [/* params */]);
+
+  return { data, isLoading, error };
+}
+
+// ── 画面 (ビュー): hook を呼ぶだけ。fixture / axios を直接 import しない ──
+// const { data, isLoading, error } = use{{Concern}}();
+// if (error) return <Note text={error} variant="danger" />;
+// if (isLoading) return <Note text="読み込み中..." />;
+// return <Table rows={data} ... />;  // 共有部品で組む

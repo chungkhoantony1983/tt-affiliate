@@ -1,0 +1,18 @@
+{
+  "description": "SSoT ファイルパターン定義。workflow_enforce.py Check g が使用。sync で全リポに配信される。パターンは git diff 出力の相対パスに対して正規表現マッチする。",
+  "version": 1,
+  "patterns": [
+    "\\.claude/CLAUDE\\.md$",
+    "\\.claude/references/",
+    "\\.claude/skills/",
+    "\\.claude/scripts/",
+    "\\.claude/hooks/",
+    "\\.claude/setup\\.sh$",
+    "\\.claude/settings\\.json$",
+    "\\.claude/slides/",
+    "^CLAUDE\\.md$"
+  ],
+  "exclude": [
+    "\\.claude/logs/"
+  ]
+}

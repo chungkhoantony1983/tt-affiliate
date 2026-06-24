@@ -1,0 +1,122 @@
+direction: down
+
+title: |md
+  # TikTok Publish — Component Diagram
+  4-Layer Internal Architecture
+|
+
+# === External Systems ===
+external: External Systems {
+  style.fill: "#e8f5e9"
+  style.border-radius: 8
+
+  video_file: Video File (storage/) {
+    style.fill: "#c8e6c9"
+  }
+  tiktok_api: TikTok Content Posting API v2 {
+    style.fill: "#c8e6c9"
+  }
+  event_bus: Event Bus {
+    style.fill: "#c8e6c9"
+    video_published: VideoPublished
+  }
+}
+
+# === Capability: TikTok Publish ===
+tiktok_publish: TikTok Publish Capability {
+  style.fill: "#ede7f6"
+  style.border-radius: 8
+
+  # Layer 1: Adapters
+  adapters: Adapters {
+    style.fill: "#d1c4e9"
+    style.border-radius: 6
+
+    platform_publish: «interface» PlatformPublishAdapter {
+      style.stroke-dash: 5
+      style.fill: "#f8bbd0"
+    }
+    tiktok_v2: TikTokV2Adapter {
+      style.fill: "#b39ddb"
+    }
+    tiktok_v2 -> platform_publish: implements {
+      style.stroke-dash: 3
+    }
+  }
+
+  # Layer 2: Internal (Core Logic)
+  internal: Internal (Core Logic) {
+    style.fill: "#bbdefb"
+    style.border-radius: 6
+
+    publish_orchestrator: PublishOrchestrator {
+      style.fill: "#90caf9"
+    }
+    auth_manager: AuthManager {
+      style.fill: "#90caf9"
+    }
+    schedule_manager: ScheduleManager {
+      style.fill: "#90caf9"
+    }
+  }
+
+  # Layer 3: Contracts
+  contracts: Contracts (Data Types / Events) {
+    style.fill: "#fff9c4"
+    style.border-radius: 6
+
+    publish_request: PublishRequest {
+      style.fill: "#fff59d"
+    }
+    publish_result: PublishResult {
+      style.fill: "#fff59d"
+    }
+    schedule_slot: ScheduleSlot {
+      style.fill: "#fff59d"
+    }
+    auth_token: AuthToken {
+      style.fill: "#fff59d"
+    }
+  }
+
+  # Layer 4: Scripts (Config)
+  scripts: Scripts (Config) {
+    style.fill: "#e0f2f1"
+    style.border-radius: 6
+
+    publish_config: publish_config.yaml {
+      style.fill: "#b2dfdb"
+    }
+    schedule_config: schedule_config.yaml {
+      style.fill: "#b2dfdb"
+    }
+    oauth_config: oauth_config.yaml {
+      style.fill: "#b2dfdb"
+    }
+  }
+
+  # Internal flows
+  internal.publish_orchestrator -> internal.auth_manager: get valid token
+  internal.publish_orchestrator -> internal.schedule_manager: get next slot
+  internal.publish_orchestrator -> adapters.tiktok_v2: upload & publish {
+    style.stroke: "#7b1fa2"
+  }
+  internal.auth_manager -> contracts.auth_token: manage tokens
+  internal.schedule_manager -> contracts.schedule_slot: allocate slot
+  internal.publish_orchestrator -> contracts.publish_request: create request
+  internal.publish_orchestrator -> contracts.publish_result: produce result
+  scripts.publish_config -> internal.publish_orchestrator: config
+  scripts.schedule_config -> internal.schedule_manager: time slots
+  scripts.oauth_config -> internal.auth_manager: OAuth credentials
+}
+
+# === Data Flows (External) ===
+external.video_file -> tiktok_publish.internal.publish_orchestrator: video input {
+  style.stroke: "#4caf50"
+}
+tiktok_publish.adapters.tiktok_v2 -> external.tiktok_api: POST video {
+  style.stroke: "#2196f3"
+}
+tiktok_publish.contracts.publish_result -> external.event_bus.video_published: emit VideoPublished {
+  style.stroke: "#ff9800"
+}

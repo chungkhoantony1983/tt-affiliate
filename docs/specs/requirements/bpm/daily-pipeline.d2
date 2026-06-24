@@ -1,0 +1,80 @@
+# Daily Pipeline BPM — TikTok Affiliate Automation
+#
+# Business Process Model: daily video creation pipeline
+# Render: d2 format
+
+direction: down
+
+title: "Daily Video Pipeline" {
+  shape: text
+  style.font-size: 24
+}
+
+n8n: "N8N (Orchestrator)" {
+  shape: rectangle
+  style.fill: "#E8F5E9"
+
+  start: "Trigger: Daily 8:00 AM" {shape: oval}
+  check-products: "Query products\n(priority, not yet scripted)"
+  dispatch: "For each product\n(max 10/day)"
+
+  start -> check-products
+  check-products -> dispatch
+}
+
+script: "Script Generation" {
+  style.fill: "#E3F2FD"
+
+  call-groq: "Call Groq API\n(Llama 3.1 70B)"
+  parse: "Parse JSON response"
+  validate: "Validate:\nhook ≤10 words\nvoiceover ≤500 words"
+  retry: "Retry (max 2)" {style.fill: "#FFCDD2"}
+  save: "Save script to DB"
+
+  call-groq -> parse
+  parse -> validate
+  validate -> save: "pass"
+  validate -> retry: "fail"
+  retry -> call-groq
+}
+
+render: "Video Rendering" {
+  style.fill: "#FFF3E0"
+
+  queue: "Queue Celery task"
+  tts: "Generate TTS audio\n(edge-tts vi-VN)"
+  compose: "FFmpeg compose:\nimages + audio + text overlay"
+  output: "Output: .mp4\n1080×1920, H.264"
+
+  queue -> tts
+  tts -> compose
+  compose -> output
+}
+
+publish: "TikTok Publishing" {
+  style.fill: "#F3E5F5"
+
+  check-slot: "Check posting slot\n(peak hours VN)"
+  upload: "Upload via\nContent Posting API v2"
+  confirm: "Confirm publish status"
+  record: "Record video_id to DB"
+
+  check-slot -> upload
+  upload -> confirm
+  confirm -> record
+}
+
+notify: "Notification" {
+  style.fill: "#ECEFF1"
+
+  summary: "Build daily summary"
+  telegram: "Send to Telegram"
+
+  summary -> telegram
+}
+
+# Flow connections
+n8n.dispatch -> script.call-groq: "product data"
+script.save -> render.queue: "script JSON"
+render.output -> publish.check-slot: ".mp4 file"
+publish.record -> notify.summary: "all done"

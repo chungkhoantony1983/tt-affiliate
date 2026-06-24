@@ -1,0 +1,469 @@
+/* @theme project-slide */
+/* @auto-scaling true */
+
+/*
+ * Project Official Slide Theme for Marp
+ * ──────────────────────────────────────
+ * PowerPoint マスター "Master_Slide Theme at Project_3.0.0" を
+ * 限りなく再現する Marp CSS テーマ。
+ *
+ * PPTX カラースキーム:
+ *   dk1=#002020  lt1=#006970  dk2=#D8DBDB  lt2=#F7FAF9
+ *   accent1=#008587  accent2=#02A7AA  accent3=#44B7BB
+ *   accent4=#7DCCCF  accent5=#B1DFE2  accent6=#E0F2F4
+ */
+
+@import "default";
+
+/* ─── Design Tokens ─── */
+:root {
+  /* Color palette — matches PPTX theme exactly */
+  --project-dk1: var(--slide-color-dk1, #002020);
+  --project-lt1: var(--slide-color-lt1, #006970);
+  --project-dk2: var(--slide-color-dk2, #D8DBDB);
+  --project-lt2: var(--slide-color-lt2, #F7FAF9);
+  --project-accent1: var(--slide-color-accent1, #008587);
+  --project-accent2: var(--slide-color-accent2, #02A7AA);
+  --project-accent3: var(--slide-color-accent3, #44B7BB);
+  --project-accent4: var(--slide-color-accent4, #7DCCCF);
+  --project-accent5: var(--slide-color-accent5, #B1DFE2);
+  --project-accent6: var(--slide-color-accent6, #E0F2F4);
+
+  /* Semantic aliases */
+  --project-color-primary: var(--project-lt1);
+  --project-color-body: var(--project-dk1);
+  --project-color-subtle: var(--project-dk2);
+  --project-color-bg: var(--project-lt2);
+  --project-color-accent-bg: var(--project-accent6);
+
+  /* Typography — BIZ UDPGothic primary, matching PPTX fontScheme */
+  --project-font-title: var(
+    --slide-font-title,
+    "BIZ UDPGothic",
+    "Noto Sans CJK JP",
+    "Noto Sans JP",
+    "Hiragino Sans",
+    "Arial",
+    sans-serif
+  );
+  --project-font-body: var(
+    --slide-font-body,
+    "BIZ UDPGothic",
+    "Noto Sans CJK JP",
+    "Noto Sans JP",
+    "Hiragino Sans",
+    "Arial",
+    sans-serif
+  );
+  --project-font-code: var(
+    --slide-font-code,
+    "JetBrains Mono",
+    "SFMono-Regular",
+    Menlo,
+    monospace
+  );
+  --project-font-pagenum: var(
+    --slide-font-pagenum,
+    "M PLUS 1p",
+    "BIZ UDPGothic",
+    sans-serif
+  );
+
+  /*
+   * Font sizes — PPTX mapping (PPTX pt → Marp px @ 1280×720 viewport)
+   *   PPTX 16pt title   → 26px  (content slide h1)
+   *   PPTX 12pt body L1 → 18px
+   *   PPTX 10pt body L2 → 15px
+   *   PPTX  8pt label   → 13px
+   */
+  --project-size-h1: var(--slide-size-h1, 26px);
+  --project-size-h2: var(--slide-size-h2, 22px);
+  --project-size-h3: var(--slide-size-h3, 18px);
+  --project-size-body: var(--slide-size-body, 18px);
+  --project-size-small: var(--slide-size-small, 15px);
+  --project-size-label: var(--slide-size-label, 13px);
+  --project-size-footer: var(--slide-size-footer, 12px);
+
+  /*
+   * Spacing — PPTX has very tight margins (~2.5mm = ~13px at Marp scale).
+   * We use slightly more generous margins for readability in Marp.
+   */
+  --project-space-x: var(--slide-space-x, 28px);
+  --project-space-top: var(--slide-space-top, 22px);
+  --project-space-bottom: var(--slide-space-bottom, 44px);
+}
+
+/* ─── Base Section ─── */
+section {
+  background: var(--project-color-bg);
+  color: var(--project-color-body);
+  font-family: var(--project-font-body);
+  font-size: var(--project-size-body);
+  line-height: 1.5;
+  padding: var(--project-space-top) var(--project-space-x) var(--project-space-bottom);
+  /* PPTX: footer bar at bottom — recreated as a bottom border */
+  border-bottom: 5px solid var(--project-dk1);
+  /* コンテンツがスライド下端を超えた場合に切断する安全策 */
+  overflow: hidden;
+}
+
+/* ─── Headings ─── */
+h1,
+h2,
+h3 {
+  color: var(--project-color-primary);
+  font-family: var(--project-font-title);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  margin: 0 0 0.4em;
+}
+
+h1 {
+  font-size: var(--project-size-h1);
+  /* PPTX: title has a subtle bottom separator */
+  padding-bottom: 0.25em;
+  border-bottom: 2px solid var(--project-accent5);
+  margin-bottom: 0.5em;
+}
+
+h2 {
+  font-size: var(--project-size-h2);
+}
+
+h3 {
+  font-size: var(--project-size-h3);
+}
+
+/* ─── Body Text ─── */
+p,
+li,
+blockquote,
+td,
+th {
+  color: var(--project-color-body);
+}
+
+/* ─── Lists — PPTX bullet chars: ● ○ ■ ─── */
+ul,
+ol {
+  margin-top: 0.2em;
+  padding-left: 1.3em;
+}
+
+ul {
+  list-style: none;
+}
+
+ul > li {
+  margin: 0.15em 0;
+  position: relative;
+  padding-left: 0.1em;
+}
+
+/* Level 1: ● */
+ul > li::before {
+  content: "●";
+  color: var(--project-color-primary);
+  font-size: 0.55em;
+  position: absolute;
+  left: -1.2em;
+  top: 0.35em;
+}
+
+/* Level 2: ○ */
+ul ul > li::before {
+  content: "○";
+  font-size: 0.55em;
+}
+
+/* Level 3: ■ */
+ul ul ul > li::before {
+  content: "■";
+  font-size: 0.5em;
+}
+
+/* Nested list sizing — matches PPTX L2=10pt, L3=10pt */
+ul ul,
+ol ol,
+ul ol,
+ol ul {
+  font-size: var(--project-size-small);
+}
+
+li {
+  margin: 0.15em 0;
+}
+
+/* ─── Links ─── */
+a {
+  color: var(--project-accent1);
+}
+
+/* ─── Emphasis ─── */
+strong,
+b {
+  color: var(--project-color-primary);
+}
+
+/* ─── Horizontal Rule ─── */
+hr {
+  border: 0;
+  border-top: 2px solid var(--project-accent5);
+  margin: 0.7em 0;
+}
+
+/* ─── Code ─── */
+code,
+pre {
+  font-family: var(--project-font-code);
+}
+
+pre {
+  background: var(--project-lt2);
+  border: 1px solid var(--project-dk2);
+  border-radius: 6px;
+  color: var(--project-color-body);
+  font-size: 0.7em;
+  line-height: 1.35;
+  padding: 0.5em 0.7em;
+}
+
+code {
+  background: var(--project-lt2);
+  border-radius: 4px;
+  color: var(--project-color-body);
+  font-size: 0.8em;
+  padding: 0.05em 0.25em;
+}
+
+/* ─── Tables ─── */
+table {
+  border-collapse: collapse;
+  font-size: 0.78em;
+  margin: 0.4em 0;
+  width: 100%;
+}
+
+th {
+  background: var(--project-accent6);
+  border-bottom: 2px solid var(--project-accent5);
+  color: var(--project-dk1);
+  font-weight: 700;
+  text-align: left;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--project-dk2);
+  padding: 0.28em 0.45em;
+}
+
+/* ─── Blockquote ─── */
+blockquote {
+  border-left: 4px solid var(--project-color-primary);
+  margin: 0.5em 0;
+  opacity: 0.9;
+  padding: 0.15em 0 0.15em 0.6em;
+}
+
+/* ─── Footer ─── */
+footer {
+  bottom: 12px;
+  color: var(--project-dk1);
+  font-family: var(--project-font-pagenum);
+  font-size: var(--project-size-footer);
+  left: var(--project-space-x);
+  right: var(--project-space-x);
+  text-align: left;
+}
+
+/* ─── Page Number ─── */
+section::after {
+  bottom: 12px;
+  color: var(--project-dk1);
+  font-family: var(--project-font-pagenum);
+  font-size: var(--project-size-footer);
+  right: var(--project-space-x);
+}
+
+/* ──────────────────────────────────────
+ * Title / Cover Slide  (<!-- _class: lead -->)
+ *
+ * PPTX: lt1(#006970) 背景 + 白文字
+ * ────────────────────────────────────── */
+section.lead {
+  background: var(--project-lt1);
+  border-bottom: 5px solid var(--project-dk1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+
+section.lead h1 {
+  color: #ffffff;
+  font-size: 38px;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: 0.3em;
+}
+
+section.lead h2,
+section.lead p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 20px;
+  font-weight: 400;
+}
+
+section.lead footer {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+section.lead::after {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ──────────────────────────────────────
+ * Section Header Slide  (<!-- _class: section -->)
+ *
+ * PPTX SECTION_HEADER: accent6 左パネル + 中央大文字
+ * ────────────────────────────────────── */
+section.section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+section.section h1 {
+  font-size: 34px;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+section.section p {
+  color: var(--project-color-primary);
+  font-size: 18px;
+}
+
+/* ──────────────────────────────────────
+ * Section Header with Left Panel  (<!-- _class: section-panel -->)
+ *
+ * PPTX SECTION_TITLE_AND_DESCRIPTION:
+ *   左 38% に accent6 背景パネル + タイトル
+ *   右 62% に本文
+ * ────────────────────────────────────── */
+section.section-panel {
+  display: grid;
+  grid-template-columns: 38% 1fr;
+  gap: 0;
+  padding: 0;
+}
+
+section.section-panel::before {
+  content: "";
+  grid-row: 1 / -1;
+  grid-column: 1;
+  background: var(--project-accent6);
+}
+
+section.section-panel h1 {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  justify-self: center;
+  text-align: center;
+  font-size: 24px;
+  border-bottom: none;
+  padding: 20px;
+  z-index: 1;
+}
+
+section.section-panel > :not(h1) {
+  grid-column: 2;
+  padding: 20px 28px;
+}
+
+/* ──────────────────────────────────────
+ * Two-Column Layout  (<!-- _class: two-col -->)
+ *
+ * PPTX TITLE_AND_TWO_COLUMNS
+ * ────────────────────────────────────── */
+section.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 0 24px;
+}
+
+section.two-col h1 {
+  grid-column: 1 / -1;
+}
+
+/* ──────────────────────────────────────
+ * Content slide with section label
+ * (<!-- _class: labeled -->)
+ *
+ * PPTX TITLE_AND_BODY の上部セクションラベル再現:
+ *   最上部にカテゴリラベル（8pt bold）を表示
+ * Markdown 内で以下のように使用:
+ *   <!-- _class: labeled -->
+ *   <!-- label: カテゴリ名 -->
+ *   # スライドタイトル
+ * ────────────────────────────────────── */
+
+/* ──────────────────────────────────────
+ * Accent background highlight
+ *
+ * テーブルやリストを薄い accent6 背景で強調する場合に使用
+ * ────────────────────────────────────── */
+.highlight-box {
+  background: var(--project-accent6);
+  border-radius: 6px;
+  padding: 0.4em 0.6em;
+  margin: 0.3em 0;
+}
+
+/* ──────────────────────────────────────
+ * Image sizing utilities
+ * ────────────────────────────────────── */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+img[alt~="center"] {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Image sizing utilities */
+img[alt~="w:400"] { width: 400px; }
+img[alt~="w:500"] { width: 500px; }
+img[alt~="w:600"] { width: 600px; }
+img[alt~="w:700"] { width: 700px; }
+img[alt~="w:800"] { width: 800px; }
+img[alt~="w:900"] { width: 900px; }
+img[alt~="w:950"] { width: 950px; }
+img[alt~="w:1000"] { width: 1000px; }
+img[alt~="w:1100"] { width: 1100px; }
+
+/* ──────────────────────────────────────
+ * Diagram max-height constraint
+ *
+ * Mermaid SVGs should not exceed ~68% of slide height
+ * (720px viewport → max 490px) to leave room for
+ * title (h1~45px) + subtitle (h3~25px) + footer (~44px) + margins.
+ * ────────────────────────────────────── */
+img[alt*="mermaid-"] {
+  max-height: 490px;
+  object-fit: contain;
+  min-width: 60%;
+}

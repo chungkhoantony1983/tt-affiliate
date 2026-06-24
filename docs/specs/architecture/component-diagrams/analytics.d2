@@ -1,0 +1,126 @@
+direction: down
+
+title: |md
+  # Analytics — Component Diagram
+  4-Layer Internal Architecture
+|
+
+# === External Systems ===
+external: External Systems {
+  style.fill: "#e8f5e9"
+  style.border-radius: 8
+
+  inputs: Inputs {
+    style.fill: "#c8e6c9"
+    cap_events: All Capability Events {
+      tooltip: "ProductCreated, ScriptReady, VideoReady, VideoPublished"
+    }
+    tiktok_analytics: TikTok Analytics API
+  }
+  outputs: Outputs {
+    style.fill: "#c8e6c9"
+    telegram: Telegram Bot
+    dashboard_json: Dashboard JSON
+  }
+}
+
+# === Capability: Analytics ===
+analytics: Analytics Capability {
+  style.fill: "#fff3e0"
+  style.border-radius: 8
+
+  # Layer 1: Adapters
+  adapters: Adapters {
+    style.fill: "#ffe0b2"
+    style.border-radius: 6
+
+    telegram_notifier: TelegramNotifier {
+      style.fill: "#ffcc80"
+    }
+    dashboard_exporter: DashboardExporter {
+      style.fill: "#ffcc80"
+    }
+  }
+
+  # Layer 2: Internal (Core Logic)
+  internal: Internal (Core Logic) {
+    style.fill: "#bbdefb"
+    style.border-radius: 6
+
+    analytics_engine: AnalyticsEngine {
+      style.fill: "#90caf9"
+    }
+    metric_fetcher: MetricFetcher {
+      style.fill: "#90caf9"
+    }
+    report_generator: ReportGenerator {
+      style.fill: "#90caf9"
+    }
+    alert_manager: AlertManager {
+      style.fill: "#90caf9"
+    }
+  }
+
+  # Layer 3: Contracts
+  contracts: Contracts (Data Types / Events) {
+    style.fill: "#fff9c4"
+    style.border-radius: 6
+
+    metric_point: MetricPoint {
+      style.fill: "#fff59d"
+    }
+    daily_report: DailyReport {
+      style.fill: "#fff59d"
+    }
+    alert_rule: AlertRule {
+      style.fill: "#fff59d"
+    }
+    dashboard_payload: DashboardPayload {
+      style.fill: "#fff59d"
+    }
+  }
+
+  # Layer 4: Scripts (Config)
+  scripts: Scripts (Config) {
+    style.fill: "#e0f2f1"
+    style.border-radius: 6
+
+    analytics_config: analytics_config.yaml {
+      style.fill: "#b2dfdb"
+    }
+    alert_rules: alert_rules.yaml {
+      style.fill: "#b2dfdb"
+    }
+    report_templates: report_templates/ {
+      style.fill: "#b2dfdb"
+    }
+  }
+
+  # Internal flows
+  internal.analytics_engine -> internal.metric_fetcher: fetch metrics
+  internal.analytics_engine -> internal.report_generator: generate reports
+  internal.analytics_engine -> internal.alert_manager: evaluate alerts
+  internal.alert_manager -> adapters.telegram_notifier: send alert
+  internal.report_generator -> adapters.dashboard_exporter: export JSON
+  internal.metric_fetcher -> contracts.metric_point: store metrics
+  internal.report_generator -> contracts.daily_report: produce
+  internal.alert_manager -> contracts.alert_rule: evaluate
+  adapters.dashboard_exporter -> contracts.dashboard_payload: format
+  scripts.analytics_config -> internal.analytics_engine: config
+  scripts.alert_rules -> internal.alert_manager: thresholds
+  scripts.report_templates -> internal.report_generator: templates
+}
+
+# === Data Flows (External) ===
+external.inputs.cap_events -> analytics.internal.analytics_engine: pipeline events {
+  style.stroke: "#4caf50"
+}
+external.inputs.tiktok_analytics -> analytics.internal.metric_fetcher: video metrics {
+  style.stroke: "#4caf50"
+}
+analytics.adapters.telegram_notifier -> external.outputs.telegram: alerts & reports {
+  style.stroke: "#f44336"
+}
+analytics.adapters.dashboard_exporter -> external.outputs.dashboard_json: JSON payload {
+  style.stroke: "#2196f3"
+}

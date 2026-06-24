@@ -1,0 +1,76 @@
+---
+goal: "{goal-slug}"
+status: "open"
+unified_purpose: "{統合目的}"
+ssot_impact: "none"  # none | [変更対象SSoTファイルリスト]
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+---
+
+# 作業ログ: {goal-slug}
+
+## 構造化要求
+
+### 統合目的（Unified Purpose）
+<!-- [PURPOSE-LOCKED] 合意後は変更不可 -->
+
+### 分解目的（Decomposed Goals）
+<!-- resolve の責務: 「何を/なぜ」のみ記述する。
+     禁止: ファイル名、関数名、クラス名、コードスニペット、技術選定、実装手順。
+     これらは approve（構造定義セクション）で合意する。 -->
+1. {sub-goal-1}
+2. {sub-goal-2}
+
+### 前提条件
+-
+
+### スコープ外
+-
+
+### SSoT変更判定
+ssot_impact: none
+<!-- none の場合: approve で vote/DR 不要 -->
+<!-- SSoTリストの場合: approve で 3案vote + DR 必須 -->
+
+## 制約追加履歴
+<!-- セッション中にユーザーが追加した制約を記録する -->
+
+| 日付 | 制約内容 | トリガー |
+|------|---------|---------|
+
+## 構造定義
+<!-- approve（Step 8）の成果物。resolve とは明確に分離すること。
+     ここに「どうやるか（How）」を記述する。
+     [MEANS-LOCKED] 合意後はユーザー承認でのみ変更可 -->
+
+<!-- ■ Phase 分割パターン（大規模作業向け）:
+     sub-goal が多い場合、Phase ごとに構造定義を分割し、段階的に approve する。
+     各 Phase の構造定義に個別の [MEANS-LOCKED] マーカーを付与する。
+
+     例:
+     #### Phase 1: {Phase名}
+     [MEANS-LOCKED]  ← Phase 1 のみロック
+     （フローチャート + データ定義）
+
+     #### Phase 2: {Phase名}
+     <!-- Phase 1 完了後に approve -->
+     （フローチャート + データ定義）
+
+     Phase ロックのルール:
+     - 全 Phase を一括ロックしない。Phase N の approve は Phase N-1 完了後
+     - 後続 Phase は先行 Phase の結果により構造が変わりうる
+     - 制約追加で Phase の構造定義が陳腐化した場合は再 approve する -->
+
+### フローチャート
+<!-- ASCII/テキスト形式。物理名 + 論理名（日本語）。
+     実装の具体的手段（ファイル名、関数名、技術選定等）はここに書く -->
+
+### データ定義
+
+| 物理名 | 論理名（説明） | 配置先 | ライフサイクル |
+|--------|---------------|--------|-------------|
+
+## 作業進捗
+
+| 日付 | セッション | 内容 | 結果 |
+|------|-----------|------|------|

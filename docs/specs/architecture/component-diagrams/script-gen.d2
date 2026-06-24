@@ -1,0 +1,125 @@
+direction: down
+
+title: |md
+  # Script Generation — Component Diagram
+  4-Layer Internal Architecture
+|
+
+# === External Systems ===
+external: External Systems {
+  style.fill: "#e8f5e9"
+  style.border-radius: 8
+
+  product_data: Product Data (DB) {
+    style.fill: "#c8e6c9"
+  }
+  event_bus: Event Bus {
+    style.fill: "#c8e6c9"
+    script_ready: ScriptReady
+  }
+}
+
+# === Capability: Script Generation ===
+script_gen: Script Generation Capability {
+  style.fill: "#e3f2fd"
+  style.border-radius: 8
+
+  # Layer 1: Adapters
+  adapters: Adapters {
+    style.fill: "#bbdefb"
+    style.border-radius: 6
+
+    llm_adapter: «interface» LLMAdapter {
+      style.stroke-dash: 5
+      style.fill: "#f8bbd0"
+    }
+    groq_adapter: GroqAdapter (Llama 3.1 70B) {
+      style.fill: "#90caf9"
+    }
+    gemini_adapter: GeminiAdapter (Flash 1.5) {
+      style.fill: "#90caf9"
+    }
+    claude_adapter: ClaudeAdapter (Haiku 3.5) {
+      style.fill: "#90caf9"
+    }
+    groq_adapter -> llm_adapter: implements {
+      style.stroke-dash: 3
+    }
+    gemini_adapter -> llm_adapter: implements {
+      style.stroke-dash: 3
+    }
+    claude_adapter -> llm_adapter: implements {
+      style.stroke-dash: 3
+    }
+  }
+
+  # Layer 2: Internal (Core Logic)
+  internal: Internal (Core Logic) {
+    style.fill: "#f3e5f5"
+    style.border-radius: 6
+
+    script_generator: ScriptGenerator {
+      style.fill: "#ce93d8"
+    }
+    template_loader: TemplateLoader {
+      style.fill: "#ce93d8"
+    }
+    quality_checker: QualityChecker {
+      style.fill: "#ce93d8"
+    }
+  }
+
+  # Layer 3: Contracts
+  contracts: Contracts (Data Types / Events) {
+    style.fill: "#fff9c4"
+    style.border-radius: 6
+
+    script_dto: ScriptDTO {
+      style.fill: "#fff59d"
+    }
+    product_context: ProductContext {
+      style.fill: "#fff59d"
+    }
+    quality_score: QualityScore {
+      style.fill: "#fff59d"
+    }
+  }
+
+  # Layer 4: Scripts (Config)
+  scripts: Scripts (Config) {
+    style.fill: "#e0f2f1"
+    style.border-radius: 6
+
+    prompt_templates: prompt_templates/ {
+      style.fill: "#b2dfdb"
+    }
+    llm_config: llm_config.yaml {
+      style.fill: "#b2dfdb"
+    }
+    quality_rules: quality_rules.yaml {
+      style.fill: "#b2dfdb"
+    }
+  }
+
+  # Internal flows
+  internal.script_generator -> adapters.llm_adapter: generate text {
+    style.stroke: "#7b1fa2"
+  }
+  internal.script_generator -> internal.template_loader: load prompt
+  internal.script_generator -> internal.quality_checker: validate output
+  internal.quality_checker -> contracts.quality_score: score
+  internal.script_generator -> contracts.script_dto: produce
+  scripts.prompt_templates -> internal.template_loader: templates
+  scripts.llm_config -> adapters.groq_adapter: config
+  scripts.llm_config -> adapters.gemini_adapter: config
+  scripts.llm_config -> adapters.claude_adapter: config
+  scripts.quality_rules -> internal.quality_checker: thresholds
+}
+
+# === Data Flows (External) ===
+external.product_data -> script_gen.internal.script_generator: product info {
+  style.stroke: "#4caf50"
+}
+script_gen.contracts.script_dto -> external.event_bus.script_ready: emit ScriptReady {
+  style.stroke: "#ff9800"
+}

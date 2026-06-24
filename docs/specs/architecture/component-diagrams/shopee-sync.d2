@@ -1,0 +1,119 @@
+direction: down
+
+title: |md
+  # Shopee Sync — Component Diagram
+  4-Layer Internal Architecture
+|
+
+# === External Systems ===
+external: External Systems {
+  style.fill: "#e8f5e9"
+  style.border-radius: 8
+
+  shopee_api: Shopee Affiliate API {
+    style.fill: "#c8e6c9"
+  }
+  postgres: PostgreSQL {
+    style.fill: "#c8e6c9"
+  }
+  event_bus: Event Bus {
+    style.fill: "#c8e6c9"
+    product_created: ProductCreated
+    product_updated: ProductUpdated
+    product_deactivated: ProductDeactivated
+  }
+}
+
+# === Capability: Shopee Sync ===
+shopee_sync: Shopee Sync Capability {
+  style.fill: "#f3e5f5"
+  style.border-radius: 8
+
+  # Layer 1: Adapters
+  adapters: Adapters {
+    style.fill: "#e1bee7"
+    style.border-radius: 6
+
+    platform_sync_adapter: «interface» PlatformSyncAdapter {
+      style.stroke-dash: 5
+      style.fill: "#f8bbd0"
+    }
+    shopee_adapter: ShopeeAffiliateAdapter {
+      style.fill: "#ce93d8"
+    }
+    shopee_adapter -> platform_sync_adapter: implements {
+      style.stroke-dash: 3
+    }
+  }
+
+  # Layer 2: Internal (Core Logic)
+  internal: Internal (Core Logic) {
+    style.fill: "#bbdefb"
+    style.border-radius: 6
+
+    sync_orchestrator: SyncOrchestrator {
+      style.fill: "#90caf9"
+    }
+    change_detector: ChangeDetector {
+      style.fill: "#90caf9"
+    }
+    priority_calculator: PriorityCalculator {
+      style.fill: "#90caf9"
+    }
+  }
+
+  # Layer 3: Contracts
+  contracts: Contracts (Data Types / Events) {
+    style.fill: "#fff9c4"
+    style.border-radius: 6
+
+    product_dto: ProductDTO {
+      style.fill: "#fff59d"
+    }
+    sync_result: SyncResult {
+      style.fill: "#fff59d"
+    }
+    change_event: ChangeEvent {
+      style.fill: "#fff59d"
+    }
+  }
+
+  # Layer 4: Scripts (Config)
+  scripts: Scripts (Config) {
+    style.fill: "#e0f2f1"
+    style.border-radius: 6
+
+    sync_config: sync_config.yaml {
+      style.fill: "#b2dfdb"
+    }
+    priority_rules: priority_rules.yaml {
+      style.fill: "#b2dfdb"
+    }
+  }
+
+  # Internal flows
+  internal.sync_orchestrator -> adapters.shopee_adapter: fetch products
+  internal.sync_orchestrator -> internal.change_detector: detect changes
+  internal.change_detector -> internal.priority_calculator: prioritize
+  internal.sync_orchestrator -> contracts.product_dto: serialize
+  internal.sync_orchestrator -> contracts.change_event: emit
+  scripts.sync_config -> internal.sync_orchestrator: config
+  scripts.priority_rules -> internal.priority_calculator: rules
+}
+
+# === Data Flows (External) ===
+external.shopee_api -> shopee_sync.adapters.shopee_adapter: product catalog {
+  style.stroke: "#4caf50"
+}
+shopee_sync.internal.sync_orchestrator -> external.postgres: upsert products {
+  style.stroke: "#2196f3"
+}
+shopee_sync.contracts.change_event -> external.event_bus.product_created: publish {
+  style.stroke: "#ff9800"
+}
+shopee_sync.contracts.change_event -> external.event_bus.product_updated: publish {
+  style.stroke: "#ff9800"
+}
+shopee_sync.contracts.change_event -> external.event_bus.product_deactivated: publish {
+  style.stroke: "#ff9800"
+}

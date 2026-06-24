@@ -1,0 +1,81 @@
+# Capability Landscape — TikTok Affiliate Automation
+#
+# Render: d2 format (https://d2lang.com)
+# View with: d2 capability-landscape.d2 capability-landscape.svg
+
+direction: right
+
+orchestration: "N8N Orchestration" {
+  style.fill: "#E8F5E9"
+  trigger: "Schedule & Trigger"
+  monitor: "Health Check"
+}
+
+content-pipeline: "Content Pipeline" {
+  style.fill: "#E3F2FD"
+
+  shopee-sync: "Shopee Sync" {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+  }
+  script-gen: "Script Generation" {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+  }
+  video-render: "Video Render" {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+  }
+  tiktok-publish: "TikTok Publish" {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+  }
+
+  shopee-sync -> script-gen: "product data"
+  script-gen -> video-render: "script JSON"
+  video-render -> tiktok-publish: ".mp4 file"
+}
+
+analytics: "Analytics" {
+  style.fill: "#FFF3E0"
+  collect: "Collect Metrics"
+  report: "Generate Report"
+  notify: "Telegram Notify"
+}
+
+external: "External Systems" {
+  style.fill: "#F3E5F5"
+  shopee-api: "Shopee Affiliate API"
+  tiktok-api: "TikTok API v2"
+  groq: "Groq LLM"
+  gemini: "Gemini Flash"
+  edge-tts: "edge-tts"
+  telegram: "Telegram Bot"
+}
+
+infra: "Infrastructure" {
+  style.fill: "#ECEFF1"
+  postgres: "PostgreSQL"
+  redis: "Redis"
+  celery: "Celery Workers"
+  ffmpeg: "FFmpeg"
+}
+
+# Connections
+orchestration -> content-pipeline.shopee-sync: "weekly trigger"
+orchestration -> content-pipeline.script-gen: "daily trigger"
+orchestration -> analytics.collect: "daily trigger"
+
+content-pipeline.shopee-sync -> external.shopee-api: "fetch products"
+content-pipeline.script-gen -> external.groq: "generate script"
+content-pipeline.script-gen -> external.gemini: "fallback"
+content-pipeline.video-render -> external.edge-tts: "TTS"
+content-pipeline.video-render -> infra.ffmpeg: "render"
+content-pipeline.video-render -> infra.celery: "async job"
+content-pipeline.tiktok-publish -> external.tiktok-api: "upload"
+
+analytics.collect -> external.tiktok-api: "fetch metrics"
+analytics.notify -> external.telegram: "send report"
+
+infra.celery -> infra.redis: "broker"
+content-pipeline -> infra.postgres: "read/write"

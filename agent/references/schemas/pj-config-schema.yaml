@@ -1,0 +1,178 @@
+# pj-config.yaml スキーマ定義 (v1.0)
+#
+# 各PJフォルダ直下に配置する PJ パラメータ設定ファイルのスキーマ。
+# 汎用導出スクリプト (derive_*.py) および /pj-init, /change-impact スキルが参照する。
+#
+# 使い方:
+#   1. /pj-init スキルが入力テンプレートから自動生成
+#   2. または手動で作成して {PJ略称}/pj-config.yaml に配置
+#
+# 出典: Idemitsu の 6 本の導出スクリプトにハードコードされていた定数群を外出し
+#   - derive_all_from_master.py: ROLES, UNIT_PRICES, CONTINGENCY, PHASES, GATES, STAGES, PROCESS_NORM, EXPECTED_COST
+#   - create_master_wbs.py: TARGET_RAW, PRIOR_WEIGHTS
+#   - create_sequential_wbs.py: ゲート日付, EXTRA_ROWS, PRED_FIXES
+#   - level_resources.py: GATE_DEADLINE, GATE_START
+#   - calc_peak_fte.py: ROLES
+#   - calc_sequential_gates.py: ROLE_DAYS, GATE_DEFS
+
+schema_version: "1.0"
+
+# ============================================================
+# PJ基本情報
+# ============================================================
+project:
+  id: ""                    # PJ略称（英大文字3文字）— 必須
+  name: ""                  # PJ正式名称 — 必須
+  client: ""                # クライアント名 — 必須
+  type: ""                  # PJタイプ: A(フルプロダクト) / B(既存PF導入) / C(PoC/分析) — 必須
+  start_date: ""            # PJ開始日 (YYYY-MM-DD) — 必須
+  end_date: ""              # PJ終了日 (YYYY-MM-DD) — 必須
+  contract_type: ""         # 契約形態: 準委任 / 請負 / SaaS — 必須
+  currency: "JPY"           # 通貨（JPY固定）
+
+# ============================================================
+# ロール定義
+# ============================================================
+# 各ロールの ID と単価を定義する。
+# 元: ROLES + UNIT_PRICES (derive_all_from_master.py L30-40)
+#
+# 単価の指定方法（いずれか一方を指定。両方指定された場合は monthly_price を正本とする）:
+#   A) unit_price のみ指定 → monthly_price = unit_price × business_days_per_month で自動算出
+#   B) monthly_price のみ指定 → unit_price = monthly_price ÷ business_days_per_month で自動算出
+#   C) 両方指定 → monthly_price を正本とし、unit_price は WBS 計算用の参考値
+#
+# 月額ベースで商談した案件（例: 77B）は monthly_price を使用すること。
+# 日額ベースで商談した案件（例: Idemitsu）は unit_price を使用すること。
+roles:
+  - id: ""                  # ロールID（例: PM, SA, Platform, SW_Dev）— 必須
+    name: ""                # ロール表示名（例: Project Manager）— 必須
+    unit_price: 0           # 日額単価（円）— unit_price or monthly_price のいずれか必須
+    monthly_price: null     # 月額単価（円）— 月額ベースの商談で使用。null の場合は unit_price × BD/月 で自動算出
+
+# ============================================================
+# フェーズ定義
+# ============================================================
+# 元: PHASES (derive_all_from_master.py L43)
+phases:
+  - id: ""                  # フェーズID（例: P0-1, P0-2）— 必須
+    name: ""                # フェーズ表示名 — 必須
+    gates: []               # このフェーズが所属するゲートIDリスト — 必須
+
+# ============================================================
+# ゲート定義
+# ============================================================
+# 元: GATES (derive_all_from_master.py L47-53), GATE_DEADLINE/GATE_START (level_resources.py)
+gates:
+  - id: ""                  # ゲートID（例: G1, G2a, G2b, G3, G4）— 必須
+    name: ""                # ゲート表示名 — 必須
+    target_date: null       # 到達予定日 (YYYY-MM-DD, null=未確定) — 任意
+    start_date: null        # ゲート開始日 (YYYY-MM-DD) — 任意
+    deadline: null          # ゲート期限日 (YYYY-MM-DD) — 任意
+    phase_ids: []           # このゲートに含まれるフェーズIDリスト — 必須
+    process_filter: null    # 工程フィルタ（"要件定義" / "それ以外" / null=全工程）— 任意
+    months: 0               # ゲート期間（月数）— FTE計算用
+
+# ============================================================
+# 見積パラメータ
+# ============================================================
+estimate:
+  contingency_rate: 0.15    # コンティンジェンシー率 — 必須
+  business_days_per_month: 20  # 月間営業日数 — デフォルト20
+
+  # 段階見積の定義
+  # 元: STAGES (derive_all_from_master.py L56-61)
+  stages:
+    - id: ""                # 段階ID（例: Stage 1）
+      label: ""             # 段階表示名
+      gate_ids: []          # この段階に対応するゲートIDリスト
+      phase_ids: []         # この段階に対応するフェーズIDリスト
+      process_filter: null  # 工程フィルタ
+
+  # 工程分類（WBS CSV の「工程」列値 → 正規化カテゴリ）
+  # 元: PROCESS_NORM (derive_all_from_master.py L64-72)
+  process_categories:
+    # "工程名": "正規化カテゴリ"
+    # null はマイルストーン等の集計対象外
+    # 略語・英語名もエイリアスとして定義し、WBS入力揺れに対応
+    "要件定義": "要件定義"
+    "設計": "それ以外"
+    "開発": "それ以外"
+    "Unit Test": "それ以外"
+    "UT": "それ以外"
+    "結合テスト": "それ以外"
+    "外部結合テスト": "それ以外"
+    "Non Functional Test": "それ以外"
+    "NFT": "それ以外"
+    "シナリオテスト": "それ以外"
+    "テスト": "それ以外"
+    "UAT": "それ以外"
+    "リリース": "それ以外"
+    "Release": "それ以外"
+    "マイルストーン": null
+
+# ============================================================
+# WBS設定
+# ============================================================
+wbs:
+  # CSVカラム名のマッピング
+  csv_columns:
+    no: "No"
+    stream: "ストリーム"
+    track: "トラック"
+    phase: "フェーズ"
+    feature_id: "機能ID"
+    task_name: "タスク名"
+    process: "工程"
+    days: "日数(営業日)"
+    predecessor: "先行タスク"
+    start_base: "開始基準日"
+    start_date: "開始日"
+    end_date: "終了日"
+    task_id: "タスクID"
+    notes: "備考"
+    role_total: "ロール人日計"
+    # ロール列は roles セクションの id から自動生成: "{id}(人日)"
+    role_columns: {}        # ロールID → CSV列名のマッピング（自動生成をオーバーライドする場合）
+
+  # ロール人日配分の事前比率
+  # 元: PRIOR_WEIGHTS (create_master_wbs.py)
+  # 工程名 → ロールID → 比率（各行合計100）
+  prior_weights: {}
+
+  # 予算値（フェーズ × ロール別の目標人日）
+  # 元: TARGET_RAW (create_master_wbs.py)
+  budget_role_days: {}      # フェーズID → ロールID → 目標人日
+
+# ============================================================
+# スケジュール設定
+# ============================================================
+schedule:
+  # ゲート別スケジュール設定
+  # 元: create_sequential_wbs.py の EXTRA_ROWS, PRED_FIXES, DUR_FIXES
+  extra_tasks: []           # 追加タスクの定義（タスクID, フェーズ, 工程, 日数等）
+  predecessor_fixes: {}     # 先行タスク修正（タスクID → 先行タスクIDリスト）
+  duration_fixes: {}        # 日数上書き（タスクID → 日数）
+  parallel_groups: {}       # 並列グループ定義（グループ名 → 機能IDリスト）
+
+  # リソースレベリング設定
+  leveling:
+    fte_granularity: 0.25   # FTE刻み（デフォルト0.25）
+    max_trial_points: 20    # レベリング試行点数
+
+# ============================================================
+# 不変条件（検証用）
+# ============================================================
+# 元: EXPECTED_COST, EXPECTED_TOTAL (derive_all_from_master.py L75-79)
+invariants:
+  total_cost: null          # 総額（円）— 確定後に設定
+  total_base_days: null     # 基準ロール人日合計 — 確定後に設定
+  phase_costs: {}           # フェーズ別金額（フェーズID → 金額）
+  cost_tolerance: 8000      # 金額一致の許容差（円）— デフォルト8000
+  days_tolerance: 0.5       # 人日一致の許容差 — デフォルト0.5
+
+# ============================================================
+# エクスポート設定（オプション）
+# ============================================================
+export:
+  slide_mode: "ai"          # デフォルトスライドモード (ai / fast)
+  include_8_modeling: false  # 8_Modeling フォルダを含むか

@@ -1,0 +1,131 @@
+direction: down
+
+title: |md
+  # Video Render — Component Diagram
+  4-Layer Internal Architecture
+|
+
+# === External Systems ===
+external: External Systems {
+  style.fill: "#e8f5e9"
+  style.border-radius: 8
+
+  input: Inputs {
+    style.fill: "#c8e6c9"
+    script: Script Text
+    images: Product Images
+  }
+  output: Outputs {
+    style.fill: "#c8e6c9"
+    video_file: Video File (storage/)
+  }
+  event_bus: Event Bus {
+    style.fill: "#c8e6c9"
+    video_ready: VideoReady
+  }
+}
+
+# === Capability: Video Render ===
+video_render: Video Render Capability {
+  style.fill: "#fce4ec"
+  style.border-radius: 8
+
+  # Layer 1: Adapters
+  adapters: Adapters {
+    style.fill: "#f8bbd0"
+    style.border-radius: 6
+
+    tts_engine: «interface» TTSEngine {
+      style.stroke-dash: 5
+      style.fill: "#e1bee7"
+    }
+    edge_tts: EdgeTTSAdapter {
+      style.fill: "#f48fb1"
+    }
+    edge_tts -> tts_engine: implements {
+      style.stroke-dash: 3
+    }
+  }
+
+  # Layer 2: Internal (Core Logic)
+  internal: Internal (Core Logic) {
+    style.fill: "#bbdefb"
+    style.border-radius: 6
+
+    video_renderer: VideoRenderer {
+      style.fill: "#90caf9"
+    }
+    ffmpeg_composer: FFmpegComposer {
+      style.fill: "#90caf9"
+    }
+    asset_manager: AssetManager {
+      style.fill: "#90caf9"
+    }
+    storage_manager: StorageManager {
+      style.fill: "#90caf9"
+    }
+  }
+
+  # Layer 3: Contracts
+  contracts: Contracts (Data Types / Events) {
+    style.fill: "#fff9c4"
+    style.border-radius: 6
+
+    render_job: RenderJob {
+      style.fill: "#fff59d"
+    }
+    audio_segment: AudioSegment {
+      style.fill: "#fff59d"
+    }
+    video_manifest: VideoManifest {
+      style.fill: "#fff59d"
+    }
+    render_result: RenderResult {
+      style.fill: "#fff59d"
+    }
+  }
+
+  # Layer 4: Scripts (Config)
+  scripts: Scripts (Config) {
+    style.fill: "#e0f2f1"
+    style.border-radius: 6
+
+    render_config: render_config.yaml {
+      style.fill: "#b2dfdb"
+    }
+    voice_config: voice_config.yaml {
+      style.fill: "#b2dfdb"
+    }
+    ffmpeg_presets: ffmpeg_presets.yaml {
+      style.fill: "#b2dfdb"
+    }
+  }
+
+  # Internal flows
+  internal.video_renderer -> adapters.tts_engine: generate voiceover {
+    style.stroke: "#c62828"
+  }
+  internal.video_renderer -> internal.asset_manager: gather assets
+  internal.video_renderer -> internal.ffmpeg_composer: compose video
+  internal.ffmpeg_composer -> internal.storage_manager: save output
+  internal.video_renderer -> contracts.render_job: create job
+  internal.ffmpeg_composer -> contracts.video_manifest: build manifest
+  internal.storage_manager -> contracts.render_result: result
+  scripts.render_config -> internal.video_renderer: config
+  scripts.voice_config -> adapters.edge_tts: voice settings
+  scripts.ffmpeg_presets -> internal.ffmpeg_composer: presets
+}
+
+# === Data Flows (External) ===
+external.input.script -> video_render.internal.video_renderer: script text {
+  style.stroke: "#4caf50"
+}
+external.input.images -> video_render.internal.asset_manager: product images {
+  style.stroke: "#4caf50"
+}
+video_render.internal.storage_manager -> external.output.video_file: write MP4 {
+  style.stroke: "#2196f3"
+}
+video_render.contracts.render_result -> external.event_bus.video_ready: emit VideoReady {
+  style.stroke: "#ff9800"
+}

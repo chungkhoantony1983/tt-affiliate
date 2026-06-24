@@ -1,0 +1,7 @@
+{
+  "maxTextSize": 500000,
+  "er": {
+    "useMaxWidth": true,
+    "fontSize": 10
+  }
+}

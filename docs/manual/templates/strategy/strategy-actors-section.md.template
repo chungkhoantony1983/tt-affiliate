@@ -1,0 +1,33 @@
+<!-- scope: L1 §Actors（strategy.md内のサブセクション） -->
+<!-- spec: docs/manual/design-process-guide.md §5 L1 -->
+<!-- 正本: アクター（§2a正本レジストリ） -->
+<!-- 参照方法: 下流はactor_idでlookupのみ。再宣言禁止 -->
+
+## §Actors (アクターと外部システム)
+
+| actor_id | 表示名 | type | scope | 根拠ソース |
+|---|---|---|---|---|
+| `{{actor_id}}` | {{日本語表示名}} | {{type}} | {{scope}} | {{根拠}} |
+
+### type定義
+
+| type | 定義 |
+|---|---|
+| customer | サービスの利用者 |
+| internal-staff | 社内の業務担当者 |
+| external-org | 外部組織（取引先、パートナー等） |
+| external-system | 外部システム（API連携先等） |
+
+### 下流参照規約
+
+| 下流成果物 | 参照方法 |
+|---|---|
+| capabilities.md | actor_id参照のみ。actor名再宣言禁止 |
+| bpm/{scenario}.d2 | Lane名 = actor_id |
+| ui/{screen}.md | 情報定義の操作主体として参照 |
+
+<!-- 検証チェックリスト -->
+<!-- - [ ] 全actorがactor_idで重複なく一意 -->
+<!-- - [ ] §UN persona slotに登場するactorが全て本catalogにentry -->
+<!-- - [ ] 全actorが根拠ソースを持つ（推測禁止） -->
+<!-- - [ ] 下流成果物でactor名直接記述ゼロ、全て本§Actorsへのlookup参照 -->

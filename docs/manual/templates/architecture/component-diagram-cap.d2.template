@@ -1,0 +1,81 @@
+# scope: L3 Component詳細（Cap単位のD2図）
+# spec: docs/manual/design-process-guide.md §5 L3
+# 配置先: docs/specs/architecture/component-diagrams/{{cap}}.d2
+# Input: capabilities.md(#3) + component-landscape(#8)
+# Output: → repository-if-design(#15), directory-structure(#16)
+# 禁止: 実装コード、インフラ構成、デプロイ手順（§2c）
+# ============================================================================
+# Component Diagram — {{cap-id}} (per-Cap、単一 Cap 内部のみ)
+# ============================================================================
+# input: capabilities.md §L3 ⑥' Component (当該 Cap の Adapter / Internal 構造) + IC-1〜IC-8 規範
+# output: L4a 実装 (src/ ディレクトリ構造) + L5 component 実装の primary input
+# 規範: §3.A.13 (chain refinement 静的、C4 L3、**単一 Cap 内部詳細のみ**)
+#
+# 重要原則 (§3.A.13 §6 品質 gate):
+#   - **diagram は単一 Cap ({{cap-id}}) 内部のみを描画**、別 Cap の component は D2 node として宣言禁止
+#   - **External Cap への参照は comment markup のみ** (boundary に矩形外コメント、cross-Cap 関係詳細は
+#     component-landscape.d2 (§3.A.12) で declared)
+#   - **Adapter / Internal 区別必須** (IC-1: Adapter は Public IF、Internal は Cap 内部のみ参照可)
+#   - **DAG 必須** (IC-2: 循環依存禁止、Component 間 edge は DAG)
+
+direction: down
+
+# ============================================================================
+# Cap boundary (本 diagram の scope)
+# ============================================================================
+# {{cap-id}} の component を本 boundary 内のみで描画。external Cap は本 boundary 外の comment で参照のみ。
+
+cap_boundary: "{{cap-id}}" {
+  style.stroke-dash: 3
+
+  # ==========================================================================
+  # Adapter components (capabilities.md §L3 ⑥' Adapter、Public IF を露出)
+  # ==========================================================================
+  # IC-1: Adapter は Cap の Public IF を実装 (capabilities §②' API/Event 整合)
+  # IC-3: Adapter naming 規約は capabilities §L3 ⑥' で declared
+  adapter_api: "{{API Adapter 名}}\n(Public)" {
+    shape: rectangle
+  }
+  adapter_event: "{{Event Adapter 名}}\n(Public)" {
+    shape: rectangle
+  }
+
+  # ==========================================================================
+  # Internal components (capabilities.md §L3 ⑥' Internal、Cap 内部のみ参照可)
+  # ==========================================================================
+  # IC-2: Internal 間は DAG (循環依存禁止、validator で機械検証)
+  # IC-4: Internal は別 Cap から参照禁止 (Public IF = Adapter 経由のみ)
+  internal_service: "{{Application Service 名}}" {
+    shape: rectangle
+  }
+  internal_repo: "{{Repository / Aggregate Root}}" {
+    shape: rectangle
+  }
+  internal_policy: "{{Policy / Strategy}}" {
+    shape: rectangle
+  }
+}
+
+# ============================================================================
+# Component edges (Cap 内部の component 間関係、DAG 必須)
+# ============================================================================
+# Adapter → Internal Service (Public IF 経由の dispatch)
+cap_boundary.adapter_api -> cap_boundary.internal_service: "{{呼出 method}}"
+cap_boundary.adapter_event -> cap_boundary.internal_service: "{{Event handle method}}"
+
+# Internal Service → Repository / Policy (Cap 内部の協調、DAG)
+cap_boundary.internal_service -> cap_boundary.internal_repo: "{{persist / fetch}}"
+cap_boundary.internal_service -> cap_boundary.internal_policy: "{{rule evaluation}}"
+
+# ============================================================================
+# External Cap references (comment markup のみ、D2 node 化禁止)
+# ============================================================================
+# 本 diagram の scope 外。詳細は component-landscape.d2 (§3.A.12) を参照。
+#
+# 例: {{cap-id}} が Cap-Other-X に依存する場合
+#   # external cap (see component-landscape): Cap-Other-X
+#   # cap_boundary.adapter_api -> "Cap-Other-X" (comment のみ、D2 edge は書かない)
+#
+# 同様に逆方向 (Cap-Other-X → {{cap-id}}) も comment markup のみ:
+#   # external cap caller (see component-landscape): Cap-Other-X
+#   # invokes {{cap-id}}.adapter_api via {{Public IF 名}}

@@ -1,0 +1,141 @@
+# scope: L3 API定義（OpenAPI/AsyncAPI）
+# spec: docs/manual/design-process-guide.md §5 L3
+# 配置先: docs/specs/architecture/api/cap/{{adapter}}.v{{N}}.yaml (AsyncAPI) / docs/specs/architecture/openapi/cap/{{adapter}}.v{{N}}.yaml (OpenAPI)
+# Input: capabilities.md(#3)
+# Output: → security-design(#13), repository-if-design(#15)
+# 禁止: 実装コード、インフラ構成（§2c）
+openapi: 3.0.3
+
+info:
+  title: "Cap-{{cap-id}} API"
+  version: "v{{major}}.{{minor}}"
+  description: |
+    {{cap-id}} の Public API 仕様 (capabilities.md §② Interface = §②' OpenAPI/AsyncAPI 整合)。
+    Cap 内部実装 (Internal component) は本 file から漏洩禁止 (IC-4)。
+  contact:
+    name: "{{team-name}}"
+  # x-* extensions (chain 連携 + CI lint で必須):
+  x-capability-id: "{{cap-id}}"
+  x-domain: "{{domain (e.g., insurance, payment)}}"
+  x-owner: "{{cap-owner-team}}"
+  x-exposure: "<internal | external>"  # internal = Cap 間呼出、external = vendor / customer 公開
+
+servers:
+  - url: "{{base-url}}/v{{major}}"
+    description: "{{env (e.g., production, staging)}}"
+
+tags:
+  - name: "cap-{{cap-id}}"
+    description: "{{cap-id}} Public IF"
+
+# ============================================================================
+# Paths (CRUD 例、operationId 命名規約: {{CapName}}_{Action}{Resource})
+# ============================================================================
+# 失敗モード防止 (template comment で明示):
+#   - operationId 衝突: 命名規約 `{{CapName}}_{Action}{Resource}` を厳守 (CI 集約時の衝突防止)
+#   - 認証適用漏れ: 各 operation に `security` を必ず指定、無認証なら明示的に `security: []`
+#   - 冪等性: PUT/DELETE は冪等必須、PATCH は明示
+paths:
+  /{{resources}}/{id}:
+    get:
+      operationId: "{{CapName}}_Get{{Resource}}"
+      tags: ["cap-{{cap-id}}"]
+      summary: "{{Resource}} を取得"
+      # 冪等性: 必須 (GET は本来冪等)
+      security:
+        - {{auth-scheme}}: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: "OK"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/{{Resource}}" }
+        '400': { $ref: "#/components/responses/error_bad_request" }
+        '401': { $ref: "#/components/responses/error_unauthorized" }
+        '404': { $ref: "#/components/responses/error_not_found" }
+        '500': { $ref: "#/components/responses/error_internal" }
+
+    put:
+      operationId: "{{CapName}}_Update{{Resource}}"
+      tags: ["cap-{{cap-id}}"]
+      summary: "{{Resource}} を更新"
+      # 冪等性: 必須 (PUT は冪等、同一 body の再送で同一結果)
+      security:
+        - {{auth-scheme}}: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/{{Resource}}Input" }
+      responses:
+        '200':
+          description: "OK"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/{{Resource}}" }
+        '400': { $ref: "#/components/responses/error_bad_request" }
+        '401': { $ref: "#/components/responses/error_unauthorized" }
+        '500': { $ref: "#/components/responses/error_internal" }
+
+# ============================================================================
+# Components (schemas / securitySchemes / responses)
+# ============================================================================
+# 失敗モード防止:
+#   - cross-Cap schema 参照禁止: 他 Cap schema を `$ref` しない、共通 schema は contracts/ に移動
+#   - DTO 内部モデル漏洩禁止: 内部 Aggregate 名 / DB column 名を schema/field 名に使わない
+#   - schema 重複禁止: 同一 Cap 内も `$ref` で再利用、inline 定義は最小限
+components:
+  schemas:
+    # 公開 DTO のみ宣言 (Internal Aggregate 名は使用禁止、IC-4 整合)
+    {{Resource}}:
+      type: object
+      required: [id]
+      properties:
+        id: { type: string, description: "{{Resource}} ID (Public API ID、内部 Aggregate ID と区別可)" }
+        # {{他 Public フィールド}}
+
+    {{Resource}}Input:
+      type: object
+      required: [{{required_field}}]
+      properties:
+        {{field}}: { type: string }
+
+  securitySchemes:
+    # {{auth-scheme}} = bearerAuth | apiKeyAuth | oauth2 等 (capabilities.md §⑤ Quality 整合)
+    {{auth-scheme}}:
+      type: <http | apiKey | oauth2>
+      scheme: <bearer | basic>  # type=http 時
+      # bearerFormat: JWT       # type=http + scheme=bearer 時
+
+  responses:
+    # 標準エラー (cross-Cap で再利用、contracts/ に共通定義する代替実装も可)
+    error_bad_request:
+      description: "400 Bad Request"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/<error-response-schema>" }
+    error_unauthorized:
+      description: "401 Unauthorized"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/<error-response-schema>" }
+    error_not_found:
+      description: "404 Not Found"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/<error-response-schema>" }
+    error_internal:
+      description: "500 Internal Server Error"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/<error-response-schema>" }

@@ -1,0 +1,194 @@
+# scope: L2 BPM（業務プロセス swim lane。業務シナリオ別）
+# spec: docs/manual/design-process-guide.md §5 L2
+# 配置先: docs/specs/requirements/bpm/{{scenario-id}}.d2
+# Input: 業務ソース + strategy.md(#1)
+# Output: → capabilities.md(#3), ui(#12)
+# 正本: 業務フロー詳細（§2a正本レジストリ）
+# 粒度: 1成果物/1状態変化/1判断（§2b粒度基準）。個別属性名は書かない
+# 禁止: CSS、Atomic Design、コンポーネント名、ライブラリ名、SQL、HTML input type（§2c）
+# 品質ゲート: CP-1.5
+#
+# 構造規範（DPG §5 L2、 v2 = §1 関連組織・アクター・システム reference）:
+#   - Pool = 組織（= L1 §1 階層 1 を参照、 1 組織 1 Pool。 顧客企業 / 取引先組織 / 顧客金融機関 / プラットフォーム / 外部システム提供企業 等）
+#   - Lane = 人間アクター or システム（= L1 §1 階層 2 を参照、 日本語表記）
+#     例: 顧客企業 Pool 内 = 営業担当 / 経理担当 / 案件責任者 等
+#     例: プラットフォーム Pool 内 = Platform 全構造 = 共通基盤 5 (TM / UK / MBF / EOAI / EDK) + mp 共通 9 (RM-mp / FG-mp / HN-mp / EID-mp / EUM-mp / EN-mp / ED-mp / ECO-mp / ECuM) + 担当者共通 10 (RM-担当者 / FG / HN-担当者 / EID-担当者 / BUM / CB / EN-担当者 / ED-担当者 / SM / RR) + BA 7 (ModuleA / EI / EP / EFB / ModuleB / EL / EA) + backend (ケイエール) 等から PJ scope 内の関連 service を個別 Lane 明示 (= 一括「プラットフォームシステム」 禁止、 §5 L1 §1-D Platform 全構造 declared SSoT 参照)
+#     例: 外部システム提供企業 Pool 内 = freee / マネーフォワード / 弥生 / 勘定奉行 / TKC 各 system
+#   - Cap-process Lane は使わない
+#   - L1 英語 ID 禁止 (= snake_case / kebab-case 禁止)、 日本語化 (= プロダクト固有名詞 freee / マネーフォワード / 弥生 / 勘定奉行 / TKC + Platform 全 service 名 (= 共通基盤 5 / mp 共通 9 / 担当者共通 10 / BA 7 / backend 等) のみ例外)
+#   - activity = 業務アクション粒度（1 成果物 / 1 状態変化 / 1 判断）
+#   - activity 注記（tooltip inline）: 入力 / 出力 / 外部連携先 / 出典 / [Cap名]（後追記）
+#   - activity 種別 class: start_end（開始/終了）/ decision（分岐）/ parallel（並列）/ 通常 rectangle
+#   - edge label: 操作意図（Pool 内 = solid / Pool 跨ぎ = message flow）
+#
+# 配置規範（描画品質）:
+#   - 全 Pool 統一 width / 縦 stack 間隔 0 / 全 Pool 横断 column 整列 / 全 activity X 軸 unique
+#
+# routing 規範:
+#   - lane 内 = 横出 + 横入
+#   - lane 跨ぎ src.y<tgt.y = 横出 + 上入 / src.y>tgt.y = 横出 + 下入 / 同 row = 横出 + 横入
+#   - backward = 横出 + Pool 内 上 rail + 上下入
+#   - 同 row 2 点直線 / 異 row 3 点 L 字 1 曲がり
+#
+# 手動描画でも再現可能: 本規範は drawio / diagrams.net 等の手動配置でも遵守する。
+# d2-swimlane-to-drawio Adapter（Cap-Tooling）は本規範を自動適用する tool 実装であり、
+# tool 不在環境では手動で本規範を適用する。
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+direction: down
+
+classes: {
+  start_end: {
+    shape: oval
+    style: {
+      fill: "#fef3c7"
+      stroke: "#92400e"
+      stroke-width: 2
+    }
+  }
+  decision: {
+    shape: diamond
+    style: {
+      fill: "#fde68a"
+      stroke: "#92400e"
+      stroke-width: 2
+    }
+  }
+  parallel: {
+    style: {
+      fill: "#dbeafe"
+      stroke: "#1e40af"
+      stroke-width: 2
+    }
+  }
+}
+
+# ========== Pool 1: 顧客企業（= L1 §1-A、 人間アクター群） ==========
+顧客企業: "{{顧客企業 Pool 表示名}}" {
+  direction: down
+
+  # Lane: 人間アクター 1（= L1 §1 階層 2 reference、 日本語表記必須）
+  {{アクター表示名 1}}: "{{アクター表示名 1}}" {
+    direction: right
+
+    step_1_start: "{{シナリオ開始 activity 名}}" {
+      class: start_end
+      tooltip: "入力: {{業務オブジェクト名}} / 出力: {{業務オブジェクト名}} / 出典: {{SRC-NNN or UN-N(タイトル)}} / Cap: {{Cap 名（後追記）}}"
+    }
+    step_2: "{{業務アクション名}}" {
+      shape: rectangle
+      tooltip: "入力: {{業務オブジェクト名}} / 出力: {{業務オブジェクト名}} / 出典: {{出典}} / Cap: {{Cap 名}}"
+    }
+    step_3_decision: "{{判断 activity 名}}" {
+      class: decision
+      tooltip: "判断: {{判断ルール}} / 分岐: {{分岐先}} / 出典: {{出典}} / Cap: {{Cap 名}}"
+    }
+  }
+
+  # Lane: 人間アクター 2
+  {{アクター表示名 2}}: "{{アクター表示名 2}}" {
+    direction: right
+
+    step_4: "{{業務アクション名}}" {
+      shape: rectangle
+      tooltip: "入力: {{業務オブジェクト名}} / 出力: {{業務オブジェクト名}} / 出典: {{出典}} / Cap: {{Cap 名}}"
+    }
+  }
+}
+
+# ========== Pool 2: プラットフォーム（= L1 §1-D、 自社 product system、 個別 system 明記必須） ==========
+プラットフォーム: "プラットフォーム" {
+  direction: down
+
+  # Lane = Platform 全構造 (= 共通基盤 5 / mp 共通 9 / 担当者共通 10 / BA 7 / backend 等) から PJ scope 内の関連 service を個別 Lane 明示、 一括「プラットフォームシステム」 禁止 (= §5 L1 §1-D Platform 全構造 declared SSoT 参照)
+  ModuleB: "ModuleB (Cash Manager)" {
+    direction: right
+
+    step_auto: "{{自動 activity 名}}" {
+      shape: rectangle
+      tooltip: "入力: {{業務オブジェクト名}} / 出力: {{業務オブジェクト名}} / 外部連携: {{連携先}} / 出典: {{出典}} / Cap: {{Cap 名}}"
+    }
+  }
+
+  # 必要に応じて PJ scope 内の関連 service を個別 Lane 追加 (例: 共通基盤 TM / UK / MBF、 mp 共通 RM-mp / EID-mp、 担当者共通 BUM / CB、 BA EI / EP / EFB / EL / EA / ModuleA、 backend 等)
+}
+
+# ========== Pool 3: 取引先組織（= L1 §1-B、 社外組織 + 人間アクター） ==========
+取引先組織: "{{取引先組織 Pool 表示名}}" {
+  direction: down
+
+  取引先担当: "取引先担当" {
+    direction: right
+
+    step_external_action: "{{外部組織 activity 名}}" {
+      shape: rectangle
+      tooltip: "入力: {{業務オブジェクト名}} / 出力: {{業務オブジェクト名}} / 出典: {{出典}} / Cap: {{Cap 名}}"
+    }
+  }
+}
+
+# ========== Pool 4: 外部システム提供企業（= L1 §1-E、 他社 system 個別明記） ==========
+# 例: freee / マネーフォワード / 弥生 / 勘定奉行 / TKC 各社の system
+外部システム提供企業: "{{外部システム提供企業 Pool 表示名}}" {
+  direction: down
+
+  # Lane = 各社 system 個別 (例: freee / マネーフォワード / 弥生 等)
+  freee: "freee" {
+    direction: right
+
+    step_end: "{{シナリオ終了 activity 名}}" {
+      class: start_end
+      tooltip: "入力: {{業務オブジェクト名}} / 出力: {{業務オブジェクト名}} / 外部連携: {{連携先}} / 出典: {{出典}} / Cap: {{Cap 名}}"
+    }
+  }
+}
+
+# ========== flow edges ==========
+# Pool 内 edge = solid line（normal flow）/ Pool 跨ぎ edge = message flow（label で明示）
+
+# Pool 1 内 flow (= 顧客企業 Pool 内、 日本語 Lane reference)
+顧客企業.{{アクター表示名 1}}.step_1_start -> 顧客企業.{{アクター表示名 1}}.step_2: "次"
+顧客企業.{{アクター表示名 1}}.step_2 -> 顧客企業.{{アクター表示名 1}}.step_3_decision: "次"
+顧客企業.{{アクター表示名 1}}.step_3_decision -> 顧客企業.{{アクター表示名 2}}.step_4: "{{分岐ラベル}}"
+
+# Pool 跨ぎ flow（message flow、 日本語 Pool reference）
+顧客企業.{{アクター表示名 2}}.step_4 -> プラットフォーム.ModuleB.step_auto: "{{操作意図ラベル}} (message flow)"
+プラットフォーム.ModuleB.step_auto -> 取引先組織.取引先担当.step_external_action: "送付 (message flow)"
+取引先組織.取引先担当.step_external_action -> 外部システム提供企業.freee.step_end: "連携 (message flow)"
+
+# backward edge 例（feedback / 差戻し等、cycle 構成）
+# 顧客企業.{{アクター表示名 2}}.step_4 -> 顧客企業.{{アクター表示名 1}}.step_2: "差戻し (feedback)"
+
+# ============================================================================
+# 検証チェックリスト（CP-1.5 承認時）
+# ============================================================================
+# 構造規範
+# - [ ] 全 Pool が組織単位で分離されているか (= L1 §1 階層 1 reference、 顧客企業 / 取引先組織 / 顧客金融機関 / プラットフォーム / 外部システム提供企業 等)
+# - [ ] 全 Lane が L1 §1 階層 2 (= 人間アクター / システム) と一致するか (= 日本語表記、 snake_case 禁止)
+# - [ ] platform system は Platform 全構造 (= 共通基盤 5 / mp 共通 9 / 担当者共通 10 / BA 7 / backend 等) から PJ scope 内の関連 service が個別 Lane で declared されているか (= 一括「プラットフォームシステム」 禁止、 §5 L1 §1-D Platform 全構造 declared SSoT 参照)
+# - [ ] Cap-process Lane が存在しないか
+#
+# activity 規範
+# - [ ] 全 activity に tooltip（入力 / 出力 / 出典）があるか
+# - [ ] 入力 / 出力が業務オブジェクト名粒度か（個別属性名は書かない）
+# - [ ] activity 種別 class（start_end / decision / parallel）or shape: rectangle が適用されているか
+#
+# 配置規範
+# - [ ] 全 Pool 統一 width / 縦 stack 間隔 0
+# - [ ] 全 Pool 横断 column 整列（同 phase の activity が縦軸で揃う）
+# - [ ] 全 activity X 軸 unique（同 phase でも全 Pool 横断で異なる X）
+#
+# routing 規範
+# - [ ] lane 内 = 横出 + 横入 / lane 跨ぎ = 横出 + 上下入
+# - [ ] backward = 横出 + Pool 内 上 rail（Pool 外侵入禁止）
+# - [ ] 同 row 2 点直線 / 異 row 3 点 L 字 1 曲がり
+#
+# 整合性
+# - [ ] L2 禁止事項（§2c）が混入していないか
+# - [ ] L1 §2 UN の業務フロー骨格と整合しているか（詳細化であってコピーではない）
+# - [ ] BPM シナリオと §2 BF の対応関係が明示されているか

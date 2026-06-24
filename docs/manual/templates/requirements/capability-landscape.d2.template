@@ -1,0 +1,42 @@
+# scope: L2 Capランドスケープ（Cap間連携方式の俯瞰図）
+# spec: docs/manual/design-process-guide.md §5 L2
+# 配置先: docs/specs/requirements/capability-landscape.d2
+# Input: capabilities.md(#3)
+# Output: → component-landscape(#8), container(#10)
+# 粒度: Cap単位。内部構造は書かない（§2b粒度基準）
+# 禁止: CSS、Atomic Design、コンポーネント名、ライブラリ名、SQL（§2c）
+# ============================================================================
+# Capability Landscape — {{PJ 名}}
+# ============================================================================
+# input: capabilities.md §② Interface (System IF + 外部 vendor IF)
+# output: container-diagram + component-landscape + system-flow の primary input
+# 規範: §3.A.5 (chain primary 静的)、Cap 間関係のみ描画 (内部 5軸詳細は capabilities.md)
+
+direction: down
+
+# ============================================================================
+# Actors (strategy.md §Actors からの参照、再宣言禁止)
+# ============================================================================
+# scope=in の actor のみ landscape に登場。actor 詳細は strategy.md §Actors を参照。
+customer: "{{顧客 / 利用者表示名}}"
+staff: "{{内部担当者表示名}}"
+
+# ============================================================================
+# Capabilities (capabilities.md から全 Cap を参照、5軸内部詳細は持たない)
+# ============================================================================
+# Cap-as-Actor naming: Cap-{Domain}-{Name} 形式
+Cap-Sample-Application: "{{Cap 表示名 (例: Cap-Insurance-Application)}}"
+Cap-Sample-Workflow: "{{Cap 表示名 (例: Cap-Insurance-Workflow)}}"
+
+# ============================================================================
+# External systems (capabilities.md §④ External からの参照)
+# ============================================================================
+ext_partner: "{{外部システム/組織名}}"
+
+# ============================================================================
+# Relations (Cap 間連携、capabilities.md §② IF System の呼出関係を edge 化)
+# ============================================================================
+# edge label = API/Event 名 (capabilities.md §②' に declared 済の actual ID を参照)
+customer -> Cap-Sample-Application: "{{呼出 IF 名 (e.g., POST /applications)}}"
+Cap-Sample-Application -> Cap-Sample-Workflow: "{{Event/API 名 (e.g., ApplicationSubmitted)}}"
+Cap-Sample-Workflow -> ext_partner: "{{HTTPS 等 (e.g., POST /vendor/verify)}}"

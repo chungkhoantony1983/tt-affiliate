@@ -1,0 +1,31 @@
+# PJ基本情報
+項目,値,説明
+PJ名,,プロジェクトの正式名称
+PJ略称,,英大文字3文字（例: IDM, HKD, 77B）
+クライアント名,,顧客企業の正式名称
+PJタイプ,,A(フルプロダクト開発) / B(既存PF導入) / C(PoC/分析)
+契約形態,,準委任 / 請負 / SaaS
+開始予定日,,YYYY-MM-DD
+終了予定日,,YYYY-MM-DD
+コンティンジェンシー率(%),15,見積に上乗せするリスクバッファ率
+8_Modeling要否,,Y / N（データ分析・モデリングPJの場合Y）
+
+# ロール定義（行を追加可能）
+ロールID,ロール名,日単価(円)
+PM,Project Manager,120000
+SA,Solution Architect,104000
+Platform,Platform Engineer,85000
+SW_Dev,Software Developer,80000
+QA,Quality Assurance,60000
+
+# フェーズ定義（行を追加可能）
+フェーズID,フェーズ名,所属ゲート
+P1,Phase 1,G1
+P2,Phase 2,G2
+
+# ゲート定義（行を追加可能）
+ゲートID,ゲート名,到達予定日,期間(月)
+G0,プロジェクト開始,,
+G1,業務要件定義,,3
+G2,システム要件定義〜開発/試験,,6
+G3,運用,,3

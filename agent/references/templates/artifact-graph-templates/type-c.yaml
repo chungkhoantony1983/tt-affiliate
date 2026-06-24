@@ -1,0 +1,86 @@
+schema_version: "1.0"
+project_id: "{{ PJ_ID }}"
+
+# Type C: PoC/分析（SMTCパターン）
+# 最小構成。WBS/リソース定義は簡略化し、モデル・分析特有の report ノードを持つ。
+# change_categories は scope / cost / model の3つに限定。
+
+artifacts:
+  # --- G0: PJ管理（簡略） ---
+  - id: "001-PJ定義"
+    doc_id: "{{ PJ_ID }}-001"
+    title: "PJ定義"
+    category: "0_Project"
+    gate: "G0"
+    format: "md"
+    status: "active"
+    version: "0.1.0"
+
+  - id: "003-課題管理"
+    doc_id: "{{ PJ_ID }}-003"
+    title: "課題管理"
+    category: "0_Project"
+    gate: "G0"
+    format: "csv"
+    status: "active"
+    version: "0.1.0"
+
+  - id: "005-見積書"
+    doc_id: "{{ PJ_ID }}-005"
+    title: "見積書"
+    category: "0_Project"
+    gate: "G0"
+    format: "md"
+    status: "active"
+    version: "0.1.0"
+
+  # --- G1: 戦略定義（簡略） ---
+  - id: "101-ビジネス定義"
+    doc_id: "{{ PJ_ID }}-101"
+    title: "ビジネス定義"
+    category: "1_Strategy"
+    gate: "G1"
+    format: "md"
+    status: "draft"
+    version: "0.1.0"
+
+  # --- 8_Modeling: 分析・モデリング（PoC特有） ---
+  - id: "801-report"
+    doc_id: "{{ PJ_ID }}-801"
+    title: "分析レポート"
+    category: "8_Modeling"
+    gate: "G3"
+    format: "md"
+    status: "draft"
+    version: "0.1.0"
+
+dependencies:
+  # PJ定義 → 見積書・課題管理
+  - from: "001-PJ定義"
+    to: "005-見積書"
+    type: "derives"
+    description: "PJ定義のスコープ・体制から見積を導出"
+  - from: "001-PJ定義"
+    to: "003-課題管理"
+    type: "references"
+    description: "課題カテゴリをPJ定義から参照"
+
+  # ビジネス定義 → report
+  - from: "101-ビジネス定義"
+    to: "801-report"
+    type: "derives"
+    description: "ビジネス課題定義から分析レポートの評価軸・結論を導出"
+
+change_categories:
+  scope:
+    label: "スコープ変更"
+    description: "分析対象・評価軸の追加/削除 → ビジネス定義 → report"
+    entry_points: ["101-ビジネス定義"]
+  cost:
+    label: "コスト変更"
+    description: "体制変更・期間変更 → 見積"
+    entry_points: ["005-見積書"]
+  model:
+    label: "モデル変更"
+    description: "モデル仕様・評価指標の変更 → report"
+    entry_points: ["801-report"]

@@ -1,0 +1,64 @@
+WBS ID,タスク,担当,工数(人日),状態,開始,終了,先行タスク,工数出典,備考
+M-0,プロジェクトキックオフ,PM,,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,,,PJ-001 / PJ-002 / PJ-003 declared 完了が条件
+M-1,要件定義完了 (L1 + L2),PM + BA,,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,M-0,,L1 strategy.md + L2 crc.md + capabilities.md (Cap 一覧) + capability-landscape.d2 + bpm/{scenario}.d2 declared 完了
+M-2,基本設計完了 (L3 Cap + cross-Cap),全チーム,,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,M-1,,L3 capabilities + cross-Cap (API/Event/DB ER 等) declared 完了
+M-3,開発完了 (コードフリーズ、L4a + L5),全チーム,,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,M-2,,L4a 実装設計 + L5 実装 + 単体 + 結合テスト 完了
+M-4,MVP リリース,PM + 全チーム,,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,M-3,,E2E test pass + 外部結合疎通テスト pass
+M-5,GA リリース,PM + 全チーム,,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,M-4,,NFT (性能 / 負荷) pass + 運用 runbook 確定
+WBS-1,要件定義 (L1 + L2),,,,,,,,L1 strategy + L2 (CRC + capabilities + capability-landscape + bpm/{scenario}.d2) を input
+1.1,L1 Strategy 定義,,,,,,,,
+1.1.1,SO/UN/SP/UL declared,PM + BA,15,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,,,strategy.md (L1) 起票
+1.1.2,§1 関連組織・アクター・システム catalog declared,PM + BA,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,1.1.1,,strategy.md §1 関連組織・アクター・システム
+1.2,L2 要件定義 (CRC + capabilities + landscape + BPM),,,,,,,,1 CR = 2 人日 / Cap 一覧 = 5 人日 / 1 BPM scenario = 3 人日 (例示、業界平均出典必須、PJ DR `references` 参照)
+1.2.1,CRC catalog declared (crc.md),PM + BA,8,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,1.1,,
+1.2.2,Cap 一覧 + 5軸抽象 (capabilities.md),BA + SA,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,1.2.1,,
+1.2.3,Capability Landscape (capability-landscape.d2),SA,2,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,1.2.2,,
+1.2.4,BPM scenario {scenario1} (bpm/{scenario1}.d2),BA + SA,3,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,1.2.2,,
+1.3,要件定義レビュー (CP-1),,,,,,,,
+1.3.1,内部レビュー,全チーム,3,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,1.2,,
+1.3.2,顧客 / PMO レビュー・承認,PM + BA,2,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,1.3.1,,
+WBS-2,基本設計 (L3 Cap + cross-Cap),,,,,,,,1 Cap = 5 人日 (例示) / cross-Cap = 5 人日 (例示、出典必須)
+2.1,L3 Cap 5 軸定義 (per-Cap),,,,,,,,
+2.1.1,Cap-{Domain1} 5軸定義,Tech Lead + Cap owner,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,1.2,,1 Cap = 5 人日 (例示)
+2.1.2,Cap-{Domain2} 5軸定義,Tech Lead + Cap owner,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,1.2,,
+2.2,cross-Cap 横軸成果物,,,,,,,,
+2.2.1,API カタログ (api-catalog.openapi.yaml),Tech Lead,3,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,2.1,,L3 全 Cap §② API 確定後
+2.2.2,Event カタログ (event-catalog.asyncapi.yaml),Tech Lead,2,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,2.1,,L3 全 Cap §② Event 確定後
+2.2.3,DB ER 図 (db-er-diagram.d2),Tech Lead + BE-Sr,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,2.1,,L3 全 Cap §①' Aggregate 確定後
+2.2.4,System Flow / DFD (per-scenario),Tech Lead,3,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,2.2.1,,主要シナリオ単位
+2.2.5,Component Landscape (cross-Cap),Tech Lead,2,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,2.1,,L3 全 Cap §⑥' Component 確定後
+2.3,基本設計レビュー (CP-2 / CP-3),,,,,,,,
+2.3.1,Parnas 評価 + cross-Cap 整合性,Tech Lead + 全チーム,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,2.2,,
+2.3.2,顧客 / PMO 設計レビュー・承認,PM + Tech Lead,3,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,2.3.1,,
+WBS-3,開発 (L4a 詳細設計 + L5 実装 + 単体テスト),,,,,,,,1 Component = 8 人日 (例示、出典必須)
+3.1,L4a 実装設計 (横串 9 観点),,,,,,,,
+3.1.1,ディレクトリ構造設計 + ルーティング設計,Tech Lead,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,2.3,,
+3.1.2,Repository IF 設計 + 状態管理設計,Tech Lead + BE-Sr,8,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.1.1,,
+3.1.3,Observability + Security + Cap 境界 UI 制約設計,Tech Lead + DevOps + Sec,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.1.1,,
+3.2,L5 実装 (per-Cap / per-Component),,,,,,,,
+3.2.1,Cap-{Domain1}/internal/{module-A} 実装,BE-Sr,8,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.1,,1 Component = 8 人日 (例示)
+3.2.2,Cap-{Domain1}/adapter/{adapter-name} 実装,BE-Sr,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.2.1,,
+3.2.3,Cap-{Domain2}/internal/{module-B} 実装,BE-Sr,8,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.1,,
+3.3,UI 実装 (画面別),,,,,,,,
+3.3.1,{画面 1} 顧客向け画面実装,FE-Sr,8,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.1,,
+3.3.2,{画面 2} 行員向け画面実装,FE-Mid,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.1,,
+3.4,単体テスト (per-Cap unit、C2 100%),,,,,,,,実装工数の 30% (例示、出典必須)
+3.4.1,Cap-{Domain1} unit test,BE-Sr,4,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.2.1,,
+3.4.2,Cap-{Domain2} unit test,BE-Sr,4,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.2.3,,
+WBS-4,テスト (cross-Cap integration + 外部結合 + E2E + NFT),,,,,,,,結合テスト = 実装工数の 20% / 外部結合 = 1 結合点 = 3 人日 (例示、出典必須)
+4.1,cross-Cap integration テスト,,,,,,,,
+4.1.1,Cap-{Domain1} × Cap-{Domain2} integration test,QA + BE-Sr,3,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.4,,
+4.1.2,System Flow {scenario1} E2E test,QA + FE-Sr,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.3,,
+4.2,外部結合 疎通テスト (cap × external system),,,,,,,,1 外部結合 = 3 人日 (例示)
+4.2.1,外部 API ({Stripe / OAuth / 等}) 疎通,API + BE-Sr,3,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,3.2,,先方 sandbox 開放後
+4.2.2,外部 API 結合テスト (本番環境),API + BE-Sr + QA,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,4.2.1,,
+4.3,NFT (性能 / 負荷 / 信頼性、T1 Core Cap 必須),,,,,,,,
+4.3.1,T1 Core Cap 性能テスト,Tech Lead + QA,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,4.1,,DPG §2.9.3 R3 規範
+4.3.2,T1 Core Cap 負荷テスト,Tech Lead + QA,5,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,4.3.1,,
+WBS-5,リリース (MVP + GA),,,,,,,,
+5.1,MVP リリース (M-4),,,,,,,,
+5.1.1,リリースノート作成,PM + Tech Lead,2,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,4.1,,
+5.1.2,顧客 / PMO デモ,PM + 全チーム,1,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,5.1.1,,
+5.2,GA リリース (M-5),,,,,,,,
+5.2.1,運用 runbook 確定,DevOps + Tech Lead,3,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,4.3,,
+5.2.2,本番デプロイ + 監視運用開始,DevOps + 全チーム,2,○ 未着手,YYYY-MM-DD,YYYY-MM-DD,5.2.1,,

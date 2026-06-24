@@ -1,0 +1,850 @@
+company:
+  principles:
+  - id: P01
+    name: Viewer First
+    name_vi: Khán giả là trung tâm
+    description: "Tạo nội dung phục vụ nhu cầu thực của khán giả, không phải chỉ để bán hàng.
+      Hook, script, và sản phẩm phải giải quyết vấn đề thực tế của người xem."
+    guidelines:
+      do:
+      - Nghiên cứu comment, câu hỏi của followers để hiểu nhu cầu
+      - Lifestyle video phải thực sự hữu ích, không chỉ là wrapper cho quảng cáo
+      dont:
+      - Không tạo nội dung chỉ để spam affiliate link
+  - id: P02
+    name: Cost Efficiency
+    name_vi: Tối ưu chi phí
+    description: "Maximize ROI bằng cách ưu tiên free/cheap tools trước khi dùng paid APIs.
+      Chi phí phải tỉ lệ thuận với revenue kiếm được từ affiliate."
+    guidelines:
+      do:
+      - Ưu tiên Groq/Gemini free tier cho bulk generation
+      - Dùng edge-tts (free) thay ElevenLabs trừ khi revenue đủ bù
+      dont:
+      - Không dùng paid API khi free tier đủ chất lượng
+  - id: P03
+    name: Automation First
+    name_vi: Tự động hóa là ưu tiên
+    description: "Mọi task lặp lại phải được tự động hóa. Manual work chỉ chấp nhận cho
+      quality review và strategic decisions."
+    guidelines:
+      do:
+      - Build N8N workflow cho mọi task lặp > 3 lần/tuần
+      - Review automated output, không redo manually
+      dont:
+      - Không lặp lại manual task mà có thể N8N handle
+  - id: P04
+    name: Data Driven
+    name_vi: Quyết định dựa trên dữ liệu
+    description: "Optimize content strategy dựa trên TikTok analytics, không phải cảm tính.
+      A/B test hook, thumbnail, caption để tìm pattern hiệu quả."
+    guidelines:
+      do:
+      - Track views, engagement, affiliate clicks cho mỗi video
+      - Nhân rộng format video hiệu quả, bỏ format kém
+      dont:
+      - Không tiếp tục làm video theo format không có data ủng hộ
+
+personas:
+  bank-cto:
+    name: 銀行・クレカ会社 CTO
+    perspective: 技術戦略・アーキテクチャ
+    expertise:
+    - architecture
+    - security
+    - non-functional
+    - scalability
+    phase_affinity:
+    - requirements
+    - architecture
+    - implement
+    - review
+    - lateral-check
+    - report
+    - discuss
+    domains:
+    - code-review
+  sre:
+    name: SRE エンジニア
+    perspective: 運用・信頼性・可観測性
+    expertise:
+    - operations
+    - reliability
+    - monitoring
+    - incident-response
+    phase_affinity:
+    - architecture
+    - implement
+    - review
+    - lateral-check
+    - discuss
+    domains:
+    - code-review
+  automation-cto:
+    name: Fintech Startup CTO
+    perspective: 開発スピード・スケーラビリティ
+    expertise:
+    - agile
+    - scalability
+    - startup-engineering
+    - cloud-native
+    phase_affinity:
+    - architecture
+    - implement
+    - review
+    - lateral-check
+    - discuss
+    domains:
+    - code-review
+  sa:
+    name: Fintech Startup Solution Architect
+    perspective: システム設計・技術的整合性
+    expertise:
+    - system-design
+    - integration
+    - api-design
+    - data-modeling
+    phase_affinity:
+    - architecture
+    - implement
+    - review
+    - lateral-check
+    - discuss
+    domains:
+    - code-review
+  ux:
+    name: Fintech Startup UX デザイナー
+    perspective: ユーザー体験・ユーザビリティ
+    expertise:
+    - user-experience
+    - usability
+    - accessibility
+    - information-architecture
+    phase_affinity:
+    - architecture
+    - implement
+    - review
+    - lateral-check
+    - discuss
+    domains:
+    - code-review
+  domain-expert:
+    name: 銀行・クレカ会社 業務ドメインエキスパート
+    perspective: 業務要件・規制要件
+    expertise:
+    - business-requirements
+    - regulatory
+    - compliance
+    - domain-knowledge
+    phase_affinity:
+    - architecture
+    - implement
+    - review
+    - lateral-check
+    - discuss
+    domains:
+    - code-review
+  security:
+    name: セキュリティエンジニア
+    perspective: セキュリティ・脆弱性・認証認可
+    expertise:
+    - security
+    - vulnerability-assessment
+    - authentication
+    - authorization
+    phase_affinity:
+    - architecture
+    - implement
+    - review
+    - lateral-check
+    - discuss
+    domains:
+    - code-review
+  dev-planner:
+    name: 設計者
+    perspective: 設計・リスク分析・タスク分解
+    expertise:
+    - design
+    - risk-analysis
+    - task-decomposition
+    - architecture
+    phase_affinity:
+    - requirements
+    - architecture
+    - vote
+    - approve
+    - plan
+    - design
+    - report
+    - export
+    - analyze
+    - propose
+    - source-verify
+    - phase-complete
+    domains:
+    - fix
+    - spec
+    - research
+    - pm-export
+    - pm-planning
+    - project-mgmt
+    - learning
+    - ops
+  dev-implementer:
+    name: 実装者
+    perspective: コード品質・効率・実装
+    expertise:
+    - coding
+    - implementation
+    - efficiency
+    - refactoring
+    phase_affinity:
+    - implement
+    domains:
+    - fix
+    - spec
+    - pm-export
+    - pm-planning
+    - project-mgmt
+    - learning
+    - ops
+  dev-reviewer:
+    name: レビュアー
+    perspective: 品質・設計逸脱・保守性
+    expertise:
+    - code-quality
+    - design-adherence
+    - maintainability
+    phase_affinity:
+    - review
+    - analyze
+    - verify
+    - lateral-check
+    - source-verify
+    - phase-complete
+    domains:
+    - fix
+    - spec
+    - pm-planning
+    - project-mgmt
+    - learning
+    - ops
+  dev-tester:
+    name: テスター
+    perspective: テスト設計・境界条件・回帰
+    expertise:
+    - testing
+    - edge-cases
+    - regression
+    - coverage
+    phase_affinity:
+    - test
+    - verify
+    domains:
+    - fix
+    - spec
+  fact-checker:
+    name: ファクトチェッカー
+    perspective: データ整合性・ソース忠実性・数値正確性
+    expertise:
+    - data-integrity
+    - source-verification
+    - numerical-accuracy
+    - cross-referencing
+    phase_affinity:
+    - source-verify
+    domains:
+    - fix
+    - spec
+    - research
+    - slides
+    - pm-export
+    - pm-planning
+    - project-mgmt
+    - learning
+  researcher:
+    name: リサーチャー
+    perspective: 情報収集・データ分析・調査設計
+    expertise:
+    - research
+    - data-gathering
+    - analysis
+    - investigation
+    - source-evaluation
+    phase_affinity:
+    - requirements
+    - plan
+    - implement
+    - analyze
+    - verify
+    - source-verify
+    domains:
+    - research
+    - learning
+  slides-planner:
+    name: 戦略プランナー
+    perspective: コンテンツ戦略・ストーリーテリング
+    expertise:
+    - content-strategy
+    - storytelling
+    - audience-analysis
+    phase_affinity:
+    - requirements
+    - architecture
+    - vote
+    - approve
+    - plan
+    - report
+    - export
+    - source-verify
+    domains:
+    - slides
+  slides-designer:
+    name: デザイナー
+    perspective: ビジュアルデザイン・レイアウト
+    expertise:
+    - visual-design
+    - layout
+    - information-architecture
+    phase_affinity:
+    - design
+    - review
+    - test
+    domains:
+    - slides
+  slides-artist:
+    name: イラストレーター
+    perspective: ビジュアル表現・グラフィック
+    expertise:
+    - illustration
+    - graphics
+    - visual-metaphor
+    phase_affinity:
+    - implement
+    domains:
+    - slides
+common_phases:
+- resolve
+- requirements
+- architecture
+- vote
+- approve
+- plan
+- design
+- implement
+- review
+- test
+- phase-complete
+- export
+- report
+skill_mapping:
+  task: null
+  ai-task: null
+  review: code-review
+  re-review: code-review
+  ai-review: code-review
+  fix: fix
+  ai-fix: fix
+  spec-update: spec
+  ai-spec-update: spec
+  survey: research
+  test-error: research
+  ai-survey: research
+  export: pm-export
+  slides-export: slides
+  ai-slides: slides
+  ai-learn: learning
+  pm-planning: pm-planning
+  ai-pm-planning: pm-planning
+  push: ops
+  comment: ops
+  cleanup: ops
+  merge: ops
+  sync: ops
+  issues: project-mgmt
+  pj-init: project-mgmt
+  change-impact: project-mgmt
+  ai-change-impact: project-mgmt
+domains:
+  code-review:
+    label: Code Review
+    description: Multi-model, multi-persona code quality review
+    persona_refs:
+    - bank-cto
+    - sre
+    - automation-cto
+    - sa
+    - ux
+    - domain-expert
+    - security
+    skills:
+    - review
+    - re-review
+    - ai-review
+    workflow:
+    - requirements
+    - architecture
+    - implement
+    - review
+    - discuss
+    - lateral-check
+    - report
+    orchestration:
+      tier1:
+        method: claude-agents
+        agent_count: 3
+        consensus_protocol: mutual-review
+      tier2:
+        method: multi-model-api
+        models:
+        - openai/gpt-5.1-codex-max
+        - gemini/gemini-3.1-pro-preview
+        claude_direct: true
+        consensus_protocol: 2-model-consensus
+        cli_config:
+        - Ruby時は --extra-exts .rb,.gemspec（CR-010）
+        - .mdのみPRはplatformスキップ→CC単独7ペルソナ（CR-006）
+        - 変更ファイル+テストファイルをtarget_pathに含める（CR-P02）
+        - 乖離ブランチはdiffスコーピング（CR-P04）
+    phase_assignments:
+      primary_scanner: openai/gpt-5.1-codex-max
+      lateral_scanner: gemini/gemini-3.1-pro-preview
+    coverage:
+      max_tokens_per_unit: 20000
+      min_scanners_per_changed: 2
+      min_scanners_per_related: 1
+      require_probe_for_zero_findings: false
+    workflows:
+      consensus:
+        reviewers:
+        - openai/gpt-5.1-codex-max
+        - gemini/gemini-3.1-pro-preview
+        max_rounds: 5
+        role_assignments:
+          planner: openai/gpt-5.1
+          implementer: openai/gpt-5.1-codex-max
+          reviewer: null
+          tester: openai/gpt-5.1-codex-max
+          reporter: openai/gpt-5.1
+  fix:
+    label: Bug Fix
+    description: Defect resolution and preventive measures
+    persona_refs:
+    - dev-planner
+    - dev-implementer
+    - dev-reviewer
+    - dev-tester
+    - fact-checker
+    skills:
+    - fix
+    - ai-fix
+    workflow:
+    - analyze
+    - propose
+    - implement
+    - lateral-check
+    - source-verify
+    - verify
+    - phase-complete
+    orchestration:
+      tier1:
+        method: claude-agents
+      tier2:
+        method: workflow-engine
+        phase_models:
+          analyze: gemini/gemini-3.1-pro-preview
+          propose: vote
+          implement: openai/gpt-5.1-codex-max
+          source-verify: gemini/gemini-3.1-pro-preview
+          verify: gemini/gemini-3.1-pro-preview
+          test: gemini/gemini-3.1-pro-preview
+          phase-complete: gemini/gemini-3.1-pro-preview
+  spec:
+    label: Specification Management
+    description: Specification creation, updates, and impact analysis
+    persona_refs:
+    - dev-planner
+    - dev-implementer
+    - dev-reviewer
+    - dev-tester
+    - fact-checker
+    skills:
+    - spec-update
+    - ai-spec-update
+    workflow:
+    - analyze
+    - propose
+    - implement
+    - lateral-check
+    - source-verify
+    - verify
+    - phase-complete
+    orchestration:
+      tier1:
+        method: claude-agents
+      tier2:
+        method: workflow-engine
+        phase_models:
+          analyze: gemini/gemini-3.1-pro-preview
+          propose: vote
+          implement: openai/gpt-5.1
+          source-verify: gemini/gemini-3.1-pro-preview
+          verify: gemini/gemini-3.1-pro-preview
+          test: gemini/gemini-3.1-pro-preview
+          phase-complete: gemini/gemini-3.1-pro-preview
+  research:
+    label: Research & Investigation
+    description: Internet research, market analysis, case study investigation, bug
+      survey
+    persona_refs:
+    - dev-planner
+    - researcher
+    - fact-checker
+    skills:
+    - survey
+    - test-error
+    - ai-survey
+    workflow:
+    - analyze
+    - propose
+    - implement
+    - source-verify
+    - verify
+    - phase-complete
+    orchestration:
+      tier1:
+        method: claude-agents
+      tier2:
+        method: workflow-engine
+        phase_models:
+          analyze: gemini/gemini-2.5-pro
+          propose: vote
+          implement: openai/gpt-5.1
+          source-verify: gemini/gemini-3.1-pro-preview
+          verify: gemini/gemini-3.1-pro-preview
+          test: gemini/gemini-3.1-pro-preview
+          phase-complete: gemini/gemini-3.1-pro-preview
+  slides:
+    label: Presentation
+    description: HTML slide generation (structure design → HTML → QA)
+    persona_refs:
+    - slides-planner
+    - slides-designer
+    - slides-artist
+    - fact-checker
+    skills:
+    - ai-slides
+    - slides-export
+    workflow:
+    - requirements
+    - architecture
+    - vote
+    - approve
+    - plan
+    - design
+    - implement
+    - review
+    - source-verify
+    - test
+    - export
+    - report
+    orchestration:
+      tier1: null
+      tier2:
+        method: multi-model-api
+        pipeline:
+        - plan
+        - design
+        - art
+        - html
+        - source-verify
+        - qa
+        phase_models:
+          source-verify: gemini/gemini-3.1-pro-preview
+    workflows:
+      pipeline:
+        planner: gemini/gemini-2.5-pro
+        designer: gemini/gemini-2.5-pro
+        artist: gemini/nano-banana-pro-preview
+  pm-export:
+    label: PM Deliverable Export
+    description: SSoT Markdown/CSV → plan → export → report pipeline
+    persona_refs:
+    - dev-planner
+    - dev-implementer
+    - fact-checker
+    skills:
+    - export
+    workflow:
+    - requirements
+    - plan
+    - implement
+    - source-verify
+    - export
+    - report
+    orchestration:
+      tier1:
+        method: claude-agents
+      tier2:
+        method: workflow-engine
+        phase_models:
+          requirements: openai/gpt-5.1
+          plan: openai/gpt-5.1
+          implement: openai/gpt-5.1
+          source-verify: gemini/gemini-3.1-pro-preview
+          export: openai/gpt-5.1
+          report: openai/gpt-5.1
+  pm-planning:
+    label: PM Planning
+    description: Auto-generate WBS, staffing plan, and estimation summary from functional
+      requirements
+    persona_refs:
+    - dev-planner
+    - dev-implementer
+    - dev-reviewer
+    - fact-checker
+    skills:
+    - pm-planning
+    - ai-pm-planning
+    workflow:
+    - analyze
+    - propose
+    - implement
+    - source-verify
+    - verify
+    orchestration:
+      tier1:
+        method: claude-agents
+      tier2:
+        method: workflow-engine
+        phase_models:
+          analyze: openai/gpt-5.1
+          propose: vote
+          implement: openai/gpt-5.1
+          source-verify: gemini/gemini-3.1-pro-preview
+          verify: gemini/gemini-3.1-pro-preview
+  learning:
+    label: Learning & Improvement
+    description: フィードバックの根本原因分析→構造改善 or 繋ぎルール化
+    persona_refs:
+    - researcher
+    - dev-planner
+    - dev-implementer
+    - dev-reviewer
+    - fact-checker
+    skills:
+    - ai-learn
+    workflow:
+    - requirements
+    - plan
+    - analyze
+    - implement
+    - source-verify
+    - verify
+    - phase-complete
+    - report
+    orchestration:
+      tier1: null
+      tier2:
+        method: multi-model-api
+        mode_routing: auto
+        phase_models:
+          requirements: openai/gpt-5.1
+          plan: openai/gpt-5.1
+          analyze: gemini/gemini-3.1-pro-preview
+          implement: openai/gpt-5.1
+          source-verify: gemini/gemini-3.1-pro-preview
+          verify: gemini/gemini-3.1-pro-preview
+          test: gemini/gemini-3.1-pro-preview
+          phase-complete: gemini/gemini-3.1-pro-preview
+          report: openai/gpt-5.1
+  ops:
+    label: Operations
+    description: インフラ運用（同期・プッシュ・コメント・クリーンアップ）
+    persona_refs:
+    - dev-planner
+    - dev-implementer
+    - dev-reviewer
+    skills:
+    - push
+    - comment
+    - cleanup
+    - merge
+    - sync
+    workflow:
+    - requirements
+    - implement
+    - review
+    - report
+    orchestration:
+      tier1:
+        method: claude-agents
+      tier2: null
+  project-mgmt:
+    label: Project Management
+    description: PJ初期化・変更影響分析・Issue管理
+    persona_refs:
+    - dev-planner
+    - dev-implementer
+    - dev-reviewer
+    - fact-checker
+    skills:
+    - pj-init
+    - change-impact
+    - issues
+    - ai-change-impact
+    workflow:
+    - analyze
+    - propose
+    - implement
+    - source-verify
+    - verify
+    - phase-complete
+    orchestration:
+      tier1:
+        method: claude-agents
+      tier2:
+        method: workflow-engine
+        phase_models:
+          analyze: gemini/gemini-3.1-pro-preview
+          propose: vote
+          implement: openai/gpt-5.1
+          source-verify: gemini/gemini-3.1-pro-preview
+          verify: gemini/gemini-3.1-pro-preview
+          test: gemini/gemini-3.1-pro-preview
+          phase-complete: gemini/gemini-3.1-pro-preview
+routing:
+  code: openai/gpt-5.1-codex-max
+  code_review: openai/gpt-5.1-codex-max
+  debug: openai/gpt-5.1
+  reasoning: gemini/gemini-3.1-pro-preview
+  analysis: gemini/gemini-3.1-pro-preview
+  writing: openai/gpt-5.1
+  translation: gemini/gemini-2.5-flash
+  research: gemini/gemini-2.5-pro
+  summarize: gemini/gemini-2.5-flash
+  general: openai/gpt-5.1
+voters:
+- gemini/gemini-2.5-pro
+- openai/gpt-5.1
+pipelines:
+  dev:
+  - name: design
+    spec: openai/gpt-5.1
+    system: You are a software architect. Analyze the requirements and create a technical
+      design.
+    transform: 'Implement based on the following design:
+
+
+      $previous'
+  - name: implement
+    spec: openai/gpt-5.1-codex-max
+    system: You are an experienced programmer. Implement faithfully according to the
+      design.
+    transform: 'Review the following code:
+
+
+      $previous'
+  - name: review
+    spec: openai/gpt-5.1-codex-max
+    system: You are a senior code reviewer. Identify bugs, security issues, and areas
+      for improvement.
+  writing:
+  - name: draft
+    spec: openai/gpt-5.1
+    system: You are a professional writer. Write the first draft according to the
+      instructions.
+    transform: 'Edit and improve the following text:
+
+
+      $previous'
+  - name: edit
+    spec: openai/gpt-5.1
+    system: You are a professional editor. Improve the composition, clarity, and readability
+      of the text.
+  analysis:
+  - name: data_analysis
+    spec: gemini/gemini-3.1-pro-preview
+    system: You are a data analyst. Analyze the data in detail.
+    transform: 'Critically verify the following analysis results:
+
+
+      $previous'
+  - name: verification
+    spec: gemini/gemini-3.1-pro-preview
+    system: You are a statistics and analysis expert. Verify the validity of the analysis
+      and identify any oversights.
+themes:
+  project:
+    primary_color: '#006970'
+    secondary_color: '#002020'
+    accent_color: '#02A7AA'
+    bg_color: '#F7FAF9'
+    bg_style: light
+    font: BIZ UDPGothic
+    font_fallback: Noto Sans JP
+    palette:
+      dk1: '#002020'
+      lt1: '#006970'
+      dk2: '#D8DBDB'
+      lt2: '#F7FAF9'
+      accent1: '#008587'
+      accent2: '#02A7AA'
+      accent3: '#44B7BB'
+      accent4: '#7DCCCF'
+      accent5: '#B1DFE2'
+      accent6: '#E0F2F4'
+    footer: TikTok Affiliate Automation
+    cover_style: primary_bg
+    bullet_chars:
+    - ●
+    - ○
+    - ■
+  project-dark:
+    primary_color: '#02A7AA'
+    secondary_color: '#F7FAF9'
+    accent_color: '#44B7BB'
+    bg_color: '#002020'
+    bg_style: dark
+    font: BIZ UDPGothic
+    font_fallback: Noto Sans JP
+    palette:
+      dk1: '#002020'
+      lt1: '#006970'
+      dk2: '#D8DBDB'
+      lt2: '#F7FAF9'
+      accent1: '#008587'
+      accent2: '#02A7AA'
+      accent3: '#44B7BB'
+      accent4: '#7DCCCF'
+      accent5: '#B1DFE2'
+      accent6: '#E0F2F4'
+    footer: TikTok Affiliate Automation
+    cover_style: accent_bg
+    bullet_chars:
+    - ●
+    - ○
+    - ■
+  minimal:
+    primary_color: '#3B82F6'
+    secondary_color: '#1a1a1a'
+    accent_color: '#60A5FA'
+    bg_color: '#FFFFFF'
+    bg_style: light
+    font: Inter
+    font_fallback: Noto Sans JP
+    footer: ''
+    cover_style: clean
+  pitch:
+    primary_color: '#10B981'
+    secondary_color: '#F8FAFC'
+    accent_color: '#34D399'
+    bg_color: '#0F172A'
+    bg_style: dark
+    font: Inter
+    font_fallback: Noto Sans JP
+    footer: ''
+    cover_style: gradient
+feedback: []
+
+metrics: []

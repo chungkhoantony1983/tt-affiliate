@@ -1,0 +1,29 @@
+# platform 設定ファイル
+#
+# IMP-017: routing / voters / code_review は teams.yaml に一元化。
+# config.yaml はインフラ設定（プロバイダー + APIキー）のみ管理する。
+#
+# APIキーは環境変数でも設定可能:
+#   OPENAI_API_KEY, GEMINI_API_KEY (or GOOGLE_API_KEY), ANTHROPIC_API_KEY
+#   AI_TEAM_OPENAI_API_KEY, AI_TEAM_GEMINI_API_KEY, AI_TEAM_ANTHROPIC_API_KEY (優先)
+
+providers:
+  - name: openai
+    # api_key: sk-...  # 環境変数推奨
+    default_model: gpt-5.1              # gpt-5.2-pro ($168/1M out) → gpt-5.1 ($10/1M out) に最適化
+    extra_models:
+      - gpt-5.1-codex-max              # Codex Max (レビュー・コード特化)
+
+  - name: gemini
+    # api_key: AIza...  # 環境変数推奨
+    default_model: gemini-3.1-pro-preview
+    extra_models:
+      - nano-banana-pro-preview         # Nano Banana Pro (画像生成)
+      - gemini-2.5-pro                  # GA安定版 (RPD 1,000 — フォールバック用)
+      - gemini-3-flash-preview          # Flash級 (Free枠あり — 軽量タスク/フォールバック)
+      - gemini-2.5-flash                # 最安Flash (Free枠・RPD 1,500 — 翻訳/要約/QA)
+
+  - name: anthropic
+    # api_key: sk-ant-...  # 環境変数推奨
+    default_model: claude-opus-4-6
+    # GP-004: Claude Opus 4.6 は Claude Code セッションで直接処理。API 非使用

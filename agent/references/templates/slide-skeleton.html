@@ -1,0 +1,437 @@
+<!--
+  slide-skeleton.html — スライド HTML の基本フォーマット（SSoT）
+
+  使い方:
+    1. 作成するスライドのタイプに合ったセクションをコピー
+    2. {変数} を実際の値に置換
+    3. BODY コメントの位置にコンテンツを配置
+    4. 全タイプにデフォルトフッター（FOOTER-B）が組み込み済み
+       プログレスバー型が必要な場合のみ「フッターバリエーション」から差し替え
+
+  タイプ一覧:
+    TYPE-A: コンテンツスライド（大半のスライド）
+    TYPE-B: タイトルスライド（表紙）
+    TYPE-C: セクション区切り
+    TYPE-D: クロージング（Thank You）
+
+  構造ルール（全タイプ共通）:
+    - 1280x720px 固定、overflow:hidden
+    - Tailwind CSS 禁止（全てインラインスタイル）
+    - 外部 JS 禁止（Font Awesome CDN + Google Fonts のみ）
+    - .clip ラッパー: 装飾が viewport 外にはみ出す場合に使用（SL-010）
+    - 装飾円: border のみ（box-shadow/background 塗り禁止）（SL-028）
+    - デフォルトフッター: FOOTER-B（3列クラシック + 4px ボトムバー）全ページ必須（SL-008）
+
+  コンテンツ充填ルール（SL-001）:
+    ★ 空白を最小化する。余白が大きい場合は情報補完コンポーネント（補足カード、
+      データ可視化、アイコンバッジ等）で埋める。「余白 > コンテンツ」は NG。
+
+  垂直中央揃え拡張（SL-002 / SL-015）:
+    ★ ページ全体だけでなく、カード内部・グリッドセル・flex子要素にも垂直中央を適用。
+      子コンテナに justify-content:center / align-items:center を設定すること。
+
+  モックアップ制約（SL-003）:
+    ★ スマホモックアップは実機比率（9:19.5）を厳守。最低高さ 300px。
+      ブラウザモックアップは design-system.md §6 のクロームUI を使用。
+
+  レイアウト寸法:
+    - フッター高さ: 32px（28px テキスト行 + 4px ボトムバー）
+    - ヘッダー高さ: 48px（TYPE-A のみ）
+    - コンテンツ左右 padding: 48px（TYPE-A）/ 80px（TYPE-B/C/D）
+
+  パディングルール（TYPE-A タイトルブロック）:
+    - padding-top: 24px（コンテンツ領域上端→タイトル）
+    - タイトル → サブタイトル: margin-bottom 4px
+    - サブタイトル → ボディ: margin-bottom 16px
+    - ボディ内カード padding: 最低 6px
+    - 隣接要素間 gap: 最低 2px
+
+  スペーシング禁止ルール（SL-034 / SL-035）:
+    ★ gap:0 は原則禁止（edge-to-edgeデザインでも最低 gap:2px）
+    ★ margin-bottom:0px / margin-bottom:1px は禁止
+    ★ 水平barチャートの label→bar→badge 間は gap:6px 以上
+    文脈別の最小垂直マージン:
+    - セクション見出し → 本文: min 4px
+    - カード間（flex gap）: min 6px
+    - flex-direction:column の gap: min 4px
+    - ラベル → 値ペア: min 2px
+
+  フォントサイズ（CSS custom properties で一元管理 — 2026-02-25 構造化）:
+    使い方: <style> ブロック内の :root に定義済み。インラインスタイルで var() 参照。
+    例: style="font-size:var(--fs-body);color:#333;"
+
+    --fs-title:        24px  スライドタイトル
+    --fs-subtitle:     14px  サブタイトル
+    --fs-heading:      13px  カード見出し・セクションヘッダー
+    --fs-body:         11px  本文・テーブルセル
+    --fs-label:        10px  ラベル・注釈・バッジ・テーブルヘッダー
+    --fs-so-what:      12px  結論バナー・キーメッセージ
+    --fs-kpi:          24px  KPI数値（強調時は28-32px可）
+    --fs-small:         9px  補足注記（最小。多用禁止）
+
+    ★ これらの値はデザイントークン。個別スライドで直書きの px 値は禁止。
+    ★ 変更はこのファイルの :root のみで実施（全スライドに自動波及）。
+
+  参照元: Idemitsu PoC 報告書スライド（2026-02）
+  2026-02-24 作成、2026-02-25 フォントサイズ構造化
+-->
+
+
+<!-- ============================================================
+     TYPE-A: コンテンツスライド
+     ============================================================
+     構造: ヘッダー(48px) → タイトルブロック(上固定) → ボディ(垂直中央) → フッター(32px)
+
+     レイアウト原則:
+       - タイトルブロック: flex-shrink:0 で上固定
+       - ボディ: flex:1 + justify-content:center で垂直中央
+       - 全体を justify-content:center にしてはいけない（タイトルが中央に寄る）
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<title>{スライドタイトル}</title>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<style>
+:root{
+  --fs-title:24px;--fs-subtitle:14px;--fs-heading:13px;
+  --fs-body:11px;--fs-label:10px;--fs-so-what:12px;
+  --fs-kpi:24px;--fs-small:9px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{width:1280px;height:720px;overflow:hidden;font-family:'BIZ UDPGothic','Noto Sans JP',sans-serif;position:relative;}
+</style>
+</head>
+<body style="background:#fff;">
+
+<!-- ヘッダーバー: 48px 固定（パンくず）
+     形式: 「会社名 | セクション名」— セクション名は brief.yaml の sections 定義から取得。
+     デッキタイトルやプロダクト名など汎用テキストは禁止（SL-041）。
+     ダーク系ページ（TYPE-B/C/D）には標準ヘッダーなし。
+     Agenda ページは会社名のみ（セパレータ・セクション名なし）。 -->
+<div style="position:absolute;top:0;left:0;right:0;height:48px;background:#F7FAF9;border-bottom:1px solid #e0e8e6;display:flex;align-items:center;padding:0 32px;">
+  <span style="font-size:var(--fs-heading);color:#006970;font-weight:700;">プロジェクト株式会社</span>
+  <span style="font-size:var(--fs-heading);color:#999;margin:0 8px;">|</span>
+  <span style="font-size:var(--fs-heading);color:#444;">{セクション名}</span>
+</div>
+
+<!-- コンテンツ領域: ヘッダー(48px)〜フッター(32px)の間 = 640px -->
+<div style="position:absolute;top:48px;bottom:32px;left:0;right:0;display:flex;flex-direction:column;padding:0 48px;">
+
+  <!-- タイトルブロック: 上固定（flex-shrink:0）
+       padding-top:24px → タイトル(--fs-title/900) → 4px → サブタイトル(--fs-subtitle) → 16px → ボディ -->
+  <div style="flex-shrink:0;padding-top:24px;">
+    <div style="font-size:var(--fs-title);font-weight:900;color:#002020;margin-bottom:4px;">{日本語タイトル}</div>
+    <div style="font-size:var(--fs-subtitle);color:#666;margin-bottom:16px;">{サブタイトル（任意・不要なら削除）}</div>
+  </div>
+
+  <!-- ボディ: 残余スペースで垂直中央 -->
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+    <!-- BODY: ここにメインコンテンツを配置 -->
+  </div>
+
+</div>
+
+<!-- フッター: FOOTER-B（デフォルト）— body 直下に配置（content wrapper 内にネスト禁止） -->
+<div style="position:absolute;bottom:0;left:0;right:0;">
+  <div style="display:flex;align-items:center;padding:0 28px;height:28px;border-top:1px solid #e0e8e6;">
+    <span style="flex:1;font-size:var(--fs-label);color:#999;">© Project Co.,Ltd.</span>
+    <span style="font-size:var(--fs-label);color:#bbb;">{N} / {total}</span>
+    <span style="flex:1;font-size:var(--fs-label);color:#bbb;text-align:right;">STRICTLY CONFIDENTIAL</span>
+  </div>
+  <div style="height:4px;background:#002020;"></div>
+</div>
+
+</body>
+</html>
+
+
+<!-- ============================================================
+     TYPE-B: タイトルスライド（表紙）
+     ============================================================
+     構造: .clip → 装飾円 → 左コンテンツ(垂直中央) → 右KPIカード(任意) → フッター
+     ヘッダーバーなし、ダーク背景
+     装飾円は border のみ（box-shadow/background 塗り禁止）
+
+     左コンテンツ構成:
+       バッジラベル(アイコン+英語名) → 32px →
+       メインタイトル(42px/700/白) → 16px →
+       アクセントライン(80px×3px) → 24px →
+       サブタイトル(18px) → 48px →
+       メタデータ行（年月 | Project Inc.）
+
+     右KPIカード: 任意。不要なら削除
+     ============================================================ -->
+<!--
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<title>{プレゼンテーションタイトル}</title>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<style>
+:root{
+  --fs-title:24px;--fs-subtitle:14px;--fs-heading:13px;
+  --fs-body:11px;--fs-label:10px;--fs-so-what:12px;
+  --fs-kpi:24px;--fs-small:9px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{width:1280px;height:720px;overflow:hidden;font-family:'BIZ UDPGothic','Noto Sans JP',sans-serif;position:relative;}
+</style>
+</head>
+<body style="background:linear-gradient(135deg,#006970 0%,#003838 50%,#002020 100%);">
+<div class="clip" style="position:absolute;inset:0;overflow:hidden;">
+
+  < ! -- 装飾円（viewport 外にはみ出すため .clip 内に配置・border のみ） -- >
+  <div style="position:absolute;top:-60px;right:-60px;width:400px;height:400px;border-radius:50%;border:1px solid rgba(255,255,255,0.08);"></div>
+  <div style="position:absolute;bottom:-100px;left:-50px;width:500px;height:500px;border-radius:50%;border:1px solid rgba(255,255,255,0.06);"></div>
+
+  < ! -- 左コンテンツ: 垂直中央 -- >
+  <div style="position:absolute;top:50%;left:80px;transform:translateY(-50%);max-width:720px;">
+    < ! -- バッジラベル: アイコン + 英語プロジェクト名 -- >
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
+      <div style="width:48px;height:48px;border-radius:12px;background:rgba(2,167,170,0.3);display:flex;align-items:center;justify-content:center;">
+        <i class="fas fa-{アイコン名}" style="font-size:24px;color:#02A7AA;"></i>
+      </div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.5);letter-spacing:3px;text-transform:uppercase;">{ENGLISH PROJECT NAME}</div>
+    </div>
+    < ! -- メインタイトル -- >
+    <div style="font-size:42px;font-weight:700;color:#fff;line-height:1.3;margin-bottom:16px;">{メインタイトル}</div>
+    < ! -- アクセントライン -- >
+    <div style="width:80px;height:3px;background:#02A7AA;margin-bottom:24px;border-radius:2px;"></div>
+    < ! -- サブタイトル -- >
+    <div style="font-size:18px;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:48px;">{サブタイトル・説明文}</div>
+    < ! -- メタデータ行 -- >
+    <div style="display:flex;gap:24px;align-items:center;">
+      <span style="font-size:12px;color:rgba(255,255,255,0.4);">{YYYY年M月}</span>
+      <span style="font-size:12px;color:rgba(255,255,255,0.3);">|</span>
+      <span style="font-size:12px;color:rgba(255,255,255,0.4);">Project Inc.</span>
+    </div>
+  </div>
+
+  < ! -- 右側KPIカード（任意・不要なら削除）-- >
+  <div style="position:absolute;right:80px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:20px;">
+    <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:20px 28px;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.1);">
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;">{KPIラベル}</div>
+      <div style="font-size:32px;font-weight:700;color:#02A7AA;">{値}<span style="font-size:14px;color:rgba(255,255,255,0.5);margin-left:4px;">{単位}</span></div>
+    </div>
+    < ! -- KPIカードを追加する場合は上記を複製 -- >
+  </div>
+
+</div>
+
+< ! -- フッター: FOOTER-B-DARK -- >
+<div style="position:absolute;bottom:0;left:0;right:0;">
+  <div style="display:flex;align-items:center;padding:0 28px;height:28px;border-top:1px solid rgba(255,255,255,0.1);">
+    <span style="flex:1;font-size:10px;color:rgba(255,255,255,0.3);">© Project Co.,Ltd.</span>
+    <span style="font-size:10px;color:rgba(255,255,255,0.25);">1 / {total}</span>
+    <span style="flex:1;font-size:10px;color:rgba(255,255,255,0.3);text-align:right;">STRICTLY CONFIDENTIAL</span>
+  </div>
+  <div style="height:4px;background:rgba(255,255,255,0.15);"></div>
+</div>
+
+</body>
+</html>
+-->
+
+
+<!-- ============================================================
+     TYPE-C: セクション区切りスライド
+     ============================================================
+     構造: .clip → 装飾円 → コンテンツ(完全中央) → フッター
+     ヘッダーバーなし、ダーク背景（#006970→#002020）
+
+     ★ 必須使用ルール（SL-040）:
+       Agenda に定義した全セクションに TYPE-C セクション区切りページを
+       必ず配置すること。セクション区切りなしにコンテンツセクションを
+       開始してはならない。
+
+     コンテンツ構成:
+       セクションインジケータ(アイコン+"SECTION") →
+       セクションタイトル(48px/900/白) →
+       アクセントライン(60px×3px) →
+       サブタイトル(18px) →
+       ページリスト（任意: セクション内のスライド番号と名称）
+     ============================================================ -->
+<!--
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<title>{セクションタイトル}</title>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<style>
+:root{
+  --fs-title:24px;--fs-subtitle:14px;--fs-heading:13px;
+  --fs-body:11px;--fs-label:10px;--fs-so-what:12px;
+  --fs-kpi:24px;--fs-small:9px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{width:1280px;height:720px;overflow:hidden;font-family:'BIZ UDPGothic','Noto Sans JP',sans-serif;position:relative;}
+</style>
+</head>
+<body style="background:linear-gradient(135deg,#006970,#002020);">
+<div class="clip" style="position:absolute;inset:0;overflow:hidden;">
+
+  < ! -- 装飾円 -- >
+  <div style="position:absolute;top:-80px;right:-80px;width:500px;height:500px;border-radius:50%;border:1px solid rgba(255,255,255,0.06);"></div>
+  <div style="position:absolute;bottom:-120px;left:-60px;width:600px;height:600px;border-radius:50%;border:1px solid rgba(255,255,255,0.04);"></div>
+
+  < ! -- コンテンツ: 完全中央 -- >
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
+    < ! -- セクションインジケータ -- >
+    <div style="display:inline-flex;align-items:center;gap:12px;margin-bottom:24px;">
+      <div style="width:40px;height:40px;border-radius:10px;background:rgba(2,167,170,0.3);display:flex;align-items:center;justify-content:center;">
+        <i class="fas fa-{アイコン名}" style="font-size:18px;color:#02A7AA;"></i>
+      </div>
+      <span style="font-size:12px;color:rgba(255,255,255,0.5);letter-spacing:4px;text-transform:uppercase;">SECTION</span>
+    </div>
+    < ! -- セクションタイトル -- >
+    <div style="font-size:48px;font-weight:900;color:#fff;letter-spacing:4px;margin-bottom:16px;">{セクションタイトル}</div>
+    < ! -- アクセントライン -- >
+    <div style="width:60px;height:3px;background:#02A7AA;margin:0 auto 20px;border-radius:2px;"></div>
+    < ! -- サブタイトル -- >
+    <div style="font-size:18px;color:rgba(255,255,255,0.5);font-weight:300;letter-spacing:2px;">{サブタイトル}</div>
+
+    < ! -- ページリスト（任意・不要なら削除） -- >
+    <div style="display:flex;gap:24px;margin-top:36px;justify-content:center;">
+      <div style="text-align:center;">
+        <div style="font-size:20px;font-weight:900;color:#02A7AA;">{ページ番号}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;">{トピック名}</div>
+      </div>
+      < ! -- ページリスト項目を追加する場合は上記を複製 -- >
+    </div>
+  </div>
+
+</div>
+
+< ! -- フッター: FOOTER-B-DARK -- >
+<div style="position:absolute;bottom:0;left:0;right:0;">
+  <div style="display:flex;align-items:center;padding:0 28px;height:28px;border-top:1px solid rgba(255,255,255,0.1);">
+    <span style="flex:1;font-size:10px;color:rgba(255,255,255,0.3);">© Project Co.,Ltd.</span>
+    <span style="font-size:10px;color:rgba(255,255,255,0.25);">{N} / {total}</span>
+    <span style="flex:1;font-size:10px;color:rgba(255,255,255,0.3);text-align:right;">STRICTLY CONFIDENTIAL</span>
+  </div>
+  <div style="height:4px;background:rgba(255,255,255,0.15);"></div>
+</div>
+
+</body>
+</html>
+-->
+
+
+<!-- ============================================================
+     TYPE-D: クロージングスライド（Thank You）
+     ============================================================
+     構造: .clip → 装飾円 → コンテンツ(完全中央) → フッター
+     ヘッダーバーなし、ダーク背景
+
+     コンテンツ構成:
+       アイコンバッジ →
+       "Thank You"(42px/900/白) →
+       アクセントライン(80px×3px) →
+       サブテキスト(18px) →
+       連絡先情報（メール・URL など）
+     ============================================================ -->
+<!--
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<title>Thank You</title>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<style>
+:root{
+  --fs-title:24px;--fs-subtitle:14px;--fs-heading:13px;
+  --fs-body:11px;--fs-label:10px;--fs-so-what:12px;
+  --fs-kpi:24px;--fs-small:9px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{width:1280px;height:720px;overflow:hidden;font-family:'BIZ UDPGothic','Noto Sans JP',sans-serif;position:relative;}
+</style>
+</head>
+<body style="background:linear-gradient(135deg,#002020 0%,#003838 40%,#006970 100%);">
+<div class="clip" style="position:absolute;inset:0;overflow:hidden;">
+
+  < ! -- 装飾円 -- >
+  <div style="position:absolute;top:-80px;right:-60px;width:500px;height:500px;border-radius:50%;border:1px solid rgba(255,255,255,0.08);"></div>
+  <div style="position:absolute;bottom:-120px;left:-80px;width:600px;height:600px;border-radius:50%;border:1px solid rgba(255,255,255,0.05);"></div>
+
+  < ! -- コンテンツ: 完全中央 -- >
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
+    < ! -- アイコン -- >
+    <div style="width:64px;height:64px;border-radius:16px;background:rgba(2,167,170,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 32px;">
+      <i class="fas fa-handshake" style="font-size:28px;color:#02A7AA;"></i>
+    </div>
+    < ! -- Thank You -- >
+    <div style="font-size:42px;font-weight:900;color:#fff;letter-spacing:4px;margin-bottom:16px;">Thank You</div>
+    < ! -- アクセントライン -- >
+    <div style="width:80px;height:3px;background:#02A7AA;margin:0 auto 24px;border-radius:2px;"></div>
+    < ! -- サブテキスト -- >
+    <div style="font-size:18px;color:rgba(255,255,255,0.6);margin-bottom:40px;">{サブテキスト（例: ご清聴ありがとうございました）}</div>
+    < ! -- 連絡先 -- >
+    <div style="display:flex;gap:32px;justify-content:center;align-items:center;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <i class="fas fa-envelope" style="font-size:14px;color:#02A7AA;"></i>
+        <span style="font-size:13px;color:rgba(255,255,255,0.5);">{メールアドレス}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <i class="fas fa-globe" style="font-size:14px;color:#02A7AA;"></i>
+        <span style="font-size:13px;color:rgba(255,255,255,0.5);">{URL}</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+< ! -- フッター: FOOTER-B-DARK -- >
+<div style="position:absolute;bottom:0;left:0;right:0;">
+  <div style="display:flex;align-items:center;padding:0 28px;height:28px;border-top:1px solid rgba(255,255,255,0.1);">
+    <span style="flex:1;font-size:10px;color:rgba(255,255,255,0.3);">© Project Co.,Ltd.</span>
+    <span style="font-size:10px;color:rgba(255,255,255,0.25);">{N} / {total}</span>
+    <span style="flex:1;font-size:10px;color:rgba(255,255,255,0.3);text-align:right;">STRICTLY CONFIDENTIAL</span>
+  </div>
+  <div style="height:4px;background:rgba(255,255,255,0.15);"></div>
+</div>
+
+</body>
+</html>
+-->
+
+
+<!-- ============================================================
+     フッターバリエーション
+     ============================================================
+     デフォルトは FOOTER-B（各タイプに組み込み済み）。
+     以下は代替フッターが必要な場合の差し替え用。
+     フッターは常に body 直下に配置（content wrapper 内にネスト禁止）。
+     ============================================================ -->
+
+<!-- FOOTER-A: プログレスバー型（About Project 等で使用） -->
+<!--
+<div style="position:absolute;bottom:0;left:0;right:0;">
+  <div style="height:1px;background:#e0e8e6;"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:24px;">
+    <span style="font-size:10px;color:#888;">Project Inc. | Strictly Confidential</span>
+    <span style="font-size:10px;color:#aaa;">{N} / {total}</span>
+  </div>
+  <div style="height:6px;background:#ddd;"><div style="height:100%;width:{進捗%};background:#02A7AA;"></div></div>
+</div>
+-->
+
+<!-- FOOTER-A-DARK: プログレスバー型（ダーク背景用） -->
+<!--
+<div style="position:absolute;bottom:0;left:0;right:0;">
+  <div style="height:1px;background:rgba(255,255,255,0.1);"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:24px;">
+    <span style="font-size:10px;color:rgba(255,255,255,0.4);">Project Inc. | Strictly Confidential</span>
+    <span style="font-size:10px;color:rgba(255,255,255,0.3);">{N} / {total}</span>
+  </div>
+  <div style="height:6px;background:rgba(255,255,255,0.08);"><div style="height:100%;width:{進捗%};background:#02A7AA;"></div></div>
+</div>
+-->

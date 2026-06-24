@@ -1,0 +1,148 @@
+@page {
+  size: A4;
+  margin: 20mm 15mm 20mm 15mm;
+  @bottom-center {
+    content: "Copyright © 2026 Project Co.,Ltd. All rights reserved.";
+    font-size: 8px;
+    color: #999999;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-size: 8px;
+    color: #999999;
+  }
+}
+
+body {
+  color: #333333;
+  font-family: "Noto Sans CJK JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+  font-size: 10pt;
+  line-height: 1.6;
+}
+
+/* ページ分割制御 */
+p, li, dt, dd {
+  orphans: 3;
+  widows: 3;
+}
+
+h1, h2, h3, h4 {
+  break-after: avoid;
+}
+
+pre, blockquote {
+  break-inside: avoid;
+}
+
+/* テーブルはページ跨ぎを許可（大きな表で空白ページを防止） */
+tr {
+  break-inside: avoid;
+}
+
+ul, ol {
+  break-before: avoid;
+}
+
+li {
+  break-inside: avoid;
+}
+
+h1 {
+  border-bottom: 2px solid #2c3e50;
+  font-size: 18pt;
+  margin-top: 0;
+  padding-bottom: 6px;
+}
+
+h2 {
+  border-bottom: 1px solid #bdc3c7;
+  font-size: 14pt;
+  margin-top: 24px;
+  padding-bottom: 4px;
+}
+
+h3 {
+  font-size: 12pt;
+  margin-top: 18px;
+}
+
+h4 {
+  font-size: 11pt;
+  margin-top: 14px;
+}
+
+table {
+  border-collapse: collapse;
+  font-size: 8pt;
+  margin: 12px 0;
+  table-layout: auto; /* fixed は多カラム表で右側見切れの原因になるため禁止 */
+  width: 100%;
+}
+
+th,
+td {
+  border: 1px solid #dddddd;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+th {
+  background-color: #2c3e50;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+blockquote {
+  border-left: 3px solid #3498db;
+  color: #555555;
+  margin: 12px 0;
+  padding-left: 12px;
+}
+
+code {
+  background-color: #f4f4f4;
+  border-radius: 3px;
+  font-size: 9pt;
+  padding: 1px 4px;
+}
+
+pre {
+  background-color: #f4f4f4;
+  border-radius: 4px;
+  font-size: 8.5pt;
+  padding: 10px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #eeeeee;
+  margin: 20px 0;
+}
+
+img {
+  display: block;
+  height: auto;
+  margin: 12px auto;
+  max-width: 100%;
+  page-break-inside: avoid;
+}
+
+.mermaid-diagram {
+  break-before: page;
+  margin: 0;
+  text-align: center;
+}
+
+.mermaid-diagram img {
+  margin: 0 auto;
+  max-height: 245mm;
+  max-width: 100%;
+}

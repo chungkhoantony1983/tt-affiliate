@@ -1,0 +1,327 @@
+schema_version: '1.0'
+items:
+- id: IMP-014
+  category: structural
+  title: teams.yaml の Tier 1/2 関心事分離
+  root_cause: 'teams.yaml が Tier 1 用（constraints/processes/style_config）と Tier 2 用（workflows/model routing）を混在。 Step b'' が「constraints/processes/style_config
+    のみ参照」という暗黙ルールに依存しており、 Codex や新 AI セッションが workflows セクションを誤解釈するリスク。
+
+    '
+  proposed_fix: '案A: tier1-rules.yaml と teams.yaml に分離。 案B: teams.yaml 内のセクションヘッダーで Tier 1/2 を明示区分 + CLAUDE.md の Step b''
+    で読むセクションを明示列挙。
+
+    '
+  trigger_condition: 'Codex が teams.yaml の workflows を解釈して platform CLI を呼び出す誤動作が報告された場合。 または teams.yaml が 500 行超で可読性が低下した場合。
+
+    '
+  change_targets:
+  - .claude/references/config/teams.yaml
+  - .claude/CLAUDE.md
+  - platform/automation_engine/presets/
+  impact: medium
+  effort: high
+  linked_rules: []
+  created_at: '2026-02-24'
+  status: proposed
+  resolved_at: null
+- id: IMP-016
+  category: infrastructure
+  title: config.yaml の sync 除外検討
+  root_cause: 'config.yaml は platform CLI 専用だが全リポに sync されている。 現状は環境変数で API キー管理のため害はないが、運用変更時にリスク。
+
+    '
+  proposed_fix: 'sync.sh に --exclude=''config.yaml'' を追加。 または config.yaml に秘密情報直書き禁止の検証を verify-sync.sh に追加。
+
+    '
+  trigger_condition: 'config.yaml に API キーを直書きする運用に変更された場合。 または Tier 1 スキルが config.yaml を誤参照する事故が報告された場合。
+
+    '
+  change_targets:
+  - .claude/scripts/sync.sh
+  - .claude/scripts/verify-sync.sh
+  impact: low
+  effort: low
+  linked_rules: []
+  created_at: '2026-02-24'
+  status: proposed
+  resolved_at: null
+- id: IMP-032
+  title: GL-001 旧 .context-lock-path ファイルの削除
+  category: infrastructure
+  description: 'GL-001 コンテキストロックガードをディレクトリベース（.context-locks/）に移行済み。 後方互換のため旧 .context-lock-path ファイルの読み取りを context_lock_guard.py
+    に残しているが、 全スキルの Step 0.g が新方式に移行完了し、旧ファイルが不要になった時点で後方互換コードを削除する。
+
+    '
+  root_cause: '旧方式は単一ファイルで複数セッションが上書きし合う問題があった。 新方式（.context-locks/ ディレクトリ）で解決済みだが、移行期間中は後方互換を維持。
+
+    '
+  proposed_fix: '1. context_lock_guard.py の _read_lock_paths() から legacy セクション（.context-lock-path 読み取り）を削除 2. .claude/hooks/.context-lock-path
+    ファイルを削除 3. 全リポに /sync で配信後、旧ファイルが残っていないことを verify
+
+    '
+  trigger_condition: '/sync で全リポに新方式が配信され、2週間以上旧 .context-lock-path への書き込みが発生しなくなった場合。
+
+    '
+  change_targets:
+  - .claude/hooks/context_lock_guard.py
+  - .claude/hooks/.context-lock-path (削除)
+  impact: low
+  effort: low
+  linked_rules: []
+  created_at: '2026-02-27'
+  status: proposed
+  resolved_at: null
+- id: IMP-049
+  category: workflow
+  title: 事業計画パイプラインに質疑シミュレーションステップ追加
+  root_cause: '投資家・パートナー向け資料の数値根拠が不明確なまま提出され、 レビュー時に「この数字の根拠は？」と繰り返し指摘される。 資料作成プロセスに想定Q&A（質疑シミュレーション）ステップがなく、 数値の説明可能性が事前検証されていない。
+
+    '
+  proposed_fix: '(1) /ai-slides Phase 0（ブリーフ作成）に「数値根拠検証」サブステップ追加 (2) brief.yaml の metrics セクションに各数値の出典・計算根拠フィールドを追加 (3) /export
+    実行前に「想定Q&Aリスト」生成を推奨するガイダンス追加
+
+    '
+  change_targets:
+  - .claude/skills/ai-slides/SKILL.md
+  - .claude/references/templates/brief-template.yaml
+  impact: medium
+  effort: low
+  linked_rules:
+  - SL-052
+  created_at: '2026-03-02'
+  status: proposed
+- id: IMP-060
+  category: workflow
+  title: /task, /ai-task ルーターのドメイン振り分け精度改善サイクル
+  root_cause: 'v2.0 で task ドメインを廃止し /task, /ai-task を純粋なルーターに変更した。 ルーターはユーザー入力のキーワード・意図分析から domain を動的導出するが、 振り分けミスの検出→ルール化→精度向上のフィードバックサイクルが未実装。
+    誤ったドメインに振り分けられた場合、ユーザーが手動で修正する必要がある。
+
+    '
+  proposed_fix: "1. ルーター振り分けログの記録: /task, /ai-task 実行時にルーターが選択した domain と\n   ユーザーの承認/修正を記録する仕組みを追加\n2. 振り分けミスの分析: 蓄積された修正履歴から誤分類パターンを特定\
+    \ 3. ルール化: /ai-learn 経由で振り分け精度を向上させるルールを learned-rules.yaml に追加 4. ルーターロジックの改善: SKILL.md のルーターセクションにドメイン特徴語辞書を追加\n"
+  change_targets:
+  - .claude/skills/task/SKILL.md
+  - .claude/skills/ai-task/SKILL.md
+  - .claude/references/rules/learned-rules.yaml
+  impact: medium
+  effort: medium
+  linked_rules: []
+  created_at: '2026-03-06'
+  status: proposed
+- id: IMP-068
+  category: documentation
+  title: README SSoT 監査 — 全リポ + 非 Git ディレクトリの README 展開
+  root_cause: '各リポの主要コードディレクトリに README.md が不足しており、CLAUDE.md Step 0 b'''' の 成果物配置確認が機能しない。また .claude/ SSoT と platform/ の README
+    が構造変更 （references/ サブディレクトリ化等）に追従していなかった。
+
+    '
+  proposed_fix: 'Phase 0: 監査基準策定（readme-expansion-guide.md, document-style-guide.md） Phase 1-3: テンプレート・ガイド整備 Phase 4-A: 5
+    リポの docs/README.md 命名規則セクション追加 Phase 4-B: 5 リポの主要コードディレクトリに README 32 ファイル作成 Phase 4-C: 非 Git ディレクトリ（.claude/, platform/）の
+    README 最新化 Phase 5: /sync で全リポに配布
+
+    '
+  change_targets:
+  - 全リポの主要コードディレクトリ README.md
+  - .claude/README.md
+  - platform/README.md
+  - .claude/references/guides/readme-expansion-guide.md
+  - .claude/references/guides/document-style-guide.md
+  impact: high
+  effort: high
+  linked_rules: []
+  created_at: '2026-03-06'
+  status: in-progress
+  notes: 'Phase 0-3: 完了。Phase 4-A: 完了（5 リポ docs/README.md 命名規則追加）。 Phase 4-B: 完了（32 README 作成、PR 作成済み — module-c#105, module-d#137, module-b#1984,
+    module-a#7011, wpm#158）。 Phase 4-C: 完了（.claude/README.md references/ サブディレクトリ構造反映、platform/README.md 全面更新）。 残: Phase 5（/sync
+    実行 — sync.sh 修正済み IMP-067）、PR マージ後 verify-sync.sh 実行。
+
+    '
+- id: IMP-071
+  category: structural
+  title: 学習自動化 — 実行可能な学習先 + スキル完了時自動学習 + カオス防止
+  root_cause: '(1) /ai-learn が手動呼び出し必須で、スキル完了後にユーザーが忘れると学習されない。 (2) 学習先が SKILL.md/CLAUDE.md（prose）で、AI が無視する・コンテキスト圧縮で消える。
+    (3) learned-rules.yaml が肥大化する一方で整理されない（bridge 放置、重複蓄積）。 (4) compile-hooks を手動で忘れると hook に反映されない。
+
+    '
+  proposed_fix: "Phase 3→2→1 の順で実装。核心は「昇格パイプライン」— 昇格＝テキスト移動ではなく、 workflow phase追加 + ペルソナ配置 + Python実装 + テスト/hook を1セットで実装すること。\n"
+  change_targets:
+  - platform/automation_engine/cli_preset.py
+  - platform/automation_engine/presets/promoter.py
+  - platform/automation_engine/presets/discovery.py
+  - .claude/hooks/auto_learn.py
+  - .claude/hooks/session_start.py
+  - .claude/references/config/teams.yaml
+  - .claude/skills/ai-learn/SKILL.md
+  impact: high
+  effort: high
+  linked_rules: []
+  created_at: '2026-03-07'
+  status: done
+  resolved_at: '2026-03-08'
+  notes: 'IMP-071 完了:
+    Phase 3（昇格パイプライン）: presets/promoter.py に PromotionPipeline 実装
+    (analyze→quality_gate→vote→execute→verify の5ステージ)。
+    cli_preset.py に preset promote/gc ハンドラー、cli_parser.py にサブコマンド登録。
+    Phase 2（実行可能化）: learning ドメインに analyze/implement/verify phase py 追加、
+    compile-hooks 自動連鎖実行。
+    Phase 1（自動学習）: auto_learn.py Stop hook + session_start.py の preset gc --check。
+    gc バグ修正: IMP-072 ドメイン別 YAML 分割対応（LearnedRulesConfig インポート + ドメイン別削除）。
+
+    '
+- id: IMP-072
+  category: workflow
+  title: cleanup/merge の機械的フェーズをスクリプト化 + Stop hook で残存検知
+  root_cause: 'IMP-073（Tier 1 WorkflowEngine 統合）の完了まで、cleanup/merge の 一時成果物削除は SKILL.md の手順書に依存している。AI がステップをスキップすると ゴミが残置される。特にレビュアーとして参加し、他者がマージした場合に漏れやすい。
+
+    '
+  proposed_fix: '2つの補完策を実装する: 1. scripts/cleanup_artifacts.py: 一時成果物削除を Python スクリプト化し、 SKILL.md から 1コマンドで実行。AI の判断に委ねない機械的な削除を保証。
+    対象: context-locks/*, ssot-impact-declared, placement-rules-cache, agreement-hashes, work-logs/ 2. Stop hook（session_stop.py）:
+    セッション終了時に残存一時成果物を検出して警告。 cleanup/merge 未実行の検知にもなる。
+
+    '
+  change_targets:
+  - .claude/scripts/cleanup_artifacts.py
+  - .claude/hooks/session_stop.py
+  - .claude/settings.json
+  - .claude/skills/cleanup/SKILL.md
+  - .claude/skills/merge/SKILL.md
+  impact: medium
+  effort: low
+  linked_rules: []
+  created_at: '2026-03-07'
+  status: done
+  resolved_at: '2026-03-08'
+  notes: 'IMP-072 完了: cleanup_artifacts.py 実装（5点セット削除 + --dry-run/--worktree対応）、
+    session_stop.py Stop hook 実装（残存一時成果物検知→hookSpecificOutput 警告）、
+    settings.json に Stop hook 登録。IMP-073 暫定措置として機能中。
+    2026-03-08: cleanup/merge SKILL.md の Step 2.5/4 を cleanup_artifacts.py 呼び出しに統一。
+    手動 rm コマンド群を置換し、リポ/SSoT 混合パターンでの work-log 削除漏れを解消。
+
+    '
+- id: IMP-076
+  category: structural
+  title: WorkflowEngine に work-log コンテキスト統合（Tier 2 フェーズが統合目的・制約を参照可能に）
+  root_cause: 'IMP-074 で Flow B（resolve/approve）を全スキル必須化したが、work-log の内容は Claude Code セッション内（Tier 1）でのみ参照されており、platform CLI
+    の WorkflowEngine（Tier 2） は work-log の存在すら知らない。結果として: 1. Tier 2 フェーズの AI モデルが「統合目的」「制約」「進捗」を参照できない 2. コンテキスト圧縮後に Claude
+    Code が work-log を読み直しても、platform CLI に渡す prompt に work-log 内容が含まれない 3. approve フェーズが全ドメインで TODO スタブ（承認判断に必要な work-log 情報がない）
+    根本原因: work-log は Tier 1 概念として設計され、Tier 2 の context dict に統合されていない。
+
+    '
+  proposed_fix: 'WorkflowEngine の context に work-log コンテンツを注入するパスを追加:
+
+    1. workflow_engine.py: execute() の初期 context 構築時に work_log_path と work_log_content を オプショナルに受け取り、context["work_log"] として全フェーズに伝播する
+    2. cli_workflow.py: Claude Code から呼び出される際に --work-log オプションで work-log パスを受け取り、 ファイル内容を読み込んで context に注入する 3. _common/phases/approve.py:
+    TODO スタブを実装。work-log の ssot_impact・統合目的を読み取り、 承認が必要な変更の種類を判定してユーザーに報告する（Tier 2 での対話的承認） 4. _common/phases/analyze.py,
+    propose.py, verify.py: system prompt に work-log の統合目的・ 制約セクションを注入し、AI モデルが目的に沿った分析・提案・検証を行えるようにする 5. SKILL.md（全 Tier 2
+    スキル）: Flow B で作成した work-log のパスを platform CLI に渡すステップを追加
+
+    Phase 1（最小実装）: context["work_log"] の注入パス + approve.py の基本実装 Phase 2（AI活用）: 各フェーズの system prompt に統合目的・制約を自動注入
+
+    '
+  change_targets:
+  - platform/automation_engine/workflow_engine.py
+  - platform/automation_engine/cli_workflow.py
+  - platform/automation_engine/domains/_common/phases/approve.py
+  - platform/automation_engine/domains/_common/phases/analyze.py
+  - platform/automation_engine/domains/_common/phases/propose.py
+  - platform/automation_engine/domains/_common/phases/verify.py
+  - platform/automation_engine/domains/slides/approve.py
+  - .claude/skills/ai-task/SKILL.md
+  - .claude/skills/ai-fix/SKILL.md
+  - .claude/skills/ai-slides/SKILL.md
+  - .claude/skills/ai-learn/SKILL.md
+  impact: high
+  effort: medium
+  linked_rules: []
+  created_at: '2026-03-08'
+  status: done
+  resolved_at: '2026-03-08'
+  notes: 'IMP-076 完了:
+    1. cli_parser.py: --work-log オプション追加
+    2. cli_workflow.py: _parse_work_log() で frontmatter + 制約セクション抽出、context["work_log"] に注入
+    3. _common/phases/approve.py: TODO スタブ → work-log ベースの承認ゲート実装（ssot_impact 判定、統合目的表示、制約一覧）
+    4. _common/phases/analyze.py: work-log の統合目的・制約をシステムプロンプトに注入
+    5. _common/phases/propose.py: work-log の統合目的・制約を注入 + 「統合目的に沿った提案」指示
+    6. _common/phases/verify.py: work-log の統合目的との整合性検証（項目6, 7追加）+ 制約遵守検証
+    7. tests/test_cli_workflow.py: 8テスト追加（_parse_work_log 5 + approve 3）
+    Tier 1/2 乖離分析: IMP-071 はペルソナ・ルール合成の一致に集中し、フェーズ実行コンテキストは対象外だった。
+    本実装により、work-log（統合目的・制約・ssot_impact）が Tier 2 phase py に伝播し、
+    Tier 1（SKILL.md）と Tier 2（phase py）が同じ情報を参照して品質判断を行う構造になった。
+
+    '
+- id: IMP-077
+  category: structural
+  title: 全ドメインの phase py 実装完全化（SKILL.md prose 依存ドメインの排除）
+  root_cause: '実装調査の結果、初期分析よりも状況は良好だった。
+    fix, spec, research, project_mgmt, pm_planning の5ドメインは「ドメイン固有プロンプトビルダー」パターンを
+    正しく実装しており、domain phase がプロンプトを構築 → common phase が AI API を呼び出す分業が機能している。
+    IMP-076 により common phases が work-log（統合目的・制約）を参照するようになったため、
+    これら5ドメインも自動的に目的に沿った AI 呼び出しを得る。
+
+    残る真のギャップ:
+    1. ops ドメイン: 全4フェーズが純粋スケルトン（return status only）。ただし実態は Claude Code 直接実行（push/cleanup/sync）
+    2. pm_export ドメイン: 全5フェーズが純粋スケルトン。ただし実態は PMPlanningTeam 別パイプライン経由
+    3. slides/approve.py: 17行スタブ（common approve で代替可能か要検討）
+
+    '
+  proposed_fix: 'IMP-076 完了により Phase 1 の大部分が不要になった。残タスク:
+
+    Phase 1（完了）: common phases に work-log 注入 → 全ドメインが統合目的を参照（IMP-076 で実施済み）
+
+    Phase 2（残）: ops/pm_export ドメインの整理
+    - ops: WorkflowEngine 非経由のため phase py 不要。ドメイン定義から除外するか、明示的に「Claude Code 専用」と文書化
+    - pm_export: 同上（PMPlanningTeam 別パイプライン経由）
+
+    Phase 3（残）: slides/approve.py のスタブ解消
+    - common approve.py が work-log ベースで動作するため、slides 固有の approve は不要か要検討
+
+    '
+  change_targets:
+  - platform/automation_engine/domains/ops/ (整理 or 文書化)
+  - platform/automation_engine/domains/pm_export/ (整理 or 文書化)
+  - platform/automation_engine/domains/slides/approve.py
+  impact: low
+  effort: low
+  linked_rules: []
+  created_at: '2026-03-08'
+  status: done
+  resolved_at: '2026-03-08'
+  notes: 'IMP-077 完了:
+    ops/pm_export: docstring にT1-Onlyステータスを文書化（WorkflowEngine 非経由の理由明記）。
+    slides/approve.py: TODO スタブ → common approve.py に委譲 + slides 固有メタデータ付加。
+    architecture.md: §3.3 ドメイン成熟度分類（Production-Ready/Prompt-Builder/T1-Only）追加。
+
+    '
+- id: IMP-100
+  title: SAS 発行ポリシーのテナント別動的管理化（cap-file-ingestion 内 DB に閉じる）
+  category: structural
+  root_cause: |
+    cap-file-ingestion の SAS 発行ポリシー（tenantFileTypePolicy および sasIssuancePolicy の
+    allowedContentTypes / maxSizeBytes / maxExpiryMinutes）が Cap 同梱 JSON に静的定義されており、
+    テナント別の設定変更に PR マージ + デプロイが必要。
+    テナント増加・変更頻度が上がると運用負荷が高い。
+  proposed_fix: |
+    cap-config-control を介さず、cap-file-ingestion 内に閉じた DB と SasPolicyRepositoryPort で管理する。
+    cap-api-iam の TenantAccessPolicy と同パターン（他 Cap から参照されない Cap ローカル設定は
+    cap-config-control を介さない）。
+    Phase 1: SasPolicyRepositoryPort と Cap 内 DB スキーマを追加。default 値は引き続き同梱 JSON、
+             tenant override は DB から取得して SasIssuancePolicyResolver でマージして返す。
+             pathTemplate は adls-partition-design.md のパーティション契約を壊さないため override 不可。
+    Phase 2: 管理 API（tenant override の CRUD）とキャッシュ層を追加。
+    Phase 3: 同梱 JSON は default を保持し、tenantFileTypePolicy セクションは DB へ一定期間の並行運用後に廃止。
+  trigger_condition: |
+    テナント数 > 10 または テナント設定変更頻度 > 月1回 になった場合、
+    またはテナント別に size 上限 / SAS 有効期限 / content_type を切り替える要件が発生した場合。
+  change_targets:
+  - src/module-d/capabilities/cap_file_ingestion/internal/resources/sas_issuance_policy.json
+  - src/module-d/capabilities/cap_file_ingestion/internal/policies/sas_issuance_policy_resolver.py
+  - src/module-d/capabilities/cap_file_ingestion/contracts/ports/sas_policy_repository_port.py (新規)
+  - src/module-d/capabilities/cap_file_ingestion/adapters/sas_policy_repository.py (新規)
+  - src/infrastructure/db/migrations/ (新規テーブル: tenant_sas_policy_override, tenant_file_type_policy)
+  - docs/specs/architecture/capabilities/cap-file-ingestion.md
+  impact: medium
+  effort: medium
+  linked_rules: []
+  created_at: '2026-06-11'
+  status: proposed
+  resolved_at: null

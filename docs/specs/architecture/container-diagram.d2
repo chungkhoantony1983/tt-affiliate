@@ -1,0 +1,104 @@
+# Container Diagram — Deployment Units
+# D2 format: processes, databases, queues, external systems
+
+direction: right
+
+# === Internal Containers ===
+fastapi: "FastAPI Backend\n[Python 3.12]\nport 8000" {
+  shape: rectangle
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+}
+
+celery: "Celery Worker\n[Python 3.12]\nvideo rendering" {
+  shape: rectangle
+  style.fill: "#FFF3E0"
+  style.stroke: "#E65100"
+}
+
+n8n: "N8N\n[Node.js]\nport 5678\nworkflow orchestration" {
+  shape: rectangle
+  style.fill: "#E8F5E9"
+  style.stroke: "#2E7D32"
+}
+
+dashboard: "Streamlit Dashboard\n[Python 3.12]\nport 8501" {
+  shape: rectangle
+  style.fill: "#F3E5F5"
+  style.stroke: "#6A1B9A"
+}
+
+# === Data Stores ===
+postgres: "PostgreSQL\n[Docker]\nport 5432\nproducts, scripts, jobs, metrics" {
+  shape: cylinder
+  style.fill: "#ECEFF1"
+}
+
+redis: "Redis\n[Docker]\nport 6379\nCelery broker + cache" {
+  shape: cylinder
+  style.fill: "#FFEBEE"
+}
+
+storage: "Local Storage\n[filesystem]\nstorage/videos/\nstorage/assets/" {
+  shape: cylinder
+  style.fill: "#FFF9C4"
+}
+
+# === External Systems ===
+shopee-api: "Shopee Affiliate API\n[HTTPS]\naffiliate.shopee.vn" {
+  shape: cloud
+  style.fill: "#F3E5F5"
+}
+
+tiktok-api: "TikTok Content API v2\n[HTTPS]\nopen.tiktokapis.com" {
+  shape: cloud
+  style.fill: "#F3E5F5"
+}
+
+groq-api: "Groq API\n[HTTPS]\napi.groq.com\nLlama 3.1 70B" {
+  shape: cloud
+  style.fill: "#F3E5F5"
+}
+
+gemini-api: "Gemini API\n[HTTPS]\ngenerativelanguage.googleapis.com" {
+  shape: cloud
+  style.fill: "#F3E5F5"
+}
+
+edge-tts: "edge-tts\n[local Python lib]\nMicrosoft TTS" {
+  shape: hexagon
+  style.fill: "#E0F7FA"
+}
+
+telegram-api: "Telegram Bot API\n[HTTPS]\napi.telegram.org" {
+  shape: cloud
+  style.fill: "#F3E5F5"
+}
+
+# === Communication Edges ===
+
+# N8N → Backend (HTTP REST)
+n8n -> fastapi: "HTTP REST\nJSON\ntrigger caps" {style.stroke: "#2E7D32"}
+
+# Backend → Data
+fastapi -> postgres: "SQLAlchemy\nTCP 5432" {style.stroke: "#616161"}
+fastapi -> redis: "Celery task dispatch\nTCP 6379" {style.stroke: "#D32F2F"}
+celery -> redis: "Task consume\nTCP 6379" {style.stroke: "#D32F2F"}
+celery -> postgres: "Job status update\nTCP 5432" {style.stroke: "#616161"}
+celery -> storage: "Write video files" {style.stroke: "#F9A825"}
+
+# Backend → External APIs
+fastapi -> shopee-api: "HTTPS\nREST API\nproduct sync" {style.stroke: "#6A1B9A"}
+fastapi -> tiktok-api: "HTTPS\nOAuth2 + REST\nvideo upload" {style.stroke: "#6A1B9A"}
+fastapi -> groq-api: "HTTPS\nOpenAI-compatible\nscript gen" {style.stroke: "#6A1B9A"}
+fastapi -> gemini-api: "HTTPS\nREST\nfallback LLM" {style.stroke: "#6A1B9A"}
+fastapi -> telegram-api: "HTTPS\nBot API\nalerts + reports" {style.stroke: "#6A1B9A"}
+
+# Celery → Local tools
+celery -> edge-tts: "Python lib call\nTTS synthesis" {style.stroke: "#00838F"}
+
+# Dashboard → Data
+dashboard -> postgres: "Read-only\nTCP 5432" {style.stroke: "#616161"; style.stroke-dash: 5}
+
+# N8N → External (direct for simple tasks)
+n8n -> telegram-api: "HTTPS\nerror alerts" {style.stroke-dash: 5}

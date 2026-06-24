@@ -1,0 +1,75 @@
+<!-- scope: L3 STRIDE脅威分析（導出成果物。per-Cap or per-area） -->
+<!-- spec: docs/manual/design-process-guide.md §10 -->
+<!-- 配置先: docs/specs/architecture/security/stride-{{cap-id-or-area}}.md -->
+<!-- Input: capabilities.md §データ + container-diagram -->
+<!-- 禁止: 実装コード、インフラ構成（§2c） -->
+
+# STRIDE 脅威分析: {{Cap-id or area name}}
+
+<!-- source-of-truth: per-Cap or per-area の STRIDE 6 カテゴリ × threat catalog -->
+<!-- 標準 section 順序 (§3.A.9): -->
+<!-- 1. 概要 (scope + DFD trust boundary 参照)  2. STRIDE catalog (6 カテゴリ × threat)  3. 残存リスク + owner -->
+
+## 概要
+
+- **scope**: {{Cap-id or area name (e.g., authentication area、payment area)}}
+- **trust boundary 参照**: Container図 (`docs/specs/architecture/container-diagram.d2`)
+- **対象資産**: {{API/Event/DataStore/Boundary 一覧}}
+- **コンプライアンス要件**: {{GDPR / 業法 / 内部統制 等}}
+
+## STRIDE Threat Catalog (6 カテゴリ × threat × 緩和策 × 残存リスク × owner)
+
+<!-- 1 threat = {STRIDE カテゴリ × シナリオ × 対象資産 × 緩和策 × 残存リスク × owner} (§3.A.9 §UN §4 単位) -->
+<!-- 形式: 「攻撃者が {資産} に対して {脅威カテゴリ} 手法で {不正結果} を引き起こす」 -->
+<!-- DREAD 簡易 5 段階で Severity 評価 (発生確率 / 影響 → High / Medium / Low) -->
+
+### S — Spoofing (なりすまし)
+
+| Threat ID | 攻撃シナリオ | 対象資産 | Severity | 緩和策 | 残存リスク | owner |
+|---|---|---|---|---|---|---|
+| S-01 | {{攻撃者が `{actor}` になりすまし `{API}` を呼出}} | {{API/Event 名}} | High/Medium/Low | {{認証 / 署名 / mTLS}} | {{残存リスク記述}} | {{Cap owner}} |
+
+### T — Tampering (改ざん)
+
+| Threat ID | 攻撃シナリオ | 対象資産 | Severity | 緩和策 | 残存リスク | owner |
+|---|---|---|---|---|---|---|
+| T-01 | {{transit 中の payload 改ざん / 永続データ改ざん}} | {{DTO/DataStore 名}} | High/Medium/Low | {{TLS / hash / signature / RBAC}} | {{残存リスク記述}} | {{Cap owner}} |
+
+### R — Repudiation (否認)
+
+| Threat ID | 攻撃シナリオ | 対象資産 | Severity | 緩和策 | 残存リスク | owner |
+|---|---|---|---|---|---|---|
+| R-01 | {{user が操作を否認、監査 log 不在}} | {{操作 trace}} | High/Medium/Low | {{audit log + 改ざん検知 + 時刻同期}} | {{残存リスク記述}} | {{Cap owner}} |
+
+### I — Information disclosure (情報漏洩)
+
+| Threat ID | 攻撃シナリオ | 対象資産 | Severity | 緩和策 | 残存リスク | owner |
+|---|---|---|---|---|---|---|
+| I-01 | {{PII 漏洩、log への機密情報出力}} | {{PII データ entity (DFD 参照)}} | High/Medium/Low | {{暗号化 (at-rest/in-transit) + log マスキング + 認可}} | {{残存リスク記述}} | {{Cap owner}} |
+
+### D — Denial of service (DoS)
+
+| Threat ID | 攻撃シナリオ | 対象資産 | Severity | 緩和策 | 残存リスク | owner |
+|---|---|---|---|---|---|---|
+| D-01 | {{rate limit 超過、resource exhaustion}} | {{API endpoint}} | High/Medium/Low | {{rate limit + circuit breaker + auto-scale}} | {{残存リスク記述}} | {{Cap owner}} |
+
+### E — Elevation of privilege (権限昇格)
+
+| Threat ID | 攻撃シナリオ | 対象資産 | Severity | 緩和策 | 残存リスク | owner |
+|---|---|---|---|---|---|---|
+| E-01 | {{lower-privilege user が higher-privilege API を呼出 (IDOR / RBAC bypass)}} | {{authorize-required API}} | High/Medium/Low | {{RBAC 検証 + ABAC + least-privilege}} | {{残存リスク記述}} | {{Cap owner}} |
+
+## 残存リスクサマリ (High/Critical 未緩和 = 0 必須、§3.A.9 §UN §3 目標関数)
+
+| 残存リスク | Severity | owner | 期限 | 対応方針 |
+|---|---|---|---|---|
+| {{Threat ID 連番}} | | | | |
+
+## 検証チェックリスト (§3.A.9 §6 品質 gate)
+
+<!-- - [ ] 全 API/Event/DataStore/Boundary に STRIDE 6 カテゴリ評価あり -->
+<!-- - [ ] High/Critical 未緩和ゼロ -->
+<!-- - [ ] 重要脅威に緩和策 / owner / 期限 記載 -->
+<!-- - [ ] DFD/{{scenario-id}}.d2 (§3.A.11) の trust boundary と整合 -->
+<!-- - [ ] Cap §⑤' Quality に緩和策 / owner 反映済 (双方向 trace、§3.A.9 chain framing) -->
+<!-- - [ ] threat-model.md (§3.A.20、cross-Cap 集約) に統合済 -->

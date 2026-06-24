@@ -1,0 +1,230 @@
+schema_version: '2.0'
+# TikTok Affiliate Automation — Learned Rules (clean, project-specific)
+# Rules PJ-cụ thể đặt trong capabilities/*/CAPABILITY.md
+# ─────────────────────────────────────────────────────────
+
+rules:
+
+# ============================================================
+# GN — General / Universal
+# ============================================================
+
+- id: GN-001
+  binding:
+    level: company
+  rule: "Tiền tệ: dùng VND (₫) làm đơn vị chính, USD ($) cho chi phí API/SaaS."
+  type: permanent
+  enforcement_type: prose_gate
+  origin: TikTok Affiliate Project baseline
+  promoted_at: '2026-06-24'
+
+- id: GN-002
+  binding:
+    level: company
+  rule: "Ngôn ngữ: caption/script TikTok → tiếng Việt. Code/log/commit → tiếng Anh. Docs nội bộ → tiếng Việt."
+  type: permanent
+  origin: TikTok Affiliate Project baseline
+  promoted_at: '2026-06-24'
+
+- id: GN-003
+  binding:
+    level: company
+  rule: "Số liệu trong docs chỉ dùng khi có nguồn rõ ràng hoặc có thể verify. Không dùng số ước đoán."
+  type: permanent
+  enforcement_type: prose_gate
+  origin: Quality rule — prevent fabricated metrics
+  promoted_at: '2026-06-24'
+
+- id: GN-004
+  binding:
+    level: company
+  rule: "API keys và secrets KHÔNG hardcode. Tất cả secrets đặt trong .env (gitignored)."
+  type: permanent
+  enforcement_type: hook_strict
+  origin: Security baseline — OWASP A02
+  promoted_at: '2026-06-24'
+
+- id: GN-005
+  binding:
+    level: company
+  rule: "Mỗi capability có một CAPABILITY.md là SSoT. Không viết logic vào CLAUDE.md."
+  type: permanent
+  enforcement_type: prose_gate
+  origin: CDD principle
+  promoted_at: '2026-06-24'
+
+- id: GN-006
+  binding:
+    level: company
+  rule: "File video (*.mp4), audio (*.mp3), ảnh cache không commit vào git. Đặt trong storage/ (gitignored)."
+  type: permanent
+  enforcement_type: hook_strict
+  origin: Repository hygiene
+  promoted_at: '2026-06-24'
+
+# ============================================================
+# GP — General Process
+# ============================================================
+
+- id: GP-001
+  binding:
+    level: company
+  rule: "Sau mỗi thay đổi capability/workflow, cập nhật CAPABILITY.md ngay. Không để doc lỗi thời."
+  type: permanent
+  origin: Doc hygiene
+  promoted_at: '2026-06-24'
+
+- id: GP-002
+  binding:
+    level: company
+  rule: "Khi fix một bug/pattern, horizontal-check xem pattern tương tự có ở chỗ khác không trước khi đóng."
+  type: permanent
+  origin: Prevent recurrence
+  promoted_at: '2026-06-24'
+
+- id: GP-003
+  binding:
+    level: company
+  rule: "Re-run upstream pipeline step → phải re-run tất cả downstream steps. Tránh artifact mismatch."
+  type: permanent
+  origin: Pipeline consistency
+  promoted_at: '2026-06-24'
+
+- id: GP-004
+  binding:
+    level: company
+  rule: "Dùng Claude.ai Pro (web) cho task quality cao. Với N8N automation bulk: dùng Groq/Gemini free API.
+    Không gọi Anthropic API khi đang có Claude session — tránh double billing."
+  type: permanent
+  origin: Cost optimization for Claude Pro + N8N home desktop setup
+  promoted_at: '2026-06-24'
+
+- id: GP-005
+  binding:
+    level: company
+  rule: "Cuối session dài, ghi progress summary vào MEMORY.md: đã làm gì, còn gì, bước tiếp theo."
+  type: permanent
+  enforcement_type: prose_gate
+  origin: Context persistence
+  promoted_at: '2026-06-24'
+
+- id: GP-006
+  binding:
+    level: company
+  rule: "API output rỗng/lỗi → không coi là hoàn thành. Phải kiểm tra log, xác định nguyên nhân, retry/fallback."
+  type: permanent
+  enforcement_type: prose_gate
+  origin: Error handling discipline
+  promoted_at: '2026-06-24'
+
+- id: GP-007
+  binding:
+    level: company
+  rule: "Ưu tiên: (1) structural change, (2) automated hook, (3) prose rule. Không đề xuất checklist đầu tiên."
+  type: permanent
+  origin: Prevention hierarchy
+  promoted_at: '2026-06-24'
+
+- id: GP-008
+  binding:
+    level: company
+  rule: "Đọc toàn bộ source file trước khi generate output. Số liệu/tên/giá phải match chính xác."
+  type: permanent
+  enforcement_type: prose_gate
+  origin: Data integrity — prevent hallucination
+  promoted_at: '2026-06-24'
+
+# ============================================================
+# TK — TikTok Specific
+# ============================================================
+
+- id: TK-001
+  binding:
+    level: domain
+    target: content-generation
+  rule: "Script phải có hook trong 3s đầu: câu hỏi, fact gây shock, hoặc promise rõ ràng.
+    Không bắt đầu bằng giới thiệu sản phẩm trực tiếp."
+  type: permanent
+  origin: TikTok algorithm — 3-second rule
+  promoted_at: '2026-06-24'
+
+- id: TK-002
+  binding:
+    level: domain
+    target: content-generation
+  rule: "Mỗi video chỉ promote một sản phẩm hoặc một topic."
+  type: permanent
+  origin: Affiliate marketing best practice — focus converts better
+  promoted_at: '2026-06-24'
+
+- id: TK-003
+  binding:
+    level: domain
+    target: video-render
+  rule: "Video export: MP4, H.264, AAC audio, 1080x1920 (9:16), duration 15-60s, size < 500MB."
+  type: permanent
+  enforcement_type: hook_strict
+  origin: TikTok Content Posting API requirements
+  promoted_at: '2026-06-24'
+
+- id: TK-004
+  binding:
+    level: domain
+    target: platform-publishing
+  rule: "TikTok access token TTL = 24h. Phải implement auto-refresh. Không hardcode token."
+  type: permanent
+  enforcement_type: hook_strict
+  origin: TikTok API security requirement
+  promoted_at: '2026-06-24'
+
+# ============================================================
+# SP — Shopee Specific
+# ============================================================
+
+- id: SP-001
+  binding:
+    level: domain
+    target: product-sync
+  rule: "Affiliate link phải re-generate nếu sản phẩm thay đổi giá/trạng thái. Không cache link > 7 ngày."
+  type: permanent
+  origin: Shopee affiliate link validity
+  promoted_at: '2026-06-24'
+
+- id: SP-002
+  binding:
+    level: domain
+    target: product-sync
+  rule: "Không tạo video cho sản phẩm hết hàng (stock=0) hoặc đã deactivate. Sync status trước batch."
+  type: permanent
+  origin: Content quality — prevent promoting unavailable items
+  promoted_at: '2026-06-24'
+
+# ============================================================
+# AI — AI/LLM Cost Rules
+# ============================================================
+
+- id: AI-001
+  binding:
+    level: company
+  rule: "LLM ưu tiên (free-first): (1) Groq free (Llama 3.1 70B) cho bulk,
+    (2) Gemini Flash free cho fallback, (3) Claude Haiku API khi cần quality/volume thấp,
+    (4) Claude.ai Pro (manual) cho review và complex reasoning."
+  type: permanent
+  origin: Cost optimization — target ~$0-10/month AI API
+  promoted_at: '2026-06-24'
+
+- id: AI-002
+  binding:
+    level: company
+  rule: "TTS ưu tiên: (1) edge-tts (free, Vietnamese voices), (2) OpenAI TTS API khi cần quality cao."
+  type: permanent
+  origin: Cost optimization for voiceover
+  promoted_at: '2026-06-24'
+
+- id: AI-003
+  binding:
+    level: company
+  rule: "Mỗi AI prompt phải có: role/persona, output format specification, example output (nếu format phức tạp)."
+  type: permanent
+  origin: Prompt engineering discipline — prevent inconsistent output
+  promoted_at: '2026-06-24'
