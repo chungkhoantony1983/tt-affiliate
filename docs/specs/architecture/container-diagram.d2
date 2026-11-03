@@ -45,12 +45,12 @@ storage: "Local Storage\n[filesystem]\nstorage/videos/\nstorage/assets/" {
 }
 
 # === External Systems ===
-shopee-api: "Shopee Affiliate API\n[HTTPS]\naffiliate.shopee.vn" {
+ecommerce-api: "E-commerce APIs\n[HTTPS]\n(Shopee, Lazada, Amazon...)" {
   shape: cloud
   style.fill: "#F3E5F5"
 }
 
-tiktok-api: "TikTok Content API v2\n[HTTPS]\nopen.tiktokapis.com" {
+social-api: "Social APIs\n[HTTPS]\n(TikTok, FB, YT...)" {
   shape: cloud
   style.fill: "#F3E5F5"
 }
@@ -88,8 +88,8 @@ celery -> postgres: "Job status update\nTCP 5432" {style.stroke: "#616161"}
 celery -> storage: "Write video files" {style.stroke: "#F9A825"}
 
 # Backend → External APIs
-fastapi -> shopee-api: "HTTPS\nREST API\nproduct sync" {style.stroke: "#6A1B9A"}
-fastapi -> tiktok-api: "HTTPS\nOAuth2 + REST\nvideo upload" {style.stroke: "#6A1B9A"}
+fastapi -> ecommerce-api: "HTTPS\nREST API\nproduct sync" {style.stroke: "#6A1B9A"}
+fastapi -> social-api: "HTTPS\nREST API\nvideo publish" {style.stroke: "#283593"}
 fastapi -> groq-api: "HTTPS\nOpenAI-compatible\nscript gen" {style.stroke: "#6A1B9A"}
 fastapi -> gemini-api: "HTTPS\nREST\nfallback LLM" {style.stroke: "#6A1B9A"}
 fastapi -> telegram-api: "HTTPS\nBot API\nalerts + reports" {style.stroke: "#6A1B9A"}

@@ -11,7 +11,6 @@ from pathlib import Path
 from app.core.config import settings
 from app.services.ai.script_generator import generate_product_script, generate_voiceover
 from app.services.video.renderer import render_product_video, download_image
-from app.services.tiktok.tiktok_service import TikTokService
 
 logger = get_task_logger(__name__)
 
@@ -144,16 +143,15 @@ def upload_video_to_tiktok(job_id: int):
         hashtags = json.loads(job.hashtags or "[]")
         full_caption = caption + " " + " ".join(f"#{h}" for h in hashtags)
 
+        from app.services.tiktok.tiktok_service import TikTokService
         tiktok = TikTokService()
+        # Upload vào inbox — creator tự dán caption và bấm đăng trong app TikTok
         result = asyncio.get_event_loop().run_until_complete(
-            tiktok.publish_video(
-                video_path=job.video_path,
-                caption=full_caption,
-                hashtags=hashtags
-            )
+            tiktok.upload_draft(video_path=job.video_path)
         )
+        logger.info(f"[Job {job_id}] Caption to paste in TikTok app: {full_caption}")
 
-        job.tiktok_video_id = result.get("publish_id")
+        job.platform_video_id = result.get("publish_id")
         job.status = VideoStatus.PUBLISHED
         db.commit()
 

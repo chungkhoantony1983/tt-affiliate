@@ -1,7 +1,7 @@
 direction: down
 
 title: |md
-  # TikTok Publish — Component Diagram
+  # Social Publish — Component Diagram
   4-Layer Internal Architecture
 |
 
@@ -13,7 +13,7 @@ external: External Systems {
   video_file: Video File (storage/) {
     style.fill: "#c8e6c9"
   }
-  tiktok_api: TikTok Content Posting API v2 {
+  social_api: Social Platform APIs (TikTok, FB, YT) {
     style.fill: "#c8e6c9"
   }
   event_bus: Event Bus {
@@ -22,8 +22,8 @@ external: External Systems {
   }
 }
 
-# === Capability: TikTok Publish ===
-tiktok_publish: TikTok Publish Capability {
+# === Capability: Social Publish ===
+social_publish: Social Publish Capability {
   style.fill: "#ede7f6"
   style.border-radius: 8
 
@@ -32,14 +32,14 @@ tiktok_publish: TikTok Publish Capability {
     style.fill: "#d1c4e9"
     style.border-radius: 6
 
-    platform_publish: «interface» PlatformPublishAdapter {
+    platform_publish: «interface» SocialPublishAdapter {
       style.stroke-dash: 5
       style.fill: "#f8bbd0"
     }
-    tiktok_v2: TikTokV2Adapter {
+    platform_adapters: Platform Adapters (TikTok, FB, YT) {
       style.fill: "#b39ddb"
     }
-    tiktok_v2 -> platform_publish: implements {
+    platform_adapters -> platform_publish: implements {
       style.stroke-dash: 3
     }
   }
@@ -84,7 +84,7 @@ tiktok_publish: TikTok Publish Capability {
     style.fill: "#e0f2f1"
     style.border-radius: 6
 
-    publish_config: publish_config.yaml {
+    publish_config: social-publish.yaml {
       style.fill: "#b2dfdb"
     }
     schedule_config: schedule_config.yaml {
@@ -98,7 +98,7 @@ tiktok_publish: TikTok Publish Capability {
   # Internal flows
   internal.publish_orchestrator -> internal.auth_manager: get valid token
   internal.publish_orchestrator -> internal.schedule_manager: get next slot
-  internal.publish_orchestrator -> adapters.tiktok_v2: upload & publish {
+  internal.publish_orchestrator -> adapters.platform_adapters: upload & publish {
     style.stroke: "#7b1fa2"
   }
   internal.auth_manager -> contracts.auth_token: manage tokens
@@ -111,12 +111,12 @@ tiktok_publish: TikTok Publish Capability {
 }
 
 # === Data Flows (External) ===
-external.video_file -> tiktok_publish.internal.publish_orchestrator: video input {
+external.video_file -> social_publish.internal.publish_orchestrator: video input {
   style.stroke: "#4caf50"
 }
-tiktok_publish.adapters.tiktok_v2 -> external.tiktok_api: POST video {
+social_publish.adapters.platform_adapters -> external.social_api: POST video {
   style.stroke: "#2196f3"
 }
-tiktok_publish.contracts.publish_result -> external.event_bus.video_published: emit VideoPublished {
+social_publish.contracts.publish_result -> external.event_bus.video_published: emit VideoPublished {
   style.stroke: "#ff9800"
 }

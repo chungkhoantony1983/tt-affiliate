@@ -59,10 +59,10 @@ steps:
 ### WF-04: Weekly Product Sync
 
 ```yaml
-name: weekly-shopee-sync
+name: weekly-ecommerce-sync
 trigger: Cron — Thứ 2, 8:00 AM
 steps:
-  1. POST /api/shopee/sync
+  1. POST /api/ecommerce/sync
   2. GET /api/products/new-count
   3. Telegram gửi sync report
 ```
@@ -121,7 +121,7 @@ GET  /api/products/pending-video     ← sản phẩm chưa có video
 POST /api/videos/create              ← tạo video job
 GET  /api/videos/{id}/status         ← check job status
 POST /api/videos/{id}/upload         ← upload lên TikTok
-POST /api/shopee/sync                ← trigger sync
+POST /api/ecommerce/sync                ← trigger sync
 POST /api/analytics/sync-tiktok      ← sync TikTok stats
 GET  /api/analytics/daily-summary    ← daily stats
 GET  /api/analytics/weekly-summary   ← weekly report
@@ -178,7 +178,7 @@ n8n/workflows/
 ├── daily_product_video.json
 ├── lifestyle_content.json
 ├── daily_analytics.json
-├── weekly_shopee_sync.json
+├── weekly_ecommerce_sync.json
 └── weekly_report.json
 
 docker/

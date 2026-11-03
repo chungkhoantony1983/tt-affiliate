@@ -10,3 +10,5 @@ storage/images/
 node_modules/
 .venv/
 venv/
+google-credentials.json
+client_secret*.json

@@ -1,34 +1,28 @@
 """
-AI Script Generator - tạo kịch bản video TikTok từ thông tin sản phẩm
+AI Script Generator - tạo kịch bản video TikTok từ thông tin sản phẩm dùng Gemini Pro.
+Tích hợp Option C: Tạo visual prompts để lấy stock video/meme hài hước chèn vào.
 """
 import json
-from openai import AsyncOpenAI
+import google.generativeai as genai
 from app.core.config import settings
 
-
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-
+genai.configure(api_key=settings.GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 PRODUCT_VIDEO_SYSTEM_PROMPT = """Bạn là chuyên gia content TikTok người Việt, chuyên tạo kịch bản video ngắn viral cho affiliate marketing.
-Viết kịch bản tự nhiên, gần gũi, phù hợp với người dùng TikTok Việt Nam tuổi 18-35.
+Viết kịch bản tự nhiên, gần gũi, hài hước, dùng từ lóng mạng xã hội (slang) phù hợp với người dùng TikTok Việt Nam tuổi 18-35.
+QUAN TRỌNG: Video sẽ sử dụng phương pháp "Stock Meme" (không có mặt người thật của chủ kênh, mà ghép các clip meme/người lạ hài hước minh họa cho câu nói).
 Luôn trả về JSON hợp lệ theo schema được yêu cầu."""
-
 
 async def generate_product_script(product: dict) -> dict:
     """
-    Tạo kịch bản video từ thông tin sản phẩm Shopee.
-    
-    Args:
-        product: dict chứa name, price, description, category, discount_percent
-    
-    Returns:
-        dict: {hook, script_segments, voiceover_text, hashtags, caption}
+    Tạo kịch bản video từ thông tin sản phẩm dùng Gemini Pro.
     """
     discount_info = ""
     if product.get("discount_percent", 0) > 0:
         discount_info = f"Giảm {product['discount_percent']:.0f}% còn {product['price']:,.0f}đ"
 
-    user_prompt = f"""Tạo kịch bản TikTok 30-45 giây cho sản phẩm sau:
+    user_prompt = f"""Tạo kịch bản TikTok hài hước 30-45 giây cho sản phẩm:
 
 Tên: {product['name']}
 Danh mục: {product.get('category', 'Đồ dùng')}
@@ -39,26 +33,27 @@ Mô tả: {product.get('description', '')[:300]}
 Trả về JSON với cấu trúc:
 {{
     "hook": "câu mở đầu gây chú ý (max 10 chữ, dạng câu hỏi hoặc gây shock)",
-    "problem": "vấn đề người xem đang gặp (1-2 câu)",
-    "solution": "sản phẩm giải quyết như thế nào (2-3 câu)",
-    "benefits": ["lợi ích 1", "lợi ích 2", "lợi ích 3"],
-    "cta": "câu kêu gọi hành động cuối video",
-    "voiceover_text": "toàn bộ text đọc liên tục cho TTS, tự nhiên như người thật nói",
+    "script_segments": [
+        {{
+            "text": "lời thoại cho phân cảnh này",
+            "visual_prompt": "Mô tả cảnh quay stock video/meme hài hước để ghép vào (vd: 'meme người đàn ông da đen khóc', 'người phụ nữ ôm đầu mệt mỏi')"
+        }},
+        ...
+    ],
+    "voiceover_text": "toàn bộ text đọc liên tục cho TTS, tự nhiên, hài hước",
     "hashtags": ["hashtag1", "hashtag2", ...],
     "caption": "caption cho post TikTok (max 150 ký tự)"
 }}"""
 
-    response = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": PRODUCT_VIDEO_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
+    response = model.generate_content(
+        contents=[
+            {"role": "user", "parts": [PRODUCT_VIDEO_SYSTEM_PROMPT]},
+            {"role": "user", "parts": [user_prompt]}
         ],
-        response_format={"type": "json_object"},
-        temperature=0.8
+        generation_config={"response_mime_type": "application/json", "temperature": 0.8}
     )
 
-    return json.loads(response.choices[0].message.content)
+    return json.loads(response.text)
 
 
 async def generate_lifestyle_script(topic: str, related_product: dict = None) -> dict:
