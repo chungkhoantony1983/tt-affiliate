@@ -17,12 +17,14 @@
 
 ## 2. Table Definitions
 
-### CAP-01: shopee-sync
+### CAP-01: ecommerce-sync
 
 ```sql
 CREATE TABLE products (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    shopee_item_id  VARCHAR(50) NOT NULL UNIQUE,
+    source_platform VARCHAR(50) NOT NULL,
+    source_item_id  VARCHAR(100) NOT NULL,
+    UNIQUE(source_platform, source_item_id),
     name            VARCHAR(500) NOT NULL,
     price           INTEGER NOT NULL,              -- VND
     original_price  INTEGER,                       -- VND (nếu có giảm giá)
@@ -107,10 +109,10 @@ CREATE INDEX idx_video_jobs_status ON video_jobs(status);
 CREATE INDEX idx_video_jobs_product ON video_jobs(product_id);
 ```
 
-### CAP-04: tiktok-publish
+### CAP-04: social-publish
 
 ```sql
-CREATE TABLE tiktok_auth (
+CREATE TABLE social_auth (
     account_id      VARCHAR(100) PRIMARY KEY,
     access_token    TEXT NOT NULL,                  -- encrypted at rest
     refresh_token   TEXT NOT NULL,                  -- encrypted at rest
@@ -122,14 +124,14 @@ CREATE TABLE tiktok_auth (
 CREATE TABLE publish_jobs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     video_job_id    UUID NOT NULL REFERENCES video_jobs(id),
-    tiktok_post_id  VARCHAR(100),
+    platform_video_id  VARCHAR(100),
     title           VARCHAR(150) NOT NULL,
     description     TEXT NOT NULL,
     hashtags        JSONB NOT NULL DEFAULT '[]',
     scheduled_at    TIMESTAMP WITH TIME ZONE,
     published_at    TIMESTAMP WITH TIME ZONE,
     status          VARCHAR(20) NOT NULL DEFAULT 'pending',  -- pending|uploading|published|failed|rejected
-    tiktok_error    TEXT,
+    publish_error    TEXT,
     retry_count     INTEGER NOT NULL DEFAULT 0,
     created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -145,7 +147,7 @@ CREATE TABLE video_metrics (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     publish_job_id  UUID NOT NULL REFERENCES publish_jobs(id),
     product_id      UUID NOT NULL REFERENCES products(id),
-    tiktok_post_id  VARCHAR(100) NOT NULL,
+    platform_video_id  VARCHAR(100) NOT NULL,
     date            DATE NOT NULL,
     views           INTEGER NOT NULL DEFAULT 0,
     likes           INTEGER NOT NULL DEFAULT 0,
@@ -224,7 +226,7 @@ class BaseRepository(ABC, Generic[T]):
 
 class ProductRepository(BaseRepository[Product]):
     async def get_active_by_priority(self, limit: int) -> list[Product]: ...
-    async def get_by_shopee_id(self, shopee_item_id: str) -> Product | None: ...
+    async def get_by_source_id(self, source_platform: str, source_item_id: str) -> Product | None: ...
     async def bulk_upsert(self, products: list[Product]) -> int: ...
     async def deactivate_missing(self, active_ids: set[str]) -> int: ...
 

@@ -9,8 +9,8 @@
 
 | Threat | Category | Asset | Mitigation | Priority |
 |--------|----------|-------|-----------|----------|
-| T1 | Spoofing | TikTok OAuth tokens | Encrypt at rest, auto-refresh, never log tokens | P0 |
-| T2 | Spoofing | Shopee API keys | .env file (gitignored), 600 permissions | P0 |
+| T1 | Spoofing | Social OAuth tokens | Encrypt at rest, auto-refresh, never log tokens | P0 |
+| T2 | Spoofing | E-commerce API keys | .env file (gitignored), 600 permissions | P0 |
 | T3 | Tampering | Product data in DB | Input validation at API layer, parameterized queries | P1 |
 | T4 | Repudiation | Video publish actions | Structured logging with timestamps + job IDs | P2 |
 | T5 | Info Disclosure | API keys in logs | Log sanitizer: mask any string matching key patterns | P0 |
@@ -31,7 +31,7 @@
 | No secrets in code | `.env` file, gitignored |
 | No secrets in logs | Log sanitizer strips patterns: `sk-*`, `gsk_*`, `Bearer *` |
 | No secrets in Docker image | Multi-stage build, .env mount at runtime |
-| Token rotation | TikTok: auto-refresh every 12h. Others: manual rotate quarterly |
+| Token rotation | Social APIs: auto-refresh. Others: manual rotate quarterly |
 | Access control | .env file permission 600, owned by deploy user |
 
 ### Secret Inventory
@@ -39,11 +39,10 @@
 | Secret | Location | Rotation |
 |--------|----------|----------|
 | DB_PASSWORD | .env | Manual, quarterly |
-| SHOPEE_API_KEY | .env | Manual, on compromise |
-| SHOPEE_API_SECRET | .env | Manual |
-| TIKTOK_CLIENT_SECRET | .env | Manual |
-| TIKTOK_ACCESS_TOKEN | DB (encrypted) | Auto every 12h |
-| TIKTOK_REFRESH_TOKEN | DB (encrypted) | Auto when access refreshed |
+| ECOMMERCE_CREDENTIALS | .env | Manual, on compromise |
+| SOCIAL_CREDENTIALS | .env | Manual |
+| SOCIAL_ACCESS_TOKENS | DB (encrypted) | Auto based on expiry |
+| SOCIAL_REFRESH_TOKENS | DB (encrypted) | Auto when access refreshed |
 | GROQ_API_KEY | .env | Manual |
 | GEMINI_API_KEY | .env | Manual |
 | TELEGRAM_BOT_TOKEN | .env | Manual |
@@ -181,10 +180,10 @@ storage/logs/*.log {
 
 | Data | Classification | Retention | Access |
 |------|---------------|-----------|--------|
-| Product data (Shopee) | Public (from Shopee) | Indefinite | All caps |
-| TikTok post metrics | Semi-public | 90 days raw, aggregated permanent | analytics cap |
+| Product data | Public (from E-commerce) | Indefinite | All caps |
+| Social post metrics | Semi-public | 90 days raw, aggregated permanent | analytics cap |
 | API credentials | Secret | Until rotated | Backend service only |
-| Video files | Internal | 30 days | video-render, tiktok-publish |
+| Video files | Internal | 30 days | video-render, social-publish |
 | User (operator) data | N/A | N/A | Solo operator, no user data collected |
 
 > **GDPR/Privacy**: Hệ thống không thu thập dữ liệu người dùng cuối (viewers). Chỉ có operator data = chính mình.

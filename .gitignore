@@ -5,8 +5,11 @@ __pycache__/
 .DS_Store
 storage/videos/
 storage/images/
+storage/demo/
 *.mp4
 *.mp3
 node_modules/
 .venv/
 venv/
+google-credentials.json
+client_secret*.json

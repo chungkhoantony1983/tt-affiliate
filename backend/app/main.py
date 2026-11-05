@@ -1,30 +1,47 @@
 """
-FastAPI Main Application
+FastAPI Main Application — Omni-Channel Affiliate Intelligence Platform
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
-    title="TikTok Affiliate Automation API",
-    description="API quản lý tự động tạo video TikTok cho Shopee Affiliate",
-    version="1.0.0"
+    title="Affiliate Intelligence API",
+    description="TikTok Shop affiliate automation: product → script → video → publish",
+    version="2.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],    # Tighten in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Register API routers
+from app.api.ecommerce import router as ecommerce_router
+from app.api.social import router as social_router
+from app.api.pipeline import router as pipeline_router
+
+app.include_router(ecommerce_router)
+app.include_router(social_router)
+app.include_router(pipeline_router)
+
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "tiktok-affiliate-api"}
+    return {
+        "status": "ok",
+        "service": "affiliate-intelligence-api",
+        "version": "2.0.0",
+    }
 
 
-# Import routers (sẽ thêm dần)
-# from app.api import products, videos, analytics
-# app.include_router(products.router, prefix="/api/products", tags=["products"])
-# app.include_router(videos.router, prefix="/api/videos", tags=["videos"])
+@app.on_event("startup")
+async def startup():
+    """Khởi tạo DB tables nếu chưa có."""
+    from app.core.database import engine
+    from app.models.models import Base
+    Base.metadata.create_all(bind=engine)

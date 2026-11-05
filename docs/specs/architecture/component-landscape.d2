@@ -3,8 +3,8 @@
 
 direction: right
 
-# === CAP-01: shopee-sync ===
-shopee-sync: "shopee-sync" {
+# === CAP-01: ecommerce-sync ===
+ecommerce-sync: "ecommerce-sync" {
   style.fill: "#E3F2FD"
   SyncOrchestrator: "SyncOrchestrator"
   PlatformSyncAdapter: "PlatformSyncAdapter\n«interface»" {style.stroke-dash: 5}
@@ -35,8 +35,8 @@ video-render: "video-render" {
   StorageManager: "StorageManager"
 }
 
-# === CAP-04: tiktok-publish ===
-tiktok-publish: "tiktok-publish" {
+# === CAP-04: social-publish ===
+social-publish: "social-publish" {
   style.fill: "#F3E5F5"
   PublishOrchestrator: "PublishOrchestrator"
   PlatformPublishAdapter: "PlatformPublishAdapter\n«interface»" {style.stroke-dash: 5}
@@ -67,16 +67,16 @@ n8n-orchestration: "n8n-orchestration" {
 }
 
 # === Inter-Cap Edges (data flow) ===
-shopee-sync.SyncOrchestrator -> script-gen.ScriptGenerator: "ProductCreated event\n(product_id)" {style.stroke: "#1565C0"}
+ecommerce-sync.SyncOrchestrator -> script-gen.ScriptGenerator: "ProductCreated event\n(product_id)" {style.stroke: "#1565C0"}
 script-gen.ScriptGenerator -> video-render.VideoRenderer: "ScriptReady event\n(script_id)" {style.stroke: "#2E7D32"}
-video-render.VideoRenderer -> tiktok-publish.PublishOrchestrator: "VideoReady event\n(video_path)" {style.stroke: "#E65100"}
-tiktok-publish.PublishOrchestrator -> analytics.MetricFetcher: "VideoPublished event\n(post_id)" {style.stroke: "#6A1B9A"}
+video-render.VideoRenderer -> social-publish.PublishOrchestrator: "VideoReady event\n(video_path)" {style.stroke: "#E65100"}
+social-publish.PublishOrchestrator -> analytics.MetricFetcher: "VideoPublished event\n(post_id)" {style.stroke: "#6A1B9A"}
 
 # N8N triggers all caps
-n8n-orchestration.W1 -> shopee-sync.SyncOrchestrator: "trigger" {style.stroke-dash: 5}
+n8n-orchestration.W1 -> ecommerce-sync.SyncOrchestrator: "trigger" {style.stroke-dash: 5}
 n8n-orchestration.W1 -> script-gen.ScriptGenerator: "trigger" {style.stroke-dash: 5}
 n8n-orchestration.W1 -> video-render.VideoRenderer: "trigger" {style.stroke-dash: 5}
-n8n-orchestration.W3 -> tiktok-publish.PublishOrchestrator: "trigger" {style.stroke-dash: 5}
+n8n-orchestration.W3 -> social-publish.PublishOrchestrator: "trigger" {style.stroke-dash: 5}
 n8n-orchestration.W4 -> analytics.AnalyticsEngine: "trigger" {style.stroke-dash: 5}
 
 # Analytics reads from all

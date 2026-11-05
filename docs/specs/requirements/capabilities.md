@@ -9,10 +9,10 @@
 
 | # | Capability | 略称 | 責務 |
 |:-:|-----------|:----:|------|
-| 1 | Shopee Product Sync | shopee-sync | Đồng bộ sản phẩm từ Shopee Affiliate, phân loại, đánh priority |
+| 1 | E-commerce Product Sync | ecommerce-sync | Đồng bộ sản phẩm từ E-commerce Affiliate, phân loại, đánh priority |
 | 2 | AI Script Generation | script-gen | Tạo kịch bản video từ product data bằng AI |
 | 3 | Video Rendering | video-render | Render short video 9:16 từ images + TTS voiceover |
-| 4 | TikTok Publishing | tiktok-publish | Upload + publish video lên TikTok via API v2 |
+| 4 | Social Media Publishing | social-publish | Upload + publish video lên mạng xã hội (TikTok, FB, YT) via API |
 | 5 | Performance Analytics | analytics | Thu thập metrics, tạo report, gửi alert |
 | 6 | N8N Orchestration | n8n-orchestration | Quản lý, schedule, error-recover các workflow |
 
@@ -22,24 +22,24 @@
 
 | Capability | Input | Output | Trigger | SLA | Cost |
 |-----------|-------|--------|---------|-----|------|
-| shopee-sync | Shopee API response | Product records in DB | Weekly schedule (N8N) | < 5 min/sync | $0 |
+| ecommerce-sync | Platform API response | Product records in DB | Weekly schedule (N8N) | < 5 min/sync | $0 |
 | script-gen | Product data JSON | Script JSON (hook, body, cta) | On-demand from pipeline | < 30s/script | $0 (Groq free) |
 | video-render | Script + product images | .mp4 file (1080×1920) | Celery task queue | < 5 min/video | $0 (local) |
-| tiktok-publish | Video file + metadata | Published video ID | Scheduled posting slots | < 2 min/upload | $0 |
-| analytics | TikTok API metrics | Report JSON + Telegram msg | Daily cron (N8N) | < 1 min | $0 |
+| social-publish | Video file + metadata | Published video ID | Scheduled posting slots | < 2 min/upload | $0 |
+| analytics | Social API metrics | Report JSON + Telegram msg | Daily cron (N8N) | < 1 min | $0 |
 | n8n-orchestration | Trigger events | Workflow execution logs | Schedule + webhook + error | Always-on | $0 |
 
 ---
 
-## CAP-01: shopee-sync
+## CAP-01: ecommerce-sync
 
 ### 責務 (Responsibility)
-Đồng bộ sản phẩm từ Shopee Affiliate API, duy trì product catalog cập nhật, phân loại và đánh giá priority score.
+Đồng bộ sản phẩm từ Affiliate API đa sàn (Shopee, Lazada...), duy trì product catalog cập nhật, phân loại và đánh giá priority score.
 
 ### 境界 (Boundary)
 - **Owns**: Product entity lifecycle (create, update, deactivate)
 - **Does NOT own**: Script/video generation decisions (thuộc pipeline)
-- **Interface IN**: Shopee API (PlatformSyncAdapter)
+- **Interface IN**: E-commerce APIs (EcommerceAdapter)
 - **Interface OUT**: Product records available for script-gen
 
 ### データ (Data)
@@ -49,7 +49,8 @@
 | Field | Type | Constraint |
 |-------|------|-----------|
 | id | UUID | PK |
-| shopee_item_id | VARCHAR(50) | UNIQUE, NOT NULL |
+| source_platform | VARCHAR(50) | NOT NULL |
+| source_item_id | VARCHAR(100) | NOT NULL, UNIQUE with source_platform |
 | name | VARCHAR(500) | NOT NULL |
 | price | INTEGER (VND) | NOT NULL |
 | commission_rate | DECIMAL(5,2) | NOT NULL, ≥ 0 |
@@ -67,7 +68,7 @@
 - Telegram notification: sync summary (new/updated/deactivated count)
 
 ### ルール (Rules)
-1. Sync lặp lại không tạo duplicate (upsert by shopee_item_id)
+1. Sync lặp lại không tạo duplicate (upsert by source_platform + source_item_id)
 2. Product hết hàng 14 ngày liên tục → status = `inactive`
 3. Priority score = weighted(commission_rate × 0.4, sales_rank × 0.3, discount × 0.2, newness × 0.1)
 4. Affiliate link re-generate nếu > 7 ngày
@@ -97,7 +98,7 @@ Tạo kịch bản video ngắn (hook + body + CTA) từ product data sử dụn
 
 ### 境界
 - **Owns**: Script entity, Prompt template entity
-- **Does NOT own**: Product data (read-only from shopee-sync)
+- **Does NOT own**: Product data (read-only from ecommerce-sync)
 - **Interface IN**: Product data from DB, PromptTemplate
 - **Interface OUT**: Script records for video-render
 
@@ -168,7 +169,7 @@ Render video ngắn 9:16 (1080×1920) từ script + product images + TTS voiceov
 - **Owns**: VideoJob entity, rendering pipeline (FFmpeg + TTS)
 - **Does NOT own**: Script content (read-only), product images (downloaded)
 - **Interface IN**: Script record, product image URLs
-- **Interface OUT**: .mp4 file path for tiktok-publish
+- **Interface OUT**: .mp4 file path for social-publish
 
 ### データ
 
@@ -218,13 +219,13 @@ Render video ngắn 9:16 (1080×1920) từ script + product images + TTS voiceov
 
 ---
 
-## CAP-04: tiktok-publish
+## CAP-04: social-publish
 
 ### 責務
-Upload video lên TikTok, quản lý OAuth tokens, schedule posting times, handle publish errors.
+Upload video lên mạng xã hội đa nền tảng (TikTok, FB, YT), quản lý OAuth tokens, schedule posting times, handle publish errors.
 
 ### 境界
-- **Owns**: PublishJob entity, TikTok auth tokens
+- **Owns**: PublishJob entity, Social auth tokens
 - **Does NOT own**: Video file (from video-render), posting content (from script)
 - **Interface IN**: VideoJob (done) + Script metadata
 - **Interface OUT**: Published video ID, share URL
@@ -237,7 +238,7 @@ Upload video lên TikTok, quản lý OAuth tokens, schedule posting times, handl
 |-------|------|-----------|
 | id | UUID | PK |
 | video_job_id | UUID | FK → video_jobs |
-| tiktok_post_id | VARCHAR(100) | nullable until published |
+| platform_video_id | VARCHAR(100) | nullable until published |
 | title | VARCHAR(150) | NOT NULL |
 | hashtags | JSONB | array of strings |
 | scheduled_at | TIMESTAMP | optional |
@@ -263,7 +264,7 @@ Upload video lên TikTok, quản lý OAuth tokens, schedule posting times, handl
 1. Posting schedule: optimal times (11:00, 15:00, 19:00, 21:00 ICT)
 2. Max 3 videos/day per account (avoid spam detection)
 3. Token auto-refresh 1h before expiry
-4. If rejected by TikTok → flag, don't retry same content
+4. If rejected by platform → flag, don't retry same content
 5. Hashtag limit: ≤ 5 per video
 
 ### 設定
@@ -290,8 +291,8 @@ Thu thập performance metrics từ TikTok, aggregate, tạo reports, gửi aler
 ### 境界
 - **Owns**: VideoMetric entity, DailyReport entity
 - **Does NOT own**: Video content, publish decisions
-- **Interface IN**: TikTok Creator API (metrics), publish_jobs (video mapping)
-- **Interface OUT**: Reports (Telegram), dashboard data, priority feedback to shopee-sync
+- **Interface IN**: Social Creator API (metrics), publish_jobs (video mapping)
+- **Interface OUT**: Reports (Telegram), dashboard data, priority feedback to ecommerce-sync
 
 ### データ
 
@@ -388,10 +389,10 @@ Central orchestrator: schedule workflows, trigger cap sequences, handle errors, 
 
 | ID | Name | Schedule | Caps triggered |
 |----|------|----------|---------------|
-| W1 | daily-pipeline | Cron 09:00 | script-gen → video-render → tiktok-publish |
-| W2 | weekly-sync | Cron Mon 08:00 | shopee-sync |
+| W1 | daily-pipeline | Cron 09:00 | script-gen → video-render → social-publish |
+| W2 | weekly-sync | Cron Mon 08:00 | ecommerce-sync |
 | W3 | daily-analytics | Cron 06:00 | analytics |
-| W4 | post-scheduler | Cron at posting slots | tiktok-publish |
+| W4 | post-scheduler | Cron at posting slots | social-publish |
 | W5 | error-recovery | Every 30 min | DLQ check + retry |
 
 ### ルール
@@ -429,7 +430,8 @@ Central orchestrator: schedule workflows, trigger cap sequences, handle errors, 
        │          │          │          │
        ▼          │          │          │
 ┌────────────┐    │          │          │
-│ shopee-sync│    │          │          │
+│ ecommerce- │    │          │          │
+│ sync       │    │          │          │
 └─────┬──────┘    │          │          │
       │ product   │          │          │
       │ data      │          │          │
@@ -446,7 +448,7 @@ Central orchestrator: schedule workflows, trigger cap sequences, handle errors, 
       │ .mp4 file                        │
       ▼                                  │
 ┌───────────────┐                        │
-│ tiktok-publish│                        │
+│social-publish │                        │
 └─────┬─────────┘                        │
       │ video_id                         │
       ▼                                  │

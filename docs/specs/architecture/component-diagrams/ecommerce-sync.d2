@@ -1,7 +1,7 @@
 direction: down
 
 title: |md
-  # Shopee Sync — Component Diagram
+  # E-commerce Sync — Component Diagram
   4-Layer Internal Architecture
 |
 
@@ -10,7 +10,7 @@ external: External Systems {
   style.fill: "#e8f5e9"
   style.border-radius: 8
 
-  shopee_api: Shopee Affiliate API {
+  affiliate_api: Platform Affiliate APIs (Shopee, Lazada...) {
     style.fill: "#c8e6c9"
   }
   postgres: PostgreSQL {
@@ -24,8 +24,8 @@ external: External Systems {
   }
 }
 
-# === Capability: Shopee Sync ===
-shopee_sync: Shopee Sync Capability {
+# === Capability: E-commerce Sync ===
+ecommerce_sync: E-commerce Sync Capability {
   style.fill: "#f3e5f5"
   style.border-radius: 8
 
@@ -34,14 +34,14 @@ shopee_sync: Shopee Sync Capability {
     style.fill: "#e1bee7"
     style.border-radius: 6
 
-    platform_sync_adapter: «interface» PlatformSyncAdapter {
+    platform_sync_adapter: «interface» EcommerceAdapter {
       style.stroke-dash: 5
       style.fill: "#f8bbd0"
     }
-    shopee_adapter: ShopeeAffiliateAdapter {
+    platform_adapters: Platform Adapters (Shopee, Lazada) {
       style.fill: "#ce93d8"
     }
-    shopee_adapter -> platform_sync_adapter: implements {
+    platform_adapters -> platform_sync_adapter: implements {
       style.stroke-dash: 3
     }
   }
@@ -92,7 +92,7 @@ shopee_sync: Shopee Sync Capability {
   }
 
   # Internal flows
-  internal.sync_orchestrator -> adapters.shopee_adapter: fetch products
+  internal.sync_orchestrator -> adapters.platform_adapters: fetch products
   internal.sync_orchestrator -> internal.change_detector: detect changes
   internal.change_detector -> internal.priority_calculator: prioritize
   internal.sync_orchestrator -> contracts.product_dto: serialize
@@ -102,18 +102,18 @@ shopee_sync: Shopee Sync Capability {
 }
 
 # === Data Flows (External) ===
-external.shopee_api -> shopee_sync.adapters.shopee_adapter: product catalog {
+external.affiliate_api -> ecommerce_sync.adapters.platform_adapters: product catalog {
   style.stroke: "#4caf50"
 }
-shopee_sync.internal.sync_orchestrator -> external.postgres: upsert products {
+ecommerce_sync.internal.sync_orchestrator -> external.postgres: upsert products {
   style.stroke: "#2196f3"
 }
-shopee_sync.contracts.change_event -> external.event_bus.product_created: publish {
+ecommerce_sync.contracts.change_event -> external.event_bus.product_created: publish {
   style.stroke: "#ff9800"
 }
-shopee_sync.contracts.change_event -> external.event_bus.product_updated: publish {
+ecommerce_sync.contracts.change_event -> external.event_bus.product_updated: publish {
   style.stroke: "#ff9800"
 }
-shopee_sync.contracts.change_event -> external.event_bus.product_deactivated: publish {
+ecommerce_sync.contracts.change_event -> external.event_bus.product_deactivated: publish {
   style.stroke: "#ff9800"
 }

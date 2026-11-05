@@ -14,7 +14,7 @@ orchestration: "N8N Orchestration" {
 content-pipeline: "Content Pipeline" {
   style.fill: "#E3F2FD"
 
-  shopee-sync: "Shopee Sync" {
+  ecommerce-sync: "E-commerce Sync" {
     shape: rectangle
     style.fill: "#BBDEFB"
   }
@@ -26,14 +26,14 @@ content-pipeline: "Content Pipeline" {
     shape: rectangle
     style.fill: "#BBDEFB"
   }
-  tiktok-publish: "TikTok Publish" {
+  social-publish: "Social Publish" {
     shape: rectangle
     style.fill: "#BBDEFB"
   }
 
-  shopee-sync -> script-gen: "product data"
+  ecommerce-sync -> script-gen: "product data"
   script-gen -> video-render: "script JSON"
-  video-render -> tiktok-publish: ".mp4 file"
+  video-render -> social-publish: ".mp4 file"
 }
 
 analytics: "Analytics" {
@@ -45,8 +45,8 @@ analytics: "Analytics" {
 
 external: "External Systems" {
   style.fill: "#F3E5F5"
-  shopee-api: "Shopee Affiliate API"
-  tiktok-api: "TikTok API v2"
+  ecommerce-api: "E-commerce APIs"
+  social-api: "Social APIs"
   groq: "Groq LLM"
   gemini: "Gemini Flash"
   edge-tts: "edge-tts"
@@ -62,19 +62,19 @@ infra: "Infrastructure" {
 }
 
 # Connections
-orchestration -> content-pipeline.shopee-sync: "weekly trigger"
+orchestration -> content-pipeline.ecommerce-sync: "weekly trigger"
 orchestration -> content-pipeline.script-gen: "daily trigger"
 orchestration -> analytics.collect: "daily trigger"
 
-content-pipeline.shopee-sync -> external.shopee-api: "fetch products"
+content-pipeline.ecommerce-sync -> external.ecommerce-api: "fetch products"
 content-pipeline.script-gen -> external.groq: "generate script"
 content-pipeline.script-gen -> external.gemini: "fallback"
 content-pipeline.video-render -> external.edge-tts: "TTS"
 content-pipeline.video-render -> infra.ffmpeg: "render"
 content-pipeline.video-render -> infra.celery: "async job"
-content-pipeline.tiktok-publish -> external.tiktok-api: "upload"
+content-pipeline.social-publish -> external.social-api: "upload"
 
-analytics.collect -> external.tiktok-api: "fetch metrics"
+analytics.collect -> external.social-api: "fetch metrics"
 analytics.notify -> external.telegram: "send report"
 
 infra.celery -> infra.redis: "broker"

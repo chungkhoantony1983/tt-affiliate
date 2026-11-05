@@ -45,15 +45,16 @@ backend/
 │   │
 │   ├── services/                    # Business logic (1 dir per cap)
 │   │   ├── __init__.py
-│   │   ├── shopee/                  # CAP-01: shopee-sync
+│   │   ├── ecommerce/               # CAP-01: ecommerce-sync
 │   │   │   ├── __init__.py
 │   │   │   ├── sync_orchestrator.py
 │   │   │   ├── change_detector.py
 │   │   │   ├── priority_calculator.py
 │   │   │   └── adapters/
 │   │   │       ├── __init__.py
-│   │   │       ├── base.py          # PlatformSyncAdapter ABC
-│   │   │       └── shopee_affiliate.py
+│   │   │       ├── base.py          # EcommerceAdapter ABC
+│   │   │       ├── shopee.py
+│   │   │       └── lazada.py
 │   │   │
 │   │   ├── ai/                      # CAP-02: script-gen
 │   │   │   ├── __init__.py
@@ -75,15 +76,16 @@ backend/
 │   │   │   ├── asset_manager.py
 │   │   │   └── storage_manager.py
 │   │   │
-│   │   ├── tiktok/                  # CAP-04: tiktok-publish
+│   │   ├── social/                  # CAP-04: social-publish
 │   │   │   ├── __init__.py
 │   │   │   ├── publish_orchestrator.py
 │   │   │   ├── schedule_manager.py
 │   │   │   ├── auth_manager.py
 │   │   │   └── adapters/
 │   │   │       ├── __init__.py
-│   │   │       ├── base.py          # PlatformPublishAdapter ABC
-│   │   │       └── tiktok_v2.py
+│   │   │       ├── base.py          # SocialPublishAdapter ABC
+│   │   │       ├── tiktok_v2.py
+│   │   │       └── youtube_shorts.py
 │   │   │
 │   │   └── analytics/               # CAP-05: analytics
 │   │       ├── __init__.py
@@ -105,7 +107,7 @@ backend/
 │   │   ├── lifestyle_tip.yaml
 │   │   └── comparison.yaml
 │   ├── video-render.yaml
-│   ├── tiktok-publish.yaml
+│   ├── social-publish.yaml
 │   └── analytics.yaml
 │
 ├── migrations/                      # Alembic DB migrations
@@ -114,10 +116,10 @@ backend/
 │
 ├── tests/                           # Tests mirror services/ structure
 │   ├── conftest.py
-│   ├── test_shopee/
+│   ├── test_ecommerce/
 │   ├── test_ai/
 │   ├── test_video/
-│   ├── test_tiktok/
+│   ├── test_social/
 │   └── test_analytics/
 │
 ├── requirements.txt
@@ -133,7 +135,7 @@ backend/
 n8n/
 ├── workflows/
 │   ├── W1-daily-full-pipeline.json
-│   ├── W2-shopee-sync-only.json
+│   ├── W2-ecommerce-sync.json
 │   ├── W3-publish-queue.json
 │   ├── W4-daily-analytics.json
 │   └── W5-error-recovery.json

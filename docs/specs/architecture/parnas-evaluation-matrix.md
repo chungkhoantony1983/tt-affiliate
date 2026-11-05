@@ -9,7 +9,7 @@
 
 ## Matrix
 
-| CRC \ Cap | shopee-sync | script-gen | video-render | tiktok-publish | analytics | n8n-orchestration | S count |
+| CRC \ Cap | ecommerce-sync | script-gen | video-render | social-publish | analytics | n8n-orchestration | S count |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **CRC-001** Thêm sản phẩm | N | N | N | N | N | N | **0** |
 | **CRC-002** Xoá/ẩn sản phẩm | N | N | N | N | N | N | **0** |
@@ -32,8 +32,8 @@
 | CRC | Cap | S/N | Lý do |
 |-----|-----|-----|-------|
 | CRC-001~004 | All | N | Product CRUD, commission, priority thay đổi → chỉ data changes, pipeline xử lý tự động qua existing flow. Không cần sửa interface. |
-| CRC-005 | shopee-sync | **S** | Cần thêm adapter class mới (SyncAdapter interface + PlatformX implementation). Structural change. |
-| CRC-005 | tiktok-publish | **S** | Cần thêm PublishAdapter implementation mới. Structural. |
+| CRC-005 | ecommerce-sync | **S** | Cần thêm adapter class mới (SyncAdapter interface + PlatformX implementation). Structural change. |
+| CRC-005 | social-publish | **S** | Cần thêm PublishAdapter implementation mới. Structural. |
 | CRC-005 | analytics | **S** | Cần thêm MetricFetcher implementation cho platform mới. |
 | CRC-005 | n8n-orchestration | **S** | Cần thêm/sửa workflows cho platform mới (trigger, schedule mới). |
 | CRC-005 | script-gen | N | Script generation logic không thay đổi — chỉ input source khác (product data format đã normalize ở sync layer). |
@@ -41,8 +41,8 @@
 | CRC-006 | All | N | Disable = config change (`platform.enabled = false`). Adapter code giữ nguyên, chỉ skip. |
 | CRC-007 | script-gen | N | Prompt templates externalized (YAML config). Swap template = config change. |
 | CRC-007 | video-render | N | Visual style templates externalized. Config change. |
-| CRC-008 | shopee-sync | **S** | API version upgrade có thể thay đổi request/response schema → sửa adapter code. |
-| CRC-008 | tiktok-publish | **S** | Same — API contract change → sửa adapter code. |
+| CRC-008 | ecommerce-sync | **S** | API version upgrade có thể thay đổi request/response schema → sửa adapter code. |
+| CRC-008 | social-publish | **S** | Same — API contract change → sửa adapter code. |
 | CRC-010 | script-gen | **S** | Thêm LLM adapter mới (interface mới nếu provider có behavior khác biệt lớn, VD: local Ollama). |
 
 ### Boundary Validation
@@ -53,7 +53,7 @@
 | **video-render S = 0** | Perfect isolation — chỉ nhận input đã normalize, không phụ thuộc external platform |
 | **CRC-001~004 (daily ops) all N** | Tốt — biến động thường xuyên nhất không cần sửa code |
 | **CRC-005 S = 4** (highest) | Expected — thêm platform là biến đổi lớn nhất, nhưng adapter pattern giới hạn scope |
-| **shopee-sync & tiktok-publish S = 2** | Boundary services (facing external APIs) chịu structural change nhiều nhất — đúng theo design intent |
+| **ecommerce-sync & social-publish S = 2** | Boundary services (facing external APIs) chịu structural change nhiều nhất — đúng theo design intent |
 
 ### Kết luận
 
@@ -73,8 +73,8 @@
 
 | Interface | Location | Implementations |
 |-----------|----------|-----------------|
-| `PlatformSyncAdapter` | shopee-sync | ShopeeAffiliate, [TikTokShop], [Lazada] |
-| `PlatformPublishAdapter` | tiktok-publish | TikTokV2, [TikTokShop], [YouTube Shorts] |
+| `PlatformSyncAdapter` | ecommerce-sync | ShopeeAffiliate, [TikTokShop], [Lazada] |
+| `PlatformPublishAdapter` | social-publish | TikTokV2, [TikTokShop], [YouTube Shorts] |
 | `LLMAdapter` | script-gen | Groq, Gemini, Claude, [Ollama] |
 | `MetricFetchAdapter` | analytics | TikTokAnalytics, [ShopeeAnalytics] |
 

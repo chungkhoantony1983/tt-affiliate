@@ -139,7 +139,7 @@ CLAUDE.md 共通初期化プロトコル（1-8）を実行。以下のカスタ�
 
    | # | Rule ID | 要約 | enforcement | 今回の関連度 |
    |---|---------|------|-------------|------------|
-   | 1 | GN-001  | 通貨¥のみ | hook_strict | 関連あり/N/A |
+   | 1 | GN-001  | 通貨VND/USD | prose_gate | 関連あり/N/A |
 
 2. **DR（作業計画型）を起票**: テンプレートは `.claude/references/templates/dr-workplan-template.md`
    - **コンテキスト**: 変更内容、起因、影響分析結果
@@ -206,7 +206,7 @@ python .claude/scripts/validate_artifact_graph.py {PJフォルダパス}
 
 | Rule ID | 検証方法 | 結果 | 根拠 |
 |---------|---------|------|------|
-| GN-001 | 出力確認 | PASS | 通貨は全て¥表記 |
+| GN-001 | 出力確認 | PASS | 通貨は VND/USD 表記 |
 | GP-002 | grep 確認 | PASS | 同一パターン全箇所確認済み |
 
 #### 不変条件検証

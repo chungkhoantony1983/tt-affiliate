@@ -9,7 +9,7 @@
 
 | | |
 |--|--|
-| **Input** | TikTok video IDs, Shopee affiliate click data |
+| **Input** | Social video IDs, E-commerce affiliate click data |
 | **Output** | Performance report (Telegram), Dashboard stats, DB metrics |
 | **Schedule** | Daily 10:00 PM + weekly Sunday báo cáo |
 | **Cost** | $0 (TikTok Analytics API miễn phí) |
@@ -67,7 +67,7 @@
 | Shares | TikTok API | Daily |
 | Engagement Rate | Calculated | Daily |
 | Affiliate Clicks | Bio link tracker | Realtime |
-| Estimated Revenue | Shopee dashboard | Manual weekly |
+| Estimated Revenue | E-commerce dashboards | Manual weekly |
 
 ---
 
@@ -118,7 +118,7 @@ Kết luận sau: 30 videos/style
 
 ## Dependencies
 
-- `tiktok-publish` → video IDs
+- `social-publish` → video IDs
 - Telegram Bot (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`)
 - PostgreSQL → đọc và ghi video_jobs table
 

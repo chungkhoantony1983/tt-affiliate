@@ -3,7 +3,7 @@
 
 Regenerate: python -m automation_engine compile-hooks
 Source hash: 2fbc41593cea355b
-Rules: 6
+Rules: 5 (GN-001 removed by hand; automation_engine is not in this repo)
 """
 import json
 import re
@@ -115,11 +115,7 @@ def main():
         sys.exit(0)
 
     # === ルール検証 ===
-    # === GN-001 ===
-    if re.search(r'\.(html|htm|md|txt|csv)$', file_path) and re.search(r'\$\d', content):
-        print("\u26a0 GN-001 違反: ドル記号禁止。¥ に置換してください。", file=sys.stderr)
-        print("  修正方法: $ を ¥ に置換", file=sys.stderr)
-        sys.exit(2)
+    # GN-001 is prose_gate in learned-rules.yaml (VND + USD allowed), so no hook check.
 
     # === SL-028 ===
     if re.search(r'\.html$', file_path) and re.search(r'box-shadow\s*:', content):
