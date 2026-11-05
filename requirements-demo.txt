@@ -3,3 +3,7 @@ edge-tts
 pillow
 imageio-ffmpeg
 mutagen
+fastapi
+uvicorn
+pydantic-settings
+httpx

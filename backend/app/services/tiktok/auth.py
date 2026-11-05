@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 TIKTOK_OAUTH_BASE = "https://www.tiktok.com/v2/auth/authorize/"
 TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 TIKTOK_REVOKE_URL = "https://open.tiktokapis.com/v2/oauth/revoke/"
+TIKTOK_USER_INFO_URL = "https://open.tiktokapis.com/v2/user/info/"
 
 # Scopes cần thiết cho affiliate bot — chỉ Upload (inbox draft), không Direct Post.
 # Chỉ xin đúng scope đang dùng để app review dễ được duyệt.
@@ -68,25 +69,69 @@ class TikTokAuth:
         auth_url = f"{TIKTOK_OAUTH_BASE}?{urlencode(params)}"
         return auth_url, code_verifier
 
+    def get_web_auth_url(self, redirect_uri: str, state: str) -> str:
+        """Authorization URL cho Login Kit Web (không dùng PKCE)."""
+        from urllib.parse import urlencode
+        params = {
+            "client_key": self.client_key,
+            "scope": ",".join(REQUIRED_SCOPES),
+            "response_type": "code",
+            "redirect_uri": redirect_uri,
+            "state": state,
+        }
+        return f"{TIKTOK_OAUTH_BASE}?{urlencode(params)}"
+
+    async def get_user_info(self, access_token: str) -> dict:
+        """Lấy display name + avatar của tài khoản vừa kết nối."""
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                TIKTOK_USER_INFO_URL,
+                params={"fields": "open_id,avatar_url,display_name"},
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            response.raise_for_status()
+            user = response.json().get("data", {}).get("user", {})
+            return {
+                "display_name": user.get("display_name", ""),
+                "avatar_url": user.get("avatar_url", ""),
+            }
+
+    async def revoke(self, access_token: str) -> None:
+        """Thu hồi quyền app với tài khoản TikTok."""
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                TIKTOK_REVOKE_URL,
+                data={
+                    "client_key": self.client_key,
+                    "client_secret": self.client_secret,
+                    "token": access_token,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            response.raise_for_status()
+
     async def exchange_code(
-        self, code: str, redirect_uri: str, code_verifier: str
+        self, code: str, redirect_uri: str, code_verifier: Optional[str] = None
     ) -> dict:
         """
         Exchange authorization code → access_token + refresh_token.
 
         Returns: {access_token, refresh_token, expires_in, open_id}
         """
+        form = {
+            "client_key": self.client_key,
+            "client_secret": self.client_secret,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri,
+        }
+        if code_verifier:
+            form["code_verifier"] = code_verifier
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 TIKTOK_TOKEN_URL,
-                data={
-                    "client_key": self.client_key,
-                    "client_secret": self.client_secret,
-                    "code": code,
-                    "grant_type": "authorization_code",
-                    "redirect_uri": redirect_uri,
-                    "code_verifier": code_verifier,
-                },
+                data=form,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
             response.raise_for_status()

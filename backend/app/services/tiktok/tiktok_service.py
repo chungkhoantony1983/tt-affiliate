@@ -41,11 +41,12 @@ class TikTokService:
     Sử dụng Content Posting API v2 với OAuth2 Bearer token.
     """
 
-    def __init__(self):
+    def __init__(self, access_token: Optional[str] = None):
         self.auth = TikTokAuth()
+        self.access_token = access_token
 
     async def _headers(self) -> dict:
-        token = await self.auth.get_valid_token()
+        token = self.access_token or await self.auth.get_valid_token()
         return {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json; charset=UTF-8",
@@ -200,9 +201,9 @@ class TikTokService:
             raise ValueError("TikTok access token invalid or expired — refresh required")
         if response.status_code >= 400:
             try:
-                error_data = response.json()
-                error_code = error_data.get("error", {}).get("code", "unknown")
-                error_msg = error_data.get("error", {}).get("message", response.text[:200])
-                raise RuntimeError(f"TikTok API error [{error_code}]: {error_msg}")
-            except Exception:
-                response.raise_for_status()
+                error = response.json().get("error", {})
+            except ValueError:
+                error = {}
+            error_code = error.get("code", "unknown")
+            error_msg = error.get("message", response.text[:200])
+            raise RuntimeError(f"TikTok API error [{error_code}]: {error_msg}")
