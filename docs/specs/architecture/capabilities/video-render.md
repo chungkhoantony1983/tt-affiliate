@@ -111,7 +111,7 @@ storage/
 | Lỗi | Nguyên nhân | Xử lý |
 |-----|-------------|-------|
 | Image download fail | URL expired / network | Skip image, dùng ảnh còn lại |
-| No images | Shopee không có ảnh | Tạo solid color slide với text |
+| No images | E-commerce không có ảnh | Tạo solid color slide với text |
 | Audio too short | TTS < 5s | Re-generate với voiceover_text dài hơn |
 | FFmpeg error | Missing codec | Check `ffmpeg -codecs` và install |
 | Output > 500MB | Video quá dài/quality cao | Giảm bitrate hoặc cắt bớt duration |
@@ -130,7 +130,7 @@ storage/
 ## Dependencies
 
 - `script-gen` → script JSON
-- `shopee-sync` → image URLs
+- `ecommerce-sync` → image URLs
 - FFmpeg (`apt install ffmpeg`)
 - Python packages: `moviepy`, `Pillow`, `edge-tts`
 - Storage path: `STORAGE_PATH` env var

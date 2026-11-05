@@ -1,7 +1,7 @@
 # Capability: script-gen
 
 > **Mục đích**: Tạo kịch bản video TikTok (script + voiceover text + hashtags + caption)
-> từ thông tin sản phẩm Shopee hoặc từ topic lifestyle.
+> từ thông tin sản phẩm E-commerce hoặc từ topic lifestyle.
 
 ---
 
@@ -117,7 +117,7 @@ CLAUDE_MAX_TOKENS = 800
 | Rate limit (Groq) | Vượt free tier | Fallback sang Gemini Flash |
 | `hook` > 10 chữ | LLM không follow format | Truncate hoặc retry |
 | Voiceover quá dài | > 500 chữ | Trim ở câu hoàn chỉnh |
-| No product description | Shopee thiếu data | Dùng category + name để generate |
+| No product description | E-commerce platform thiếu data | Dùng category + name để generate |
 
 ---
 
@@ -132,7 +132,7 @@ CLAUDE_MAX_TOKENS = 800
 
 ## Dependencies
 
-- `shopee-sync` → cung cấp product data
+- `ecommerce-sync` → cung cấp product data
 - Groq API key (`GROQ_API_KEY`)
 - Gemini API key (`GEMINI_API_KEY`)
 - OpenAI/Anthropic API key (optional fallback)

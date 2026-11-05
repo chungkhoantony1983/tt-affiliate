@@ -27,7 +27,7 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: tiktok_affiliate
+      POSTGRES_DB: affiliate_db
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
@@ -116,20 +116,26 @@ DB_USER=affiliate_user
 DB_PASSWORD=<generated>
 DB_HOST=postgres
 DB_PORT=5432
-DB_NAME=tiktok_affiliate
+DB_NAME=affiliate_db
 
 # Redis
 REDIS_URL=redis://redis:6379/0
 
-# Shopee
-SHOPEE_STORE_ID=<your_store_id>
+# E-Commerce APIs
 SHOPEE_API_KEY=<your_api_key>
 SHOPEE_API_SECRET=<your_api_secret>
+SHOPEE_STORE_ID=<your_store_id>
 
-# TikTok
+LAZADA_APP_KEY=<your_app_key>
+LAZADA_APP_SECRET=<your_app_secret>
+
+# Social APIs
 TIKTOK_CLIENT_KEY=<your_client_key>
 TIKTOK_CLIENT_SECRET=<your_client_secret>
 TIKTOK_ACCOUNT_ID=<your_account_id>
+
+FB_CLIENT_ID=<your_client_id>
+FB_CLIENT_SECRET=<your_client_secret>
 
 # LLM
 GROQ_API_KEY=<your_key>
@@ -178,7 +184,7 @@ STORAGE_DIR=/app/storage
 ### Auto-restart on boot
 
 ```bash
-# /etc/systemd/system/tiktok-affiliate.service (Linux)
+# /etc/systemd/system/affiliate-bot.service (Linux)
 # OR: Login Items on macOS
 # Simplest: crontab @reboot
 @reboot cd /path/to/docker && docker compose up -d

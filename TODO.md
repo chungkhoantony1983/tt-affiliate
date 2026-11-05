@@ -7,7 +7,7 @@
 >
 > Ký hiệu: ✅ xong · 🟡 đang làm / làm dở · ⬜ chưa làm · ⛔ bị chặn (chờ bên ngoài)
 >
-> Cập nhật lần cuối: 2026-10-20
+> Cập nhật lần cuối: 2026-11-05
 
 ---
 
@@ -148,5 +148,6 @@ Việc cần làm:
 - **Không dùng nhân vật phim / người nổi tiếng:** vi phạm bản quyền / hình ảnh cá nhân, TikTok có thể gỡ video hoặc khoá tính năng affiliate. Chỉ dùng nhân vật AI tự tạo + bật nhãn "Nội dung do AI tạo".
 - **Groq hiện chỉ có** `gpt-oss-120b`, `gpt-oss-20b`, `qwen/qwen3.8-27b` cho text (kiểm tra 2026-10-20).
 - **Gắn giỏ hàng qua API:** theo tài liệu công khai, Content Posting API không có tham số gắn sản phẩm TikTok Shop. Nghĩa là dù API được duyệt, bước gắn sản phẩm vẫn phải làm tay trong app. Cần kiểm tra lại khi có quyền truy cập.
-- **Code/specs còn dính Shopee:** model `Product` (`shopee_item_id`), `docs/specs/.../shopee-sync.md`, biến `SHOPEE_*` trong `.env.example`. Tạm để nguyên, sửa khi làm backend.
-- `.env.example` vẫn liệt kê `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `KLING_API_KEY` (phương án C). Giai đoạn này chỉ cần Groq.
+- **Backend đã merge từ bản update (2026-11-05):** adapter e-commerce (Shopee, Lazada, Google Sheets), TikTok OAuth, API `ecommerce`/`pipeline`/`social`, specs đổi tên `shopee-sync` → `ecommerce-sync`, `tiktok-publish` → `social-publish`. Mới kiểm tra import (18 route), chưa test với Postgres/Redis/API thật.
+- **Phạm vi Shopee cần chốt lại:** header file này ghi Shopee ngoài phạm vi, nhưng code và specs mới có `ecommerce-sync` gồm Shopee.
+- `.env.example` vẫn liệt kê `OPENAI_API_KEY`, `ELEVENLABS_API_KEY` (phương án C). Giai đoạn này chỉ cần Groq.
