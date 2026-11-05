@@ -1,3 +1,5 @@
+raise SystemExit("Paused: Shopee work is on hold, see TODO.md")
+
 from playwright.sync_api import sync_playwright
 
 def test():

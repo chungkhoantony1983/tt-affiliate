@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Affiliate Intelligence API",
-    description="Multi-platform affiliate automation: Shopee → TikTok/Social video pipeline",
+    description="TikTok Shop affiliate automation: product → script → video → publish",
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",

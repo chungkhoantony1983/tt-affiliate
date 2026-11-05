@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     TIKTOK_SESSION_ID: Optional[str] = None
     YOUTUBE_CLIENT_SECRETS_FILE: Optional[str] = "client_secret.json"
 
-    # E-commerce
+    # E-commerce (Shopee is on hold, TikTok Shop comes first)
+    SHOPEE_ENABLED: bool = False
     SHOPEE_APP_ID: str = ""
     SHOPEE_SECRET_KEY: str = ""
     SHOPEE_AFFILIATE_UNIQUE_ID: str = ""

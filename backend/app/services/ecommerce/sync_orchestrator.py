@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.models import Product
 from app.services.ecommerce.adapters.base import ProductData, EcommerceAdapter
 from app.services.ecommerce.adapters.shopee import ShopeeAdapter
@@ -27,9 +28,10 @@ def _get_enabled_adapters() -> List[EcommerceAdapter]:
     """Return danh sách adapters đã được configure."""
     adapters = []
 
-    shopee = ShopeeAdapter()
-    if shopee.is_configured():
-        adapters.append(shopee)
+    if settings.SHOPEE_ENABLED:
+        shopee = ShopeeAdapter()
+        if shopee.is_configured():
+            adapters.append(shopee)
 
     try:
         from app.services.ecommerce.adapters.lazada import LazadaAdapter

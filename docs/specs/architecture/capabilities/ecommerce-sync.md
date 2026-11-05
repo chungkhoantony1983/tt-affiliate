@@ -1,5 +1,7 @@
 # Capability: ecommerce-sync
 
+> **Trạng thái (2026-11-05)**: Adapter Shopee **tạm dừng**, ưu tiên TikTok Shop. Code được giữ lại nhưng tắt bằng `SHOPEE_ENABLED=false`.
+
 > **Mục đích**: Sync danh sách sản phẩm từ các nền tảng Affiliate (Shopee, Lazada, Amazon...) vào database local thông qua `EcommerceAdapter`.
 > Generate và cache affiliate tracking links.
 

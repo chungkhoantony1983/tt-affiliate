@@ -149,5 +149,7 @@ Việc cần làm:
 - **Groq hiện chỉ có** `gpt-oss-120b`, `gpt-oss-20b`, `qwen/qwen3.8-27b` cho text (kiểm tra 2026-10-20).
 - **Gắn giỏ hàng qua API:** theo tài liệu công khai, Content Posting API không có tham số gắn sản phẩm TikTok Shop. Nghĩa là dù API được duyệt, bước gắn sản phẩm vẫn phải làm tay trong app. Cần kiểm tra lại khi có quyền truy cập.
 - **Backend đã merge từ bản update (2026-11-05):** adapter e-commerce (Shopee, Lazada, Google Sheets), TikTok OAuth, API `ecommerce`/`pipeline`/`social`, specs đổi tên `shopee-sync` → `ecommerce-sync`, `tiktok-publish` → `social-publish`. Mới kiểm tra import (18 route), chưa test với Postgres/Redis/API thật.
-- **Phạm vi Shopee cần chốt lại:** header file này ghi Shopee ngoài phạm vi, nhưng code và specs mới có `ecommerce-sync` gồm Shopee.
+- **Shopee tạm dừng (quyết định 2026-11-05):** ưu tiên TikTok, không làm thêm gì liên quan Shopee. Code giữ lại nhưng tắt: `SHOPEE_ENABLED=false`, nút dashboard bị vô hiệu, `scripts/run_perfume.py`, `scripts/run_suitcase.py`, `scripts/test_workflow.py`, `test_pw.py` thoát ngay khi chạy. Khi làm lại: bật cờ và gỡ dòng `raise SystemExit` ở đầu các script.
+- **Quyết định nghiệp vụ (từ session 2026-06-26):** niche Nhà cửa, Công nghệ, Đồ bếp, Phụ kiện ô tô · giá mục tiêu 100K–500K ₫ · commission ≥10% · budget 1–2 triệu ₫/tháng × 6 tháng.
+- **TikTok app review (từ session 2026-06-26):** cần quay màn hình demo 1–2 phút, upload lên App Review, điền description + use case rồi submit. Scopes: `video.publish`, `video.upload`, `user.info.basic`. Bản gốc lưu ở tag `archive/docs-sa-requirement-design`.
 - `.env.example` vẫn liệt kê `OPENAI_API_KEY`, `ELEVENLABS_API_KEY` (phương án C). Giai đoạn này chỉ cần Groq.

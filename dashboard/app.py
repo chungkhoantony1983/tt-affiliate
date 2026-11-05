@@ -36,8 +36,7 @@ if page == "📊 Overview":
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("🔄 Sync Shopee Products", type="primary"):
-            st.info("Đang sync sản phẩm từ Shopee...")
+        st.button("🔄 Sync Shopee (tạm dừng)", disabled=True)
 
     with col2:
         if st.button("🎬 Create Video Now", type="primary"):
@@ -49,15 +48,14 @@ if page == "📊 Overview":
 
     st.divider()
     st.subheader("📋 Recent Video Jobs")
-    st.info("Chưa có jobs nào. Hãy bắt đầu bằng cách sync sản phẩm từ Shopee.")
+    st.info("Chưa có jobs nào. Hãy bắt đầu bằng cách thêm sản phẩm TikTok Shop vào products.csv.")
 
 elif page == "🛍️ Products":
     st.subheader("Danh sách sản phẩm")
 
     col1, col2 = st.columns([3, 1])
     with col2:
-        if st.button("🔄 Sync từ Shopee"):
-            st.success("Sync thành công!")
+        st.button("🔄 Sync Shopee (tạm dừng)", disabled=True, key="sync_shopee_products")
 
     st.dataframe(
         pd.DataFrame({

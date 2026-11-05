@@ -1,3 +1,5 @@
+raise SystemExit("Paused: Shopee work is on hold, see TODO.md")
+
 import sys
 import os
 import asyncio

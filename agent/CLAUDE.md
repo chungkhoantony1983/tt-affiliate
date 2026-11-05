@@ -12,6 +12,7 @@
 - **Số liệu**: Chỉ dùng số có nguồn gốc rõ ràng. Không ước đoán.
 - **Secrets**: Không hardcode API keys. Luôn dùng `.env` (gitignored).
 - **Storage**: Video/audio/ảnh render không commit vào git. Đặt trong `storage/`.
+- **Ưu tiên**: TikTok Shop Affiliate. Mọi việc liên quan Shopee đang tạm dừng (`SHOPEE_ENABLED=false`).
 
 ---
 
@@ -40,8 +41,8 @@ docs/                          ← Tài liệu thiết kế (CDD L1~L4)
 │   │   └── capabilities/          ← Per-cap L3 detail
 │   │       ├── script-gen.md
 │   │       ├── video-render.md
-│   │       ├── tiktok-publish.md
-│   │       ├── shopee-sync.md
+│   │       ├── social-publish.md
+│   │       ├── ecommerce-sync.md      ← Shopee tạm dừng (xem TODO.md)
 │   │       ├── analytics.md
 │   │       └── n8n-orchestration.md
 │   └── implementation/        ← L4: Implementation specs
@@ -74,7 +75,7 @@ n8n/                           ← N8N workflow definitions
 Ví dụ:
 - `/task capability:script-gen Tạo script video cho sản phẩm "Máy lọc không khí Xiaomi"`
 - `/task capability:video-render Render video từ job_id=42`
-- `/task capability:shopee-sync Sync tất cả sản phẩm trong store`
+- `/task capability:social-publish Đẩy video job_id=42 lên TikTok`
 
 ### Quy trình mỗi task
 
@@ -107,7 +108,7 @@ Ví dụ:
 
 | Ưu tiên | Tool | Tier | Chi phí | Dùng cho |
 |---------|------|------|---------|---------|
-| 1 | **Groq API** (Llama 3.1 70B) | Free | $0 | Bulk script generation |
+| 1 | **Groq API** (`qwen/qwen3.8-27b`) | Free | $0 | Bulk script generation |
 | 2 | **Gemini 1.5 Flash** | Free (15 RPM) | $0 | Fallback, lifestyle content |
 | 3 | **Claude API** (Haiku 3.5) | Pay-per-use | ~$0.80/1M | Quality-sensitive tasks |
 | 4 | **Claude.ai Pro** | Web manual | $20/tháng | Complex reasoning, review |
