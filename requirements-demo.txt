@@ -1,0 +1,5 @@
+groq
+edge-tts
+pillow
+imageio-ffmpeg
+mutagen
