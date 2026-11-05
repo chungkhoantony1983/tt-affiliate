@@ -109,8 +109,10 @@ Việc cần làm:
 ### M4 — TikTok API (khi app được duyệt)
 - [x] Đăng ký app TikTok for Developers, verify domain (3 file `tiktok*.txt`)
 - [x] Terms / Privacy trên GitHub Pages
+- [x] Xác minh URL prefix `https://chungkhoantony1983.github.io/tt-affiliate/` (file `tiktokYUeX…txt`)
+- [x] Trang `app.html` + dịch vụ local `backend/app/creator_main.py`: đăng nhập TikTok, xem video, gửi vào inbox. Mới test với TikTok giả, chưa test với sandbox thật
+- [ ] Cấu hình sandbox, chạy thử, quay demo theo `docs/operations/tiktok-demo-recording.md`
 - [ ] ⛔ TikTok duyệt app. Kiểm tra trạng thái trên developers.tiktok.com
-- [ ] OAuth2 lấy access token + refresh token
 - [ ] Đăng thử 1 video. App chưa qua audit chỉ đăng được ở chế độ **private (SELF_ONLY)**
 - [ ] Thay `publish_to_tiktok()` giả lập trong `demo.py` bằng `tiktok_service.py`
 - [ ] Lấy stats tự động thay cho ghi tay
@@ -151,5 +153,5 @@ Việc cần làm:
 - **Backend đã merge từ bản update (2026-11-05):** adapter e-commerce (Shopee, Lazada, Google Sheets), TikTok OAuth, API `ecommerce`/`pipeline`/`social`, specs đổi tên `shopee-sync` → `ecommerce-sync`, `tiktok-publish` → `social-publish`. Mới kiểm tra import (18 route), chưa test với Postgres/Redis/API thật.
 - **Shopee tạm dừng (quyết định 2026-11-05):** ưu tiên TikTok, không làm thêm gì liên quan Shopee. Code giữ lại nhưng tắt: `SHOPEE_ENABLED=false`, nút dashboard bị vô hiệu, `scripts/run_perfume.py`, `scripts/run_suitcase.py`, `scripts/test_workflow.py`, `test_pw.py` thoát ngay khi chạy. Khi làm lại: bật cờ và gỡ dòng `raise SystemExit` ở đầu các script.
 - **Quyết định nghiệp vụ (từ session 2026-06-26):** niche Nhà cửa, Công nghệ, Đồ bếp, Phụ kiện ô tô · giá mục tiêu 100K–500K ₫ · commission ≥10% · budget 1–2 triệu ₫/tháng × 6 tháng.
-- **TikTok app review (từ session 2026-06-26):** cần quay màn hình demo 1–2 phút, upload lên App Review, điền description + use case rồi submit. Scopes: `video.publish`, `video.upload`, `user.info.basic`. Bản gốc lưu ở tag `archive/docs-sa-requirement-design`.
+- **TikTok app review (từ session 2026-06-26):** quy trình mới ở `docs/operations/tiktok-demo-recording.md`. Chỉ xin 2 scope: `user.info.basic`, `video.upload`, không dùng `video.publish`. Ghi chú cũ lưu ở tag `archive/docs-sa-requirement-design`.
 - `.env.example` vẫn liệt kê `OPENAI_API_KEY`, `ELEVENLABS_API_KEY` (phương án C). Giai đoạn này chỉ cần Groq.

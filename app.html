@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TT Content Publisher</title>
+    <style>
+        :root {
+            --bg: #ffffff; --ink: #24292f; --muted: #5f6b76; --line: #e3e7eb;
+            --panel: #f6f8fa; --accent: #fe2c55; --ok: #1a7f37; --err: #cf222e;
+            --fs-body: 1rem; --fs-small: 0.875rem;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #14171a; --ink: #e8eaed; --muted: #9aa4ae; --line: #2c3238;
+                --panel: #1c2024; --ok: #3fb950; --err: #f85149;
+            }
+        }
+        body { background: var(--bg); color: var(--ink); font-family: -apple-system, "Segoe UI", sans-serif; font-size: var(--fs-body); line-height: 1.55; margin: 0; }
+        main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+        h1 { margin: 0 0 4px; }
+        h2 { margin: 0 0 12px; font-size: 1.15rem; }
+        .lead { color: var(--muted); margin: 0 0 24px; }
+        section { border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        section.locked { opacity: 0.55; }
+        button { background: var(--accent); border: 0; border-radius: 8px; color: #fff; cursor: pointer; font-size: var(--fs-body); font-weight: 600; padding: 10px 18px; }
+        button:disabled { cursor: default; opacity: 0.5; }
+        button.quiet { background: transparent; border: 1px solid var(--line); color: var(--ink); font-weight: 400; }
+        select { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font-size: var(--fs-body); margin-bottom: 12px; max-width: 100%; padding: 8px; width: 100%; }
+        video { background: #000; border-radius: 8px; display: block; margin: 0 auto 12px; max-height: 420px; max-width: 100%; }
+        .account { align-items: center; display: flex; gap: 12px; }
+        .account img { border-radius: 50%; height: 44px; width: 44px; }
+        .account strong { flex: 1; }
+        .caption { background: var(--panel); border-radius: 8px; margin: 0 0 12px; padding: 10px 12px; }
+        .label { color: var(--muted); display: block; font-size: var(--fs-small); margin-bottom: 4px; }
+        .note { color: var(--muted); font-size: var(--fs-small); margin: 12px 0 0; }
+        .status { font-size: var(--fs-small); margin: 12px 0 0; min-height: 1.4em; }
+        .status.ok { color: var(--ok); }
+        .status.err { color: var(--err); }
+        .notice { background: var(--panel); border-radius: 8px; margin-bottom: 16px; padding: 12px; }
+        footer { color: var(--muted); font-size: var(--fs-small); }
+        footer a { color: inherit; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>TT Content Publisher</h1>
+    <p class="lead">Send your product videos to your TikTok inbox as drafts. You finish and post them yourself in the TikTok app.</p>
+
+    <div class="notice" id="offline" hidden>The local TT Content Publisher service is not running on this computer. Start it, then reload this page.</div>
+
+    <section id="step-connect">
+        <h2>1. Connect your TikTok account</h2>
+        <div id="signed-out">
+            <button id="login" type="button">Login with TikTok</button>
+            <p class="note">The app can see your display name and avatar, and can upload videos to your inbox. It cannot post for you.</p>
+        </div>
+        <div class="account" id="signed-in" hidden>
+            <img id="avatar" alt="">
+            <strong id="nickname"></strong>
+            <button class="quiet" id="logout" type="button">Disconnect</button>
+        </div>
+        <p class="status" id="connect-status"></p>
+    </section>
+
+    <section class="locked" id="step-video">
+        <h2>2. Review your video</h2>
+        <label class="label" for="videos">Video</label>
+        <select id="videos" disabled></select>
+        <video controls id="preview" playsinline></video>
+        <span class="label">Suggested caption, to paste in the TikTok app</span>
+        <p class="caption" id="caption"></p>
+        <button class="quiet" id="copy" type="button" disabled>Copy caption</button>
+    </section>
+
+    <section class="locked" id="step-send">
+        <h2>3. Send to your TikTok inbox</h2>
+        <button id="send" type="button" disabled>Send to TikTok inbox</button>
+        <p class="status" id="send-status"></p>
+        <p class="note">After the upload, open the notification in the TikTok app to edit the draft, add your caption, choose who can see it and post it.</p>
+    </section>
+
+    <footer><a href="index.html">About</a> &middot; <a href="terms.html">Terms of Service</a> &middot; <a href="privacy.html">Privacy Policy</a></footer>
+</main>
+
+<script>
+    const API = "http://localhost:8000/api/creator";
+    const $ = (id) => document.getElementById(id);
+    let videos = [];
+
+    async function call(path, method = "GET", body) {
+        const res = await fetch(API + path, {
+            method,
+            headers: body ? { "Content-Type": "application/json" } : undefined,
+            body: body ? JSON.stringify(body) : undefined,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+        return data;
+    }
+
+    function setStatus(id, text, kind = "") {
+        $(id).textContent = text;
+        $(id).className = `status ${kind}`;
+    }
+
+    function showAccount(me) {
+        $("signed-out").hidden = me.connected;
+        $("signed-in").hidden = !me.connected;
+        $("nickname").textContent = me.display_name || "";
+        if (me.avatar_url) $("avatar").src = me.avatar_url;
+        $("avatar").hidden = !me.avatar_url;
+        $("step-video").classList.toggle("locked", !me.connected);
+        $("step-send").classList.toggle("locked", !me.connected);
+        $("videos").disabled = !me.connected;
+        $("copy").disabled = !me.connected || !videos.length;
+        $("send").disabled = !me.connected || !videos.length;
+    }
+
+    function showVideo() {
+        const item = videos[$("videos").selectedIndex];
+        if (!item) return;
+        $("preview").src = `${API}/videos/${encodeURIComponent(item.folder)}/file`;
+        $("caption").textContent = item.caption;
+        setStatus("send-status", "");
+    }
+
+    async function finishLogin(params) {
+        history.replaceState(null, "", location.pathname);
+        if (params.get("error")) {
+            setStatus("connect-status", params.get("error_description") || "TikTok login was cancelled.", "err");
+            return;
+        }
+        setStatus("connect-status", "Connecting your account...");
+        await call("/auth/exchange", "POST", { code: params.get("code"), state: params.get("state") });
+        setStatus("connect-status", "");
+    }
+
+    async function start() {
+        const params = new URLSearchParams(location.search);
+        try {
+            const list = await call("/videos");
+            videos = list.videos;
+            $("videos").replaceChildren(...videos.map((v) => new Option(v.title, v.folder)));
+            showVideo();
+        } catch (e) {
+            $("offline").hidden = false;
+            $("login").disabled = true;
+            return;
+        }
+        try {
+            if (params.has("code") || params.has("error")) await finishLogin(params);
+        } catch (e) {
+            setStatus("connect-status", e.message, "err");
+        }
+        showAccount(await call("/me"));
+    }
+
+    $("login").onclick = async () => {
+        try {
+            location.href = (await call("/auth/url")).auth_url;
+        } catch (e) {
+            setStatus("connect-status", e.message, "err");
+        }
+    };
+
+    $("logout").onclick = async () => {
+        showAccount(await call("/disconnect", "POST"));
+    };
+
+    $("videos").onchange = showVideo;
+
+    $("copy").onclick = async () => {
+        await navigator.clipboard.writeText($("caption").textContent);
+        $("copy").textContent = "Copied";
+    };
+
+    $("send").onclick = async () => {
+        const item = videos[$("videos").selectedIndex];
+        $("send").disabled = true;
+        setStatus("send-status", "Uploading to TikTok...");
+        try {
+            const result = await call(`/videos/${encodeURIComponent(item.folder)}/send`, "POST");
+            const done = result.status === "SEND_TO_USER_INBOX" || result.status === "PUBLISH_COMPLETE";
+            setStatus("send-status", done
+                ? "Sent. Check the notification in your TikTok app."
+                : "Uploaded. TikTok is still processing it, the notification will arrive shortly.", "ok");
+        } catch (e) {
+            setStatus("send-status", e.message, "err");
+        }
+        $("send").disabled = false;
+    };
+
+    start();
+</script>
+</body>
+</html>

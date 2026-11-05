@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     TIKTOK_CLIENT_KEY: str = ""
     TIKTOK_CLIENT_SECRET: str = ""
     TIKTOK_ACCESS_TOKEN: str = ""
+    TIKTOK_REDIRECT_URI: str = "https://chungkhoantony1983.github.io/tt-affiliate/app.html"
+    CREATOR_WEB_ORIGIN: str = "https://chungkhoantony1983.github.io"
     TIKTOK_SESSION_ID: Optional[str] = None
     YOUTUBE_CLIENT_SECRETS_FILE: Optional[str] = "client_secret.json"
 

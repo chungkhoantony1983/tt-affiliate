@@ -26,9 +26,8 @@
     <p>The only data processed by the App:</p>
     <table>
         <tr><th>Data Type</th><th>Purpose</th><th>Storage</th></tr>
-        <tr><td>TikTok basic profile (open ID, display name, avatar)</td><td>Show which TikTok account is connected</td><td>Local database</td></tr>
-        <tr><td>TikTok OAuth tokens</td><td>Authenticate with TikTok API</td><td>Local encrypted storage</td></tr>
-        <tr><td>Video content metadata</td><td>Track which videos were sent to the TikTok inbox</td><td>Local database</td></tr>
+        <tr><td>TikTok basic profile (open ID, display name, avatar)</td><td>Show which TikTok account is connected</td><td>Memory of the local service only, cleared when it stops</td></tr>
+        <tr><td>TikTok OAuth tokens</td><td>Authenticate with TikTok API</td><td>Memory of the local service only, cleared when it stops</td></tr>
     </table>
 
     <h2>3. Data Sharing</h2>
@@ -44,7 +43,7 @@
     <h2>5. Data Storage & Security</h2>
     <ul>
         <li>All data is stored locally on the user's device</li>
-        <li>OAuth tokens are encrypted at rest</li>
+        <li>OAuth tokens are never written to disk or sent to any server other than TikTok</li>
         <li>No cloud storage or external servers are used</li>
         <li>No data is transmitted to the App developer</li>
     </ul>
