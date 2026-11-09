@@ -8,6 +8,8 @@ Styles:
   simple — product images only, narrator voice
 
 Usage:
+  python demo.py --sheet                  # Google Sheet (SPREADSHEET_ID in .env), tab "Tiktok"
+  python demo.py --sheet --fill-only      # only fill empty cells from the TikTok product link
   python demo.py --csv products.csv
   python demo.py --product "Máy hút bụi mini" --price 189000 --images a.jpg,b.jpg \
                  --points "Hút mạnh|Sạc USB|Nhỏ gọn" --style simple
@@ -629,17 +631,129 @@ def load_products_csv(path: str) -> list:
                 continue
             if (row.get("status") or "").strip().lower() in ("done", "skip"):
                 continue
-            products.append({
-                "name": row["name"].strip(),
-                "price": int(re.sub(r"[^\d]", "", row.get("price") or "0") or 0),
-                "category": (row.get("category") or "").strip() or "Khác",
-                "images": _split(row.get("images"), "|"),
-                "selling_points": _split(row.get("selling_points"), "|"),
-                "product_url": (row.get("product_url") or "").strip(),
-                "notes": (row.get("notes") or "").strip(),
-                "style": (row.get("style") or "").strip().lower() or None,
-            })
+            products.append(_product_from_row(row))
     return products
+
+
+def _product_from_row(row: dict) -> dict:
+    return {
+        "name": row["name"].strip(),
+        "price": int(re.sub(r"[^\d]", "", row.get("price") or "0") or 0),
+        "category": (row.get("category") or "").strip() or "Khác",
+        "images": _split(row.get("images"), "|"),
+        "selling_points": _split(row.get("selling_points"), "|"),
+        "product_url": (row.get("product_url") or "").strip(),
+        "notes": (row.get("notes") or "").strip(),
+        "style": (row.get("style") or "").strip().lower() or None,
+    }
+
+
+def extract_product_facts(title: str, description: str, specs: list) -> dict:
+    """Ask Groq for category, selling points and claim limits, using only the shop's own text."""
+    from groq import Groq
+
+    prompt = f"""Dưới đây là thông tin người bán đăng trên TikTok Shop.
+
+Tên: {title}
+Thông số: {'; '.join(specs) or '-'}
+Mô tả:
+{description[:4000] or '-'}
+
+Trích xuất, CHỈ dựa trên nội dung ở trên, không thêm thông tin hay con số nào khác:
+- "category": ngành hàng ngắn gọn, ví dụ "Nhà cửa", "Sức khỏe", "Thực phẩm".
+- "selling_points": 3-5 ý lợi ích chính, mỗi ý ≤ 12 từ, bỏ lời chào, cam kết đổi trả, quy cách đóng gói.
+- "notes": nếu là sản phẩm sức khỏe, thực phẩm, làm đẹp: ghi ngắn các điều KHÔNG được nói khi quảng cáo
+  (vd "Không phải thuốc, không chữa bệnh"). Sản phẩm khác để "".
+
+Chỉ trả về JSON: {{"category": "...", "selling_points": ["...", "..."], "notes": "..."}}"""
+
+    client = Groq(api_key=os.environ["GROQ_API_KEY"])
+    response = client.chat.completions.create(
+        model=os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b"),
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+        max_tokens=2000,
+    )
+    facts = _extract_json(response.choices[0].message.content or "")
+    facts["selling_points"] = [p.replace("|", "/").strip() for p in facts.get("selling_points", [])
+                               if isinstance(p, str) and p.strip()][:5]
+    return facts
+
+
+def autofill_row(row: dict) -> dict:
+    """Fill empty cells of a sheet row from its TikTok product link. Never overwrites a filled cell.
+
+    The page is read only when a key cell is empty; notes and sold_count are filled on the way.
+    A price of 0 means "do not mention the price" and is kept.
+    """
+    url = row.get("product_url", "").strip()
+    wanted = ["name", "price", "category", "images", "selling_points"]
+    if not url or not any(not row.get(k, "").strip() for k in wanted):
+        return {}
+
+    from product_sources import fetch_tiktok_product
+
+    info = fetch_tiktok_product(url)
+    found = {
+        "name": info["title"],
+        "price": str(info["price"]) if info["price"] else "",
+        "images": "|".join(info["images"][:3]),
+        "sold_count": str(info["sold_count"]) if info["sold_count"] else "",
+    }
+    if any(not row.get(k, "").strip() for k in ("category", "selling_points", "notes")):
+        facts = extract_product_facts(info["title"], info["description"], info["specs"])
+        found.update(category=facts.get("category", ""), notes=facts.get("notes", ""),
+                     selling_points="|".join(facts["selling_points"]))
+    return {k: v for k, v in found.items() if v and not row.get(k, "").strip()}
+
+
+def run_sheet(sheet_ref: str, tab: str, base_dir: Path, style: str,
+              skip_approval: bool, fill_only: bool) -> list:
+    from product_sources import ProductSheet
+
+    sheet = ProductSheet(sheet_ref, tab)
+    rows = sheet.pending()
+    print(f"📄 Sheet '{tab}': {len(rows)} product(s) to do")
+    results = []
+    for row in rows:
+        label = row["name"].strip() or row["product_url"].strip()
+        try:
+            filled = autofill_row(row)
+            if filled:
+                sheet.update(row, filled)
+                print(f"📝 {label}: filled {', '.join(filled)}")
+            if fill_only:
+                results.append((label, {"status": "filled" if filled else "unchanged"}))
+                continue
+            if not row["name"].strip():
+                raise ValueError("no product name (add a name or a product link)")
+            result = run_one(_product_from_row(row), base_dir, style, skip_approval)
+            if result["status"] == "ready_for_manual_upload":
+                sheet.update(row, {"status": "done"})
+            elif result["status"] == "needs_images":
+                sheet.update(row, {"status": "needs_images"})
+            results.append((label, result))
+        except Exception as e:
+            print(f"❌ {label}: {e}")
+            results.append((label, {"status": "error", "error": str(e)}))
+    return results
+
+
+def mark_sheet_done(product_url: str, tab: str) -> None:
+    """After a re-render is approved, set status=done on the matching sheet row, if a sheet is set up."""
+    sheet_ref = os.environ.get("SPREADSHEET_ID", "")
+    if not (product_url and sheet_ref and Path("google-credentials.json").exists()):
+        return
+    from product_sources import ProductSheet
+
+    try:
+        sheet = ProductSheet(sheet_ref, tab)
+        row = sheet.find_by_url(product_url)
+        if row:
+            sheet.update(row, {"status": "done"})
+            print(f"📄 Sheet '{tab}': marked done")
+    except Exception as e:
+        print(f"   ⚠️  Could not update the sheet ({e}) — set status=done by hand")
 
 
 def run_one(product: dict, base_dir: Path, style: str, skip_approval: bool) -> dict:
@@ -691,6 +805,11 @@ def rerender(out_dir: Path, skip_approval: bool) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="TT Content Publisher — TikTok Shop affiliate video")
+    parser.add_argument("--sheet", nargs="?", const="", metavar="LINK",
+                        help="Google Sheet link or ID (default: SPREADSHEET_ID in .env)")
+    parser.add_argument("--tab", default="Tiktok", help="Sheet tab name")
+    parser.add_argument("--fill-only", action="store_true",
+                        help="With --sheet: only fill empty cells from product links, no video")
     parser.add_argument("--csv", help="Products CSV (batch mode)")
     parser.add_argument("--rerender", nargs="+", metavar="DIR",
                         help="Re-render output folder(s) after adding canh_N.png images")
@@ -712,11 +831,21 @@ def main():
         for d in args.rerender:
             r = rerender(Path(d), args.skip_approval)
             print(f"\n{r['status']:<24} {r.get('dir', '')}")
+            if r["status"] == "ready_for_manual_upload":
+                product = json.loads((Path(d) / "product.json").read_text(encoding="utf-8"))
+                mark_sheet_done(product.get("product_url", ""), args.tab)
         return
     if not os.environ.get("GROQ_API_KEY"):
         print("❌ GROQ_API_KEY not set. Add it to .env (see .env.example)")
         sys.exit(1)
 
+    if args.sheet is not None:
+        sheet_ref = args.sheet or os.environ.get("SPREADSHEET_ID", "")
+        if not sheet_ref:
+            parser.error("Pass a sheet link, or set SPREADSHEET_ID in .env")
+        print_summary(run_sheet(sheet_ref, args.tab, Path(args.output_dir), args.style,
+                                args.skip_approval, args.fill_only))
+        return
     if args.csv:
         products = load_products_csv(args.csv)
     elif args.product:
@@ -736,7 +865,10 @@ def main():
         except Exception as e:
             print(f"❌ {product['name']}: {e}")
             results.append((product["name"], {"status": "error", "error": str(e)}))
+    print_summary(results)
 
+
+def print_summary(results: list) -> None:
     print("\n" + "=" * 60)
     print("📊 SUMMARY")
     print("=" * 60)

@@ -7,3 +7,5 @@ fastapi
 uvicorn
 pydantic-settings
 httpx
+gspread
+google-auth

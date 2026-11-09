@@ -13,7 +13,9 @@ Hệ thống hiện tại **không tự đăng video**. Máy lo phần viết k�
 | Việc | Ai làm | Ghi chú |
 |---|---|---|
 | Chọn sản phẩm trên TikTok Shop | **Người** | Mỗi tuần 5–10 sản phẩm |
-| Ghi sản phẩm vào danh sách | **Người** | File `products.csv` |
+| Dán link sản phẩm vào Google Sheet | **Người** | Sheet "Tiktok" |
+| Điền tên, giá, ảnh, số đã bán, ý chính | Máy | Đọc từ trang sản phẩm TikTok Shop |
+| Kiểm tra lại các ý máy điền | **Người** | Bắt buộc |
 | Viết kịch bản, caption, hashtag | Máy (AI) | Tự động |
 | Đọc giọng | Máy (AI) | Tự động |
 | Ảnh nhân vật cho video kiểu tiểu phẩm | **Người**, dùng Gemini | Bỏ qua được nếu chọn video kiểu đơn giản |
@@ -79,44 +81,57 @@ Hết buổi: bấm vào cửa sổ máy chủ, nhấn `Ctrl + C`.
    - Đã có người mua, càng nhiều càng tốt.
    - Hợp với kênh: nhà cửa, công nghệ, đồ bếp, phụ kiện ô tô.
 3. Bấm **Thêm vào showcase**. Không có bước này thì lúc đăng sẽ không gắn được giỏ hàng.
-4. Lưu lại: tên sản phẩm, giá, link sản phẩm, 2–3 ảnh, vài ý chính về công dụng.
+4. Trên trang sản phẩm, bấm **Chia sẻ → Sao chép liên kết**.
 
-### Bước 2. Ghi vào danh sách sản phẩm
+### Bước 2. Dán link vào Google Sheet
 
-Mở file `products.csv` trong thư mục dự án bằng VS Code. Mỗi dòng là một sản phẩm, các ô cách nhau bằng dấu phẩy:
+Mở Google Sheet **Shopee_Tiktok_Affiliate_Management**, sheet **Tiktok**. Mỗi dòng là một sản phẩm. Chỉ cần điền 2 ô:
 
 | Cột | Ghi gì | Ví dụ |
 |---|---|---|
-| `name` | Tên sản phẩm | `Máy hút bụi mini cầm tay` |
-| `price` | Giá, chỉ số, để trống nếu chưa rõ | `189000` |
-| `category` | Ngành hàng | `Nhà cửa` |
-| `images` | Link hoặc đường dẫn ảnh, cách nhau bằng `\|` | `https://.../a.jpg\|https://.../b.jpg` |
-| `selling_points` | Ý chính, cách nhau bằng `\|` | `Lực hút mạnh\|Sạc USB\|Nặng 500g` |
-| `product_url` | Link sản phẩm TikTok Shop | `https://shop.tiktok.com/...` |
-| `commission_pct` | % hoa hồng | `12` |
-| `sold_count` | Số đã bán | `3500` |
-| `notes` | Điều cần tránh khi viết | `Không phải thiết bị y tế` |
-| `status` | Để trống. Làm xong ghi `done`, muốn bỏ qua ghi `skip` | |
+| `name` | Tên ngắn gọn để dễ nhận ra | `Trà oolong` |
+| `product_url` | Link vừa sao chép | `https://vt.tiktok.com/...` |
+
+Các ô khác để trống, máy sẽ tự điền. Ô nào bạn đã điền thì máy giữ nguyên.
+
+Muốn máy điền ngay để xem trước, trong cửa sổ Terminal thứ hai chạy:
+```bash
+.venv/bin/python demo.py --sheet --fill-only
+```
+
+Máy điền: `price` (giá thấp nhất lúc đọc), `images` (3 ảnh), `sold_count`, `category`, `selling_points`, `notes`.
+
+**Bắt buộc đọc lại `selling_points` và `notes`.** Máy chỉ lấy từ mô tả của người bán, nhưng người bán có thể quảng cáo quá lời, ví dụ "không gây mất ngủ". Ý nào không chắc chắn thì xoá đi.
 
 Lưu ý:
-- Tên hoặc ý chính có dấu phẩy thì bỏ dấu phẩy đi, tránh lệch cột.
-- Sản phẩm sức khoẻ, làm đẹp: **luôn** ghi vào `notes` những điều không được nói, ví dụ "không chữa bệnh".
+- `commission_pct` (% hoa hồng) máy **không** đọc được vì chỉ hiện trong Affiliate Center. Tự điền nếu muốn theo dõi.
+- Giá trên TikTok Shop thay đổi theo ngày. Không muốn video nhắc giá thì ghi `0` vào ô `price`. Đừng xoá trống, vì máy sẽ tự điền lại.
+- Sản phẩm sức khoẻ, thực phẩm, làm đẹp: kiểm tra ô `notes` có ghi những điều không được nói, ví dụ "không chữa bệnh".
+- Muốn bỏ qua một sản phẩm: ghi `skip` vào ô `status`.
 
 ### Bước 3. Tạo video
 
 Trong cửa sổ Terminal thứ hai, chọn một trong hai kiểu.
 
-**Kiểu đơn giản** (nhanh, chỉ dùng ảnh sản phẩm):
+**Kiểu đơn giản** (chỉ dùng ảnh sản phẩm):
 ```bash
-.venv/bin/python demo.py --csv products.csv --style simple
+.venv/bin/python demo.py --sheet --style simple
 ```
 
 **Kiểu tiểu phẩm** (có nhân vật, phải tự tạo ảnh bằng Gemini ở bước 4):
 ```bash
-.venv/bin/python demo.py --csv products.csv
+.venv/bin/python demo.py --sheet
 ```
 
-Máy làm lần lượt từng sản phẩm có `status` trống. Video nằm trong thư mục `storage/videos/<ngày giờ>_<tên sản phẩm>/`.
+Máy làm lần lượt từng dòng có `status` trống, và tự điền các ô còn trống trước khi làm. Video nằm trong thư mục `storage/videos/<ngày giờ>_<tên sản phẩm>/`.
+
+Máy tự ghi vào cột `status`:
+
+| Giá trị | Nghĩa |
+|---|---|
+| `done` | Đã duyệt video, chờ đăng |
+| `needs_images` | Kiểu tiểu phẩm, đang chờ ảnh nhân vật: làm bước 4 |
+| `skip` | Bạn tự ghi, máy bỏ qua |
 
 ### Bước 4. Ảnh nhân vật (chỉ với kiểu tiểu phẩm)
 
@@ -140,9 +155,9 @@ Máy tự mở video và hiện kịch bản trên Terminal. Kiểm tra:
 - Không sai chính tả trên màn hình.
 - Giá đúng, nếu có hiện giá.
 
-Gõ `y` rồi Enter để đồng ý, `n` để bỏ. Đồng ý thì máy tạo file `post.txt` cạnh video, có caption để dán.
+Gõ `y` rồi Enter để đồng ý, `n` để bỏ. Đồng ý thì máy tạo file `post.txt` cạnh video có caption để dán, và tự ghi `done` vào Google Sheet.
 
-Sau đó mở `products.csv`, ghi `done` vào cột `status` của sản phẩm vừa làm, để lần sau máy không làm lại.
+Gõ `n` thì `status` vẫn trống, lần chạy sau máy làm lại video mới cho sản phẩm đó. Không muốn làm lại thì ghi `skip`.
 
 ### Bước 6. Gửi video vào điện thoại
 
@@ -189,6 +204,9 @@ Sau 48 giờ, mở `TODO.md`, mục **4. Nhật ký video đã đăng**, thêm m
 | Danh sách video trống | Chưa có video nào được tạo: làm bước 3 |
 | Bấm Send báo *Connect your TikTok account first* | Đăng nhập lại (bước 6.3) |
 | Báo lỗi có chữ `spam_risk_too_many_pending_share` | Đã có 5 video chờ đăng: đăng hết trên điện thoại, hoặc chờ sang ngày hôm sau |
+| Terminal báo `TikTok returned no product data` | TikTok tạm chặn việc đọc tự động. Chờ một lúc rồi chạy lại, hoặc tự điền các ô còn trống |
+| Terminal báo `row 1 is missing columns` | Dòng 1 của sheet Tiktok bị sửa tên cột: đặt lại đúng 10 tên cột tiếng Anh |
+| Terminal báo `PERMISSION_DENIED` hoặc `403` khi đọc sheet | Sheet chưa chia sẻ quyền Editor cho `sheet-bot@omni-affiliate.iam.gserviceaccount.com` |
 | Terminal báo `GROQ_API_KEY not set` | File `.env` thiếu key: nhờ người phụ trách kỹ thuật |
 | Không thấy thông báo trên điện thoại | Kiểm tra đúng tài khoản TikTok, vuốt xuống tải lại Hộp thư, chờ vài phút |
 | Không thấy mục **Sản phẩm** khi đăng | Sản phẩm chưa có trong showcase, hoặc người bán chưa mở hoa hồng: làm lại bước 1.3 hoặc chọn sản phẩm khác |
