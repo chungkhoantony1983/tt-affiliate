@@ -229,7 +229,44 @@ DELIVERY = {
 }
 
 
-def _gemini_tts_prompt(text: str, speaker: str, kind: str) -> tuple:
+# Narrator by product type (operator's rule, 2026-11-11):
+#   electronics, machines, tools, cars, sport/training → northern male
+#   health, family, kids, elderly, gifts, emotional    → southern female (also the default)
+# Keywords are matched without diacritics; category is checked before the product name,
+# so "Máy trợ thính" in category "Sức khỏe" stays female.
+PERSONA_KEYWORDS = {
+    "nu_nam": ["suc khoe", "y te", "gia dinh", "me va be", "me be", "tre em", "em be", "nguoi gia",
+               "nguoi lon tuoi", "cham soc", "qua tang", "tinh cam", "tinh yeu", "cha me", "bo me"],
+    "nam_bac": ["dien tu", "cong nghe", "dien thoai", "may tinh", "laptop", "tai nghe bluetooth", "thiet bi",
+                "may moc", "may", "dung cu", "phu kien o to", "o to", "xe may", "xe", "the thao", "the hinh",
+                "tap luyen", "luyen tap", "gym", "fitness", "camera", "loa", "sac du phong"],
+}
+
+
+def _plain(text: str) -> str:
+    text = unicodedata.normalize("NFD", (text or "").lower()).replace("đ", "d")
+    return "".join(c for c in text if unicodedata.category(c) != "Mn")
+
+
+def _has_phrase(text: str, phrase: str) -> bool:
+    """Whole-word match, so 'loa' does not hit 'loai' and 'xe' does not hit 'xem'."""
+    return re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", text) is not None
+
+
+def choose_persona(product: dict) -> str:
+    """Pick the narrator persona for a product. GEMINI_TTS_PERSONA in .env forces one for every video."""
+    forced = os.environ.get("GEMINI_TTS_PERSONA", "").strip()
+    if forced in GEMINI_NARRATORS:
+        return forced
+    for field in (product.get("category", ""), product.get("name", "")):
+        text = _plain(field)
+        for persona in ("nu_nam", "nam_bac"):
+            if any(_has_phrase(text, k) for k in PERSONA_KEYWORDS[persona]):
+                return persona
+    return "nu_nam"
+
+
+def _gemini_tts_prompt(text: str, speaker: str, kind: str, persona: str = "nu_nam") -> tuple:
     """Return (voice, prompt) using the AUDIO PROFILE / DIRECTOR'S NOTES / TRANSCRIPT layout.
     Without that layout the model reads the instructions aloud."""
     if speaker in GEMINI_CHARACTERS:
@@ -237,7 +274,6 @@ def _gemini_tts_prompt(text: str, speaker: str, kind: str) -> tuple:
         accent = "Giọng miền Bắc"
         scene = "đang nói chuyện trong một tiểu phẩm gia đình ngắn trên TikTok."
     else:
-        persona = os.environ.get("GEMINI_TTS_PERSONA", "nu_nam")
         voice, who, accent = GEMINI_NARRATORS.get(persona, GEMINI_NARRATORS["nu_nam"])
         scene = "đang quay video review sản phẩm trên TikTok cho bạn bè xem."
     voice = os.environ.get("GEMINI_TTS_VOICE", voice) if speaker == "narrator" else voice
@@ -281,12 +317,12 @@ def _trim_gemini_edges(pcm: bytes) -> bytes:
     return s[start * win:end * win].tobytes()
 
 
-def _gemini_tts(text: str, speaker: str, kind: str, output_path: str) -> None:
+def _gemini_tts(text: str, speaker: str, kind: str, output_path: str, persona: str = "nu_nam") -> None:
     import wave
 
     key = os.environ["GEMINI_API_KEY"]
     model = os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
-    voice, prompt = _gemini_tts_prompt(_clean_tts_text(text), speaker, kind)
+    voice, prompt = _gemini_tts_prompt(_clean_tts_text(text), speaker, kind, persona)
     body = {"contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"responseModalities": ["AUDIO"],
                                  "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
@@ -319,6 +355,7 @@ def tts_provider() -> str:
     default = "gemini" if os.environ.get("GEMINI_API_KEY") else "edge"
     return os.environ.get("TTS_PROVIDER", default).strip().lower()
 
+
 def _clean_tts_text(text: str) -> str:
     """Remove stage-direction labels like [Hook 0-3s] that break edge-tts."""
     text = re.sub(r"\[[^\]]*\]", "", text)   # strip [...]
@@ -326,12 +363,14 @@ def _clean_tts_text(text: str) -> str:
     return text.strip()
 
 
-async def _tts(text: str, speaker: str, output_path: str) -> None:
+async def _tts(text: str, speaker: str, output_path: str, persona: str = "nu_nam") -> None:
     import edge_tts
 
     voice, rate, pitch = VOICES.get(speaker, VOICES["narrator"])
     if speaker == "narrator":
-        voice = os.environ.get("TTS_VOICE", voice)
+        # edge-tts has one northern male voice; use it for the male persona.
+        default = "vi-VN-NamMinhNeural" if persona == "nam_bac" else voice
+        voice = os.environ.get("TTS_VOICE", default)
     # The free edge-tts endpoint drops roughly 1 in 4 requests ("No audio was received"), so retry with backoff.
     attempts = 6
     for attempt in range(attempts):
@@ -345,19 +384,20 @@ async def _tts(text: str, speaker: str, output_path: str) -> None:
             await asyncio.sleep(2 * (attempt + 1))
 
 
-def generate_voiceovers(segments: list, out_dir: Path) -> None:
+def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam") -> None:
     """Write audio_{i}.mp3 per segment; stores path + duration on each segment."""
     from mutagen.mp3 import MP3
 
     provider = tts_provider()
+    label = {"nu_nam": "nữ miền Nam", "nam_bac": "nam miền Bắc"}.get(persona, persona)
     if provider == "gemini":
-        print(f"🎙️  Generating voiceover with Gemini TTS ({len(segments)} segments)...")
+        print(f"🎙️  Generating voiceover with Gemini TTS, narrator {label} ({len(segments)} segments)...")
         try:
             for i, seg in enumerate(segments):
                 kind = seg.get("kind", "product")
                 if i == 0 and kind == "product":
                     kind = "hook"
-                _gemini_tts(seg["line"], seg["speaker"], kind, str(out_dir / f"audio_{i}.mp3"))
+                _gemini_tts(seg["line"], seg["speaker"], kind, str(out_dir / f"audio_{i}.mp3"), persona)
                 if i < len(segments) - 1:
                     time.sleep(7)  # free tier allows few requests per minute
         except Exception as e:
@@ -365,9 +405,9 @@ def generate_voiceovers(segments: list, out_dir: Path) -> None:
             print(f"   ⚠️  {e} → falling back to edge-tts for this video")
             provider = "edge"
     if provider != "gemini":
-        print(f"🎙️  Generating voiceover with edge-tts ({len(segments)} segments)...")
+        print(f"🎙️  Generating voiceover with edge-tts, narrator {label} ({len(segments)} segments)...")
         for i, seg in enumerate(segments):
-            asyncio.run(_tts(seg["line"], seg["speaker"], str(out_dir / f"audio_{i}.mp3")))
+            asyncio.run(_tts(seg["line"], seg["speaker"], str(out_dir / f"audio_{i}.mp3"), persona))
     for i, seg in enumerate(segments):
         path = out_dir / f"audio_{i}.mp3"
         seg["audio_path"] = str(path)
@@ -908,7 +948,8 @@ def run_one(product: dict, base_dir: Path, style: str, skip_approval: bool) -> d
     print("=" * 60)
 
     script = generate_script(product, style)
-    generate_voiceovers(script["segments"], out_dir)
+    script["voice_persona"] = choose_persona(product)
+    generate_voiceovers(script["segments"], out_dir, script["voice_persona"])
     generate_story_images(script["segments"], out_dir, seed=zlib.crc32(product["name"].encode()) % 100000)
     (out_dir / "script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
     (out_dir / "product.json").write_text(json.dumps(product, ensure_ascii=False, indent=2), encoding="utf-8")

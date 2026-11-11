@@ -139,7 +139,16 @@ Trong cửa sổ Terminal thứ hai, chọn một trong hai kiểu.
 .venv/bin/python demo.py --sheet
 ```
 
-Máy làm lần lượt từng dòng có `status` trống, và tự điền các ô còn trống trước khi làm. Video nằm trong thư mục `storage/videos/<ngày giờ>_<tên sản phẩm>/`.
+Máy làm lần lượt từng dòng có `status` trống, và tự điền các ô còn trống trước khi làm.
+
+Giọng đọc được chọn tự động theo cột `category` và tên sản phẩm:
+
+| Sản phẩm | Giọng |
+|---|---|
+| Điện tử, công nghệ, máy móc, dụng cụ, ô tô/xe, thể thao, tập luyện | Nam Hà Nội |
+| Sức khỏe, gia đình, mẹ và bé, người già, quà tặng, tình cảm, và mọi loại khác | Nữ Sài Gòn |
+
+Muốn đổi giọng cho một sản phẩm thì sửa ô `category`, ví dụ ghi `Điện tử` để dùng giọng nam. Video nằm trong thư mục `storage/videos/<ngày giờ>_<tên sản phẩm>/`.
 
 Máy tự ghi vào cột `status`:
 
