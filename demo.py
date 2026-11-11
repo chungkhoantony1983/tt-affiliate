@@ -25,7 +25,9 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import unicodedata
+import urllib.error
 import urllib.parse
 import urllib.request
 import zlib
@@ -197,8 +199,125 @@ Chỉ trả về JSON:
 
 
 # ---------------------------------------------------------------------------
-# 2. TTS — one audio file per segment, voice by speaker (edge-tts)
+# 2. TTS — one audio file per segment, voice by speaker
+#    TTS_PROVIDER=gemini (default when GEMINI_API_KEY is set): acted delivery from director's notes.
+#    Falls back to edge-tts for the whole video if any Gemini call fails (e.g. free-tier quota).
 # ---------------------------------------------------------------------------
+
+GEMINI_TTS_RATE = 24000  # Gemini TTS returns 16-bit mono PCM at 24 kHz
+
+# Narrator personas (GEMINI_TTS_PERSONA) → (prebuilt voice, who is speaking, accent)
+GEMINI_NARRATORS = {
+    "nu_nam":  ("Leda", "Cô gái trẻ người Sài Gòn, khoảng 25 tuổi", "Giọng nữ miền Nam"),
+    "nam_bac": ("Puck", "Chàng trai trẻ người Hà Nội, khoảng 28 tuổi",
+                "Giọng nam Hà Nội chuẩn từ đầu đến cuối, không pha giọng miền Nam (nói 'nhé', không nói 'nha')"),
+}
+# Story characters → (prebuilt voice, who is speaking). All northern Vietnamese, like the skit prompts.
+GEMINI_CHARACTERS = {
+    "con_gai":  ("Leda", "Cô con gái khoảng 25 tuổi"),
+    "con_trai": ("Puck", "Cậu con trai khoảng 28 tuổi"),
+    "me":       ("Kore", "Người mẹ khoảng 50 tuổi"),
+    "bo":       ("Charon", "Người bố khoảng 55 tuổi"),
+    "ba":       ("Sulafat", "Bà cụ khoảng 70 tuổi, nói chậm, giọng hơi run"),
+    "ong":      ("Iapetus", "Ông cụ khoảng 72 tuổi, nói chậm, trầm"),
+}
+DELIVERY = {
+    "hook":    "Câu mở đầu: than thở hoặc tò mò thật lòng, kéo người xem dừng lại.",
+    "story":   "Đang nói chuyện trong gia đình, cảm xúc đúng tình huống của câu.",
+    "product": "Hào hứng khoe, nhấn vào tên sản phẩm và điểm nổi bật.",
+    "cta":     "Thân thiện, rủ rê, nhanh và vui, nhấn 'giỏ hàng vàng'.",
+}
+
+
+def _gemini_tts_prompt(text: str, speaker: str, kind: str) -> tuple:
+    """Return (voice, prompt) using the AUDIO PROFILE / DIRECTOR'S NOTES / TRANSCRIPT layout.
+    Without that layout the model reads the instructions aloud."""
+    if speaker in GEMINI_CHARACTERS:
+        voice, who = GEMINI_CHARACTERS[speaker]
+        accent = "Giọng miền Bắc"
+        scene = "đang nói chuyện trong một tiểu phẩm gia đình ngắn trên TikTok."
+    else:
+        persona = os.environ.get("GEMINI_TTS_PERSONA", "nu_nam")
+        voice, who, accent = GEMINI_NARRATORS.get(persona, GEMINI_NARRATORS["nu_nam"])
+        scene = "đang quay video review sản phẩm trên TikTok cho bạn bè xem."
+    voice = os.environ.get("GEMINI_TTS_VOICE", voice) if speaker == "narrator" else voice
+    prompt = (f"# AUDIO PROFILE\n{who}, {scene}\n\n"
+              f"### DIRECTOR'S NOTES\n{accent}, tự nhiên, gần gũi, như đang nói chuyện thật chứ không đọc bản tin. "
+              "Có nhấn nhá, lên xuống giọng, ngắt nghỉ tự nhiên. "
+              "Đọc phần TRANSCRIPT đúng MỘT lần, không lặp lại, không thêm hay bớt chữ, không đọc phần ghi chú.\n"
+              f"Câu này: {DELIVERY.get(kind, DELIVERY['product'])}\n\n"
+              f"#### TRANSCRIPT\n{text}")
+    return voice, prompt
+
+
+def _trim_gemini_edges(pcm: bytes) -> bytes:
+    """Cut the click Gemini puts at the start and the ~140 ms burst at the end of every clip.
+
+    Both sit right next to near-silence (about -60 dB), so a loud run at an edge that is
+    separated from the speech by a quiet window is noise, not speech."""
+    from array import array
+    import math
+
+    s = array("h", pcm)
+    win = GEMINI_TTS_RATE // 50  # 20 ms
+    n = len(s) // win
+
+    def db(k):
+        chunk = s[k * win:(k + 1) * win]
+        rms = math.sqrt(sum(x * x for x in chunk) / len(chunk)) if chunk else 0
+        return 20 * math.log10(rms / 32768) if rms > 0 else -120
+
+    start, end = 0, n
+    k = 0
+    while k < min(5, n) and db(k) > -40:          # up to 100 ms of noise at the start
+        k += 1
+    if 0 < k < n and db(k) < -45:
+        start = k
+    k = n - 1
+    while k > max(n - 16, start) and db(k) > -40:  # up to 300 ms of noise at the end
+        k -= 1
+    if k < n - 1 and db(k) < -45:
+        end = k + 1
+    return s[start * win:end * win].tobytes()
+
+
+def _gemini_tts(text: str, speaker: str, kind: str, output_path: str) -> None:
+    import wave
+
+    key = os.environ["GEMINI_API_KEY"]
+    model = os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
+    voice, prompt = _gemini_tts_prompt(_clean_tts_text(text), speaker, kind)
+    body = {"contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"responseModalities": ["AUDIO"],
+                                 "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = json.load(resp)
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")
+        if e.code == 429:
+            raise RuntimeError("Gemini TTS quota exceeded (free tier: 10 requests/day per model)") from None
+        raise RuntimeError(f"Gemini TTS HTTP {e.code}: {detail[:200]}") from None
+    pcm = base64.b64decode(data["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
+    pcm = _trim_gemini_edges(pcm)
+
+    wav_path = str(Path(output_path).with_suffix(".wav"))
+    with wave.open(wav_path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(GEMINI_TTS_RATE)
+        w.writeframes(pcm)
+    subprocess.run([_ffmpeg_bin(), "-loglevel", "error", "-y", "-i", wav_path, "-b:a", "160k", output_path],
+                   check=True)
+    Path(wav_path).unlink()
+
+
+def tts_provider() -> str:
+    default = "gemini" if os.environ.get("GEMINI_API_KEY") else "edge"
+    return os.environ.get("TTS_PROVIDER", default).strip().lower()
 
 def _clean_tts_text(text: str) -> str:
     """Remove stage-direction labels like [Hook 0-3s] that break edge-tts."""
@@ -213,29 +332,48 @@ async def _tts(text: str, speaker: str, output_path: str) -> None:
     voice, rate, pitch = VOICES.get(speaker, VOICES["narrator"])
     if speaker == "narrator":
         voice = os.environ.get("TTS_VOICE", voice)
-    for attempt in range(3):
+    # The free edge-tts endpoint drops roughly 1 in 4 requests ("No audio was received"), so retry with backoff.
+    attempts = 6
+    for attempt in range(attempts):
         try:
             await edge_tts.Communicate(_clean_tts_text(text), voice, rate=rate, pitch=pitch).save(output_path)
             return
         except Exception as e:
-            if attempt == 2:
+            if attempt == attempts - 1:
                 raise
-            print(f"   Retry {attempt + 1}/2 after error: {e}")
-            await asyncio.sleep(2)
+            print(f"   Retry {attempt + 1}/{attempts - 1} after error: {str(e)[:80]}")
+            await asyncio.sleep(2 * (attempt + 1))
 
 
 def generate_voiceovers(segments: list, out_dir: Path) -> None:
     """Write audio_{i}.mp3 per segment; stores path + duration on each segment."""
     from mutagen.mp3 import MP3
 
-    print(f"🎙️  Generating voiceover ({len(segments)} segments)...")
+    provider = tts_provider()
+    if provider == "gemini":
+        print(f"🎙️  Generating voiceover with Gemini TTS ({len(segments)} segments)...")
+        try:
+            for i, seg in enumerate(segments):
+                kind = seg.get("kind", "product")
+                if i == 0 and kind == "product":
+                    kind = "hook"
+                _gemini_tts(seg["line"], seg["speaker"], kind, str(out_dir / f"audio_{i}.mp3"))
+                if i < len(segments) - 1:
+                    time.sleep(7)  # free tier allows few requests per minute
+        except Exception as e:
+            # Redo every segment with edge-tts so one video never mixes two voice engines.
+            print(f"   ⚠️  {e} → falling back to edge-tts for this video")
+            provider = "edge"
+    if provider != "gemini":
+        print(f"🎙️  Generating voiceover with edge-tts ({len(segments)} segments)...")
+        for i, seg in enumerate(segments):
+            asyncio.run(_tts(seg["line"], seg["speaker"], str(out_dir / f"audio_{i}.mp3")))
     for i, seg in enumerate(segments):
         path = out_dir / f"audio_{i}.mp3"
-        asyncio.run(_tts(seg["line"], seg["speaker"], str(path)))
         seg["audio_path"] = str(path)
         seg["duration"] = float(MP3(str(path)).info.length)
     total = sum(s["duration"] for s in segments) + GAP * len(segments)
-    print(f"✅ Voiceover: {total:.1f}s")
+    print(f"✅ Voiceover ({provider}): {total:.1f}s")
 
 
 # ---------------------------------------------------------------------------
@@ -536,7 +674,11 @@ def render_video(script: dict, product: dict, output_path: str) -> str:
     for i, seg in enumerate(segments):
         inputs += ["-i", str(out_dir / Path(seg["audio_path"]).name)]
         pad = GAP + (END_HOLD if i == n - 1 else 0)
-        filters.append(f"[{n + i}:a]aresample=44100,aformat=channel_layouts=mono,apad=pad_dur={pad}[a{i}]")
+        # Short fades at both ends so no segment starts or stops mid-waveform (heard as a click between lines).
+        fade_out_at = max(seg["duration"] - 0.03, 0)
+        filters.append(f"[{n + i}:a]aresample=44100,aformat=channel_layouts=mono,"
+                       f"afade=t=in:st=0:d=0.015,afade=t=out:st={fade_out_at:.3f}:d=0.03,"
+                       f"apad=pad_dur={pad}[a{i}]")
     filters.append("".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[vout]")
     filters.append("".join(f"[a{i}]" for i in range(n)) + f"concat=n={n}:v=0:a=1[aout]")
 
@@ -599,7 +741,7 @@ def publish_to_tiktok(video_path: str, script: dict, product: dict) -> dict:
         f"{product_line}\n"
         f"{product.get('product_url') or '(chưa có link sản phẩm)'}\n\n"
         "=== CHECKLIST ĐĂNG ===\n"
-        "[ ] Chuyển video.mp4 sang điện thoại (AirDrop)\n"
+        "[ ] Lấy video.mp4 về điện thoại (app Google Drive → thư mục sản phẩm, hoặc AirDrop)\n"
         "[ ] TikTok → + → Tải lên → chọn video\n"
         "[ ] Dán caption ở trên\n"
         "[ ] Thêm liên kết → Sản phẩm → chọn đúng sản phẩm trong showcase\n"
@@ -790,7 +932,28 @@ def finish(out_dir: Path, script: dict, product: dict, skip_approval: bool) -> d
 
     result = publish_to_tiktok(video_path, script, product)
     result["dir"] = str(out_dir)
+    if os.environ.get("DRIVE_FOLDER_ID"):
+        result.update(move_to_drive(out_dir, product["name"]))
     return result
+
+
+KEEP_LOCAL = False  # set by --keep-local
+
+
+def move_to_drive(out_dir: Path, product_name: str) -> dict:
+    """Upload the approved folder to Drive; delete the local copy only after every file is verified."""
+    from drive_upload import upload_video_folder
+
+    try:
+        link = upload_video_folder(out_dir, product_name)
+    except Exception as e:
+        print(f"   ⚠️  Drive upload failed ({e}) — files kept in {out_dir}")
+        return {}
+    print(f"☁️  Drive: {link}")
+    if not KEEP_LOCAL:
+        shutil.rmtree(out_dir)
+        print(f"🧹 Deleted local folder {out_dir}")
+    return {"dir": link}
 
 
 def rerender(out_dir: Path, skip_approval: bool) -> dict:
@@ -824,15 +987,20 @@ def main():
                         help="story = skit with AI characters; simple = product images only")
     parser.add_argument("--output-dir", default="storage/videos", help="Output directory")
     parser.add_argument("--skip-approval", action="store_true", help="Skip manual approval step")
+    parser.add_argument("--keep-local", action="store_true",
+                        help="Keep the local folder after uploading to Drive (DRIVE_FOLDER_ID)")
     args = parser.parse_args()
 
+    global KEEP_LOCAL
+    KEEP_LOCAL = args.keep_local
     load_env()
     if args.rerender:
         for d in args.rerender:
+            # Read before re-rendering: an approved folder is moved to Drive and deleted locally.
+            product = json.loads((Path(d) / "product.json").read_text(encoding="utf-8"))
             r = rerender(Path(d), args.skip_approval)
             print(f"\n{r['status']:<24} {r.get('dir', '')}")
             if r["status"] == "ready_for_manual_upload":
-                product = json.loads((Path(d) / "product.json").read_text(encoding="utf-8"))
                 mark_sheet_done(product.get("product_url", ""), args.tab)
         return
     if not os.environ.get("GROQ_API_KEY"):
