@@ -41,7 +41,9 @@
             "slowly raises the interlaced hands to chest height, then turns them so the palms face the sky",
             "pushes the interlaced hands straight up above the head, palms facing the sky, eyes following the hands, and holds the full-body stretch for a moment",
             "separates the hands and lowers both arms out to the sides and down, bringing the hands back in front of the belly"
-          ]
+          ],
+          "cue": "Đan tay, nâng lên ngực, đẩy cao qua đầu, rồi hạ sang hai bên.",
+          "peak_step": 3
         },
         {
           "n": 2,
@@ -61,7 +63,9 @@
             "slowly extends the left arm to the left with the index finger pointing up, while the right hand pulls back to the right shoulder as if drawing a bow string",
             "holds the bow-drawing pose, eyes looking at the left index finger",
             "releases the pose, straightens up, brings the feet together, then does the same bow-drawing motion to the right side"
-          ]
+          ],
+          "cue": "Ngồi tấn, một tay đẩy ngón trỏ, một tay kéo dây cung.",
+          "peak_step": 2
         },
         {
           "n": 3,
@@ -81,7 +85,9 @@
             "raises the left hand above the head with the palm facing the sky while pressing the right hand down beside the right hip with the palm facing the ground",
             "holds the stretch with the two arms pushing in opposite directions, body upright",
             "brings both hands back in front of the belly, then raises the right hand up and presses the left hand down"
-          ]
+          ],
+          "cue": "Một tay nâng trời, một tay ấn đất, kéo giãn rồi đổi bên.",
+          "peak_step": 2
         },
         {
           "n": 4,
@@ -101,7 +107,9 @@
             "slowly turns only the head to look back over the left shoulder, body still facing forward, and holds briefly",
             "turns the head back to the front and relaxes the arms",
             "slowly turns the head to look back over the right shoulder, then returns to the front"
-          ]
+          ],
+          "cue": "Giữ thân, chỉ xoay đầu nhìn ra sau, thật chậm.",
+          "peak_step": 2
         },
         {
           "n": 5,
@@ -121,7 +129,9 @@
             "leans the upper body to the right, then slowly sweeps the torso in a low arc to the left",
             "keeps the motion gentle, head and hips moving in opposite directions during the arc",
             "returns to the center, then sweeps the torso slowly in the opposite direction"
-          ]
+          ],
+          "cue": "Ngồi tấn, tay chống đùi, xoay thân thành vòng cung chậm.",
+          "peak_step": 2
         },
         {
           "n": 6,
@@ -141,7 +151,9 @@
             "lowers the hands to the chest, moves them around to the back and slides them down along the back and legs",
             "bends forward gently following the hands down the legs, touching the tops of the feet only if comfortable",
             "slowly rises back up, bringing both arms forward and then up overhead"
-          ]
+          ],
+          "cue": "Tay lên cao, vuốt dọc lưng xuống chân, cúi vừa sức rồi đứng lên.",
+          "peak_step": 3
         },
         {
           "n": 7,
@@ -161,7 +173,9 @@
             "slowly punches the left fist straight forward, eyes wide open looking at the fist",
             "opens the left hand, rotates the wrist, closes it into a fist again and pulls it back to the waist",
             "slowly punches the right fist straight forward in the same way and pulls it back"
-          ]
+          ],
+          "cue": "Ngồi tấn, đấm chậm, mắt mở to nhìn theo nắm tay.",
+          "peak_step": 2
         },
         {
           "n": 8,
@@ -179,11 +193,78 @@
             "stands upright with the feet together and the arms hanging by the sides",
             "rises up onto the toes, lifting both heels, and balances for a second",
             "lowers the heels gently back to the ground"
-          ]
+          ],
+          "cue": "Nhón gót, giữ thăng bằng, hạ gót nhẹ.",
+          "peak_step": 2
         }
       ],
       "character_en": "the same Vietnamese man in his fifties with short grey hair, wearing a loose plain white tai chi uniform and black cloth shoes, in a quiet park with green trees in soft morning light",
-      "ready_en": "stands still in a relaxed ready stance, feet shoulder-width apart, knees slightly bent, arms hanging naturally, breathing calmly"
+      "ready_en": "stands still in a relaxed ready stance, feet shoulder-width apart, knees slightly bent, arms hanging naturally, breathing calmly",
+      "intro_video": {
+        "done": false,
+        "title": "Bát Đoạn Cẩm là gì?",
+        "_sources": [
+          "Tên Bát Đoạn Cẩm ghi chép sớm nhất thời nhà Tống, thế kỷ 12 (Hồng Mại, Di Kiên Chí)",
+          "Tổng hợp 17 RCT năm 2022 (Frontiers in Medicine, doi 10.3389/fmed.2022.995577): thăng bằng ở người lớn tuổi",
+          "~10 phút: ước theo số lần lặp của chính chuỗi này (8 động tác)"
+        ],
+        "segments": [
+          {
+            "kind": "ex_hook",
+            "text": "8 động tác · hơn 800 năm",
+            "clip": "intro_1.mp4",
+            "line": "Tám động tác, không cần dụng cụ, đứng ngay tại chỗ, vậy mà được truyền lại hơn tám trăm năm. Đó là Bát Đoạn Cẩm.",
+            "screen": "Không dụng cụ. Đứng tại chỗ. Truyền lại hơn 800 năm."
+          },
+          {
+            "kind": "ex_info",
+            "text": "Nguồn gốc",
+            "clip": "intro_2.mp4",
+            "line": "Bát Đoạn Cẩm nghĩa là tám tấm gấm. Ghi chép sớm nhất về bài tập này có từ thời nhà Tống, khoảng thế kỷ mười hai.",
+            "screen": "\"Tám tấm gấm\", ghi chép sớm nhất từ thời nhà Tống, thế kỷ 12."
+          },
+          {
+            "kind": "ex_info",
+            "text": "Điểm nổi bật",
+            "clip": "00.mp4",
+            "line": "Năm hai nghìn không trăm hai mươi hai, các nhà khoa học tổng hợp kết quả của mười bảy thử nghiệm, và ghi nhận: người lớn tuổi tập Bát Đoạn Cẩm giữ thăng bằng tốt hơn nhóm không tập bài này.",
+            "screen": "Tổng hợp 17 thử nghiệm (2022): người lớn tuổi tập bài này giữ thăng bằng tốt hơn."
+          },
+          {
+            "kind": "ex_info",
+            "text": "Dành cho ai",
+            "clip": "intro_1.mp4",
+            "line": "Bài tập hợp với người mới, người ít vận động, dân văn phòng ngồi nhiều, và người lớn tuổi.",
+            "screen": "Người mới · ít vận động · dân văn phòng · người lớn tuổi"
+          },
+          {
+            "kind": "ex_info",
+            "text": "Tập khi nào",
+            "clip": "intro_2.mp4",
+            "line": "Tập vào sáng sớm hoặc chiều mát, chỗ thoáng, mặc đồ rộng, đừng tập ngay sau khi ăn no. Theo nhịp của chuỗi này, tập trọn tám động tác chỉ mất khoảng mười phút.",
+            "screen": "Sáng sớm hoặc chiều mát · đồ rộng · không tập khi vừa ăn no · cả bài khoảng 10 phút"
+          },
+          {
+            "kind": "ex_end_intro",
+            "text": "Bắt đầu từ ngày mai",
+            "clip": "00.mp4",
+            "line": "Động tác thứ hai trông như đang giương cung bắn chim, còn động tác cuối cùng thì đơn giản đến bất ngờ. Theo dõi kênh nhé, ngày mai mình bắt đầu bài một: Hai tay nâng trời.",
+            "screen": "Ngày mai: Bài 1 · Hai tay nâng trời"
+          }
+        ],
+        "caption": "Bát Đoạn Cẩm: 8 động tác khí công truyền lại hơn 800 năm, không cần dụng cụ. Chuỗi tập mỗi ngày 1 động tác bắt đầu từ ngày mai. Bài vận động nhẹ, không phải phương pháp chữa bệnh.",
+        "clip_prompts": {
+          "intro_1.mp4": "Cinematic wide shot at dawn, light mist in the park. He practices slow tai chi movements alone, arms flowing gently, calm and graceful.",
+          "intro_2.mp4": "Medium shot from the waist up. He slowly raises both open hands in front of the chest and lowers them again, very calm, soft morning light on the hands."
+        }
+      },
+      "summary_video": {
+        "done": false,
+        "title": "Tổng kết 8 động tác",
+        "opening": "Tổng kết Bát Đoạn Cẩm. Tám động tác, tập liền một mạch theo thứ tự nhé.",
+        "closing": "Vậy là xong trọn bài. Tập đều mỗi sáng, chỉ làm trong sức của mình. Đây là bài vận động nhẹ, không phải phương pháp chữa bệnh. Chuỗi tiếp theo: Thái Cực Quyền hai mươi bốn thức.",
+        "caption": "Bát Đoạn Cẩm: tổng kết 8 động tác, tập theo liền một mạch. Lưu lại để tập mỗi sáng. Bài vận động nhẹ, không phải phương pháp chữa bệnh."
+      }
     },
     {
       "id": "tcq24",
@@ -201,7 +282,7 @@
         "#vandongnhe"
       ],
       "prepare": "Đứng thẳng, hai chân khép, thả lỏng, thở đều.",
-      "_todo": "Các bước chi tiết từng thức sẽ soạn theo đợt, người vận hành duyệt trước khi dùng.",
+      "_todo": "Soạn các bước chi tiết từng thức, cùng intro_video và summary_video theo mẫu Bát Đoạn Cẩm; người vận hành duyệt trước khi dùng.",
       "moves": [
         {
           "n": 1,
@@ -325,5 +406,6 @@
         }
       ]
     }
-  ]
+  ],
+  "_format": "Quy ước mọi chuỗi bài tập (người vận hành, 2026-11-12): video mở đầu gợi tò mò (nguồn gốc, dành cho ai, 1-2 điểm nổi bật có nguồn, tập khi nào) → mỗi ngày 1 động tác → video tổng kết điểm lại mọi tư thế, không quá 3 phút."
 }
