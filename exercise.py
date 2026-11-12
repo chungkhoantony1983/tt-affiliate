@@ -1,14 +1,17 @@
 """
 Daily no-equipment exercise video (not a sales video).
 
-Next move in content/exercise_curriculum.json → narration from the curriculum text (no LLM, so the
-steps are exactly what the operator approved) → Gemini TTS → one clip per step with step captions
-→ approval → Google Drive → move marked done.
+Every series runs: intro video (curiosity: origin, who it is for, 1–2 sourced highlights, when to
+practise) → one video per move → summary video recapping every move in at most 3 minutes.
+
+Next item in content/exercise_curriculum.json → narration from the curriculum text (no LLM, so the
+text is exactly what the operator approved) → Gemini TTS → clips with captions → approval →
+Google Drive → item marked done.
 
 Clips that show the actual move are made by hand in the Gemini app from prompts this module writes
-(storage/clips/<series>/prompts_NN.txt). A move without clips stops before any voice call.
+(storage/clips/<series>/prompts_*.txt). An item without clips stops before any voice call.
 
-  python demo.py --exercise                    # make the next move (or write its clip prompts)
+  python demo.py --exercise                    # make the next item (or write its clip prompts)
   python demo.py --exercise --allow-stock      # generic Pixabay clips instead (needs PIXABAY_API_KEY)
   python demo.py --exercise-rerender DIR       # re-render a folder (no new TTS calls)
 
@@ -33,6 +36,9 @@ UA = {"User-Agent": "tt-affiliate-video/1.0"}    # Pixabay answers 403 to Python
 # Separate daily quota from the product videos (gemini-3.8-flash-tts). Not the -lite model:
 # it read the director's notes aloud (2026-11-12 test).
 DEFAULT_TTS_MODEL = "gemini-3.1-flash-tts-preview"
+# Intro (6 lines) and summary (10 lines) use yet another model so they never eat the move videos' quota
+EXTRA_TTS_MODEL = "gemini-2.5-flash-preview-tts"
+SUMMARY_MAX_SECONDS = 180
 CLIPS_PER_VIDEO = 3
 W, H = demo.W, demo.H
 
@@ -54,13 +60,37 @@ def next_move(cur: dict):
     return None, None
 
 
-def mark_done(series_id: str, n: int) -> None:
+def next_item(cur: dict):
+    """What to make next: ("intro", series, None), ("move", series, move) or ("summary", series, None).
+
+    A series is finished before the next one starts. A series whose intro or moves are not written
+    yet blocks (returns ("blocked", series, None)) rather than being skipped."""
+    for series in cur["series"]:
+        intro, summary = series.get("intro_video"), series.get("summary_video")
+        if not intro or not intro.get("segments"):
+            if not all(m.get("done") for m in series["moves"]):
+                return "blocked", series, None
+        elif not intro.get("done"):
+            return "intro", series, None
+        for move in series["moves"]:
+            if not move.get("done"):
+                return ("move", series, move) if move.get("steps") else ("blocked", series, None)
+        if summary and not summary.get("done"):
+            return "summary", series, None
+    return None, None, None
+
+
+def mark_done(series_id: str, item) -> None:
+    """item: move number, "intro" or "summary"."""
     cur = load_curriculum()
     for series in cur["series"]:
-        if series["id"] == series_id:
-            for move in series["moves"]:
-                if move["n"] == n:
-                    move["done"] = True
+        if series["id"] != series_id:
+            continue
+        if item in ("intro", "summary"):
+            series[f"{item}_video"]["done"] = True
+        for move in series["moves"]:
+            if move["n"] == item:
+                move["done"] = True
     CURRICULUM.write_text(json.dumps(cur, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
@@ -83,7 +113,12 @@ def build_script(cur: dict, series: dict, move: dict) -> dict:
         segs.append({"kind": "ex_step", "speaker": "narrator", "line": step, "text": f"Bước {i}/{len(steps)}"})
 
     nxt = _following(cur, series, move)
-    tomorrow = f"Ngày mai mình tập bài {nxt['n']}, {nxt['name']} nhé." if nxt else "Theo dõi để tập bài tiếp theo nhé."
+    if nxt:
+        tomorrow = f"Ngày mai mình tập bài {nxt['n']}, {nxt['name']} nhé."
+    elif series.get("summary_video"):
+        tomorrow = f"Ngày mai mình tổng kết lại cả {len(series['moves'])} động tác nhé."
+    else:
+        tomorrow = "Theo dõi để tập chuỗi tiếp theo nhé."
     careful = move.get("careful", "")
     segs.append({"kind": "ex_end", "speaker": "narrator",
                  "line": f"Làm {move['reps'].lower()}. {careful} "
@@ -94,8 +129,37 @@ def build_script(cur: dict, series: dict, move: dict) -> dict:
 
     caption = (f"{series['title']} – {title}. {series['intro']} "
                f"Lưu lại để tập mỗi sáng. Bài tập vận động nhẹ, không phải phương pháp chữa bệnh.")
-    return {"hook": title, "series_id": series["id"], "series_title": series["title"], "move_n": move["n"],
+    return {"hook": title, "series_id": series["id"], "series_title": series["title"], "item": move["n"],
             "careful": careful, "caption": caption, "hashtags": series.get("hashtags", [])[:5],
+            "segments": segs}
+
+
+def build_intro_script(series: dict) -> dict:
+    """Series intro: lines and screen texts as written (and source-checked) in the curriculum."""
+    intro = series["intro_video"]
+    segs = [{"kind": s["kind"], "speaker": "narrator", "line": " ".join(s["line"].split()),
+             "screen": s.get("screen", ""), "text": s["text"], "clip": s.get("clip", "00.mp4")}
+            for s in intro["segments"]]
+    return {"hook": intro["title"], "series_id": series["id"], "series_title": series["title"],
+            "item": "intro", "caption": intro["caption"], "hashtags": series.get("hashtags", [])[:5],
+            "segments": segs}
+
+
+def build_summary_script(series: dict) -> dict:
+    """Series summary: opening, one quick line per move (name + cue + reps), closing."""
+    summary = series["summary_video"]
+    segs = [{"kind": "ex_info", "speaker": "narrator", "line": summary["opening"],
+             "screen": f"{len(series['moves'])} động tác · tập liền một mạch", "text": "Tổng kết"}]
+    for m in series["moves"]:
+        segs.append({"kind": "ex_recap", "speaker": "narrator", "move_n": m["n"],
+                     "line": f"Bài {m['n']}, {m['name']}. {m['cue']} {m['reps']}.",
+                     "screen": f"{m['cue']} {m['reps']}.", "text": f"Bài {m['n']} · {m['name']}"})
+    segs.append({"kind": "ex_info", "speaker": "narrator", "line": summary["closing"],
+                 "screen": "Tập đều mỗi sáng · chỉ làm trong sức mình", "text": "Hết bài"})
+    for s in segs:
+        s["line"] = " ".join(s["line"].split())
+    return {"hook": summary["title"], "series_id": series["id"], "series_title": series["title"],
+            "item": "summary", "caption": summary["caption"], "hashtags": series.get("hashtags", [])[:5],
             "segments": segs}
 
 
@@ -146,32 +210,94 @@ def write_prompts(series: dict, move: dict) -> Path:
     """prompts_NN.txt with one Gemini-app video prompt per clip still missing for this move."""
     d, nn = _clip_dir(series), f"{move['n']:02d}"
     d.mkdir(parents=True, exist_ok=True)
-    look = ("Realistic vertical 9:16 video, full body visible from head to feet, front view, static camera on a "
-            "tripod at chest height, slow smooth tai chi tempo, natural light. No text, no captions, no music, "
-            "no other people.")
     wanted = []
     if not (d / "00.mp4").exists() and series.get("ready_en"):
-        wanted.append(("00.mp4", "Tư thế chuẩn bị (dùng chung cho mọi bài)", series["ready_en"]))
+        wanted.append(("00.mp4", "Tư thế chuẩn bị (dùng chung cho mọi bài)",
+                       f"Over about eight seconds he {series['ready_en']}."))
     for k, (vi, en) in enumerate(zip(move["steps"], move.get("steps_en", [])), 1):
         if not (d / f"{nn}_{k}.mp4").exists():
-            wanted.append((f"{nn}_{k}.mp4", f"Bước {k}: {vi}", en))
-    lines = [f"PROMPT VIDEO CHO APP GEMINI — {series['title']} bài {move['n']}: {move['name']}",
-             "",
+            wanted.append((f"{nn}_{k}.mp4", f"Bước {k}: {vi}", f"Over about eight seconds he {en}."))
+    return _write_prompt_file(series, d / f"prompts_{nn}.txt",
+                              f"{series['title']} bài {move['n']}: {move['name']}", wanted)
+
+
+def _first_existing(paths: list):
+    return next((p for p in paths if p.exists()), None)
+
+
+def intro_clip_files(series: dict):
+    """Per-scene clips for the intro (each scene names its clip; missing ones fall back to the
+    other intro clips or the ready stance). None if no usable clip exists yet."""
+    d = _clip_dir(series)
+    pool = [d / "00.mp4"] + [d / n for n in series["intro_video"].get("clip_prompts", {})]
+    if not _first_existing(pool):
+        return None
+    return [(d / s.get("clip", "00.mp4")) if (d / s.get("clip", "00.mp4")).exists() else _first_existing(pool)
+            for s in series["intro_video"]["segments"]]
+
+
+def summary_clip_files(series: dict, script: dict):
+    """Per-scene clips for the summary: each move shows its key step (peak_step), the opening and
+    closing show the ready stance. None if no clip exists at all."""
+    d = _clip_dir(series)
+    moves = {m["n"]: m for m in series["moves"]}
+    files = []
+    for seg in script["segments"]:
+        m = moves.get(seg.get("move_n"))
+        if m:
+            nn = f"{m['n']:02d}"
+            order = [d / f"{nn}_{m.get('peak_step', 1)}.mp4"] + \
+                    [d / f"{nn}_{k}.mp4" for k in range(1, len(m["steps"]) + 1)]
+            files.append(_first_existing(order) or _first_existing([d / "00.mp4"]))
+        else:
+            files.append(_first_existing([d / "00.mp4"]))
+    if not any(files):
+        return None
+    fallback = next(f for f in files if f)
+    return [f or fallback for f in files]
+
+
+def write_intro_prompts(series: dict) -> Path:
+    """prompts_intro.txt: the shared ready stance plus the intro's own clips, whichever are missing."""
+    d = _clip_dir(series)
+    d.mkdir(parents=True, exist_ok=True)
+    wanted = []
+    if not (d / "00.mp4").exists() and series.get("ready_en"):
+        wanted.append(("00.mp4", "Tư thế chuẩn bị (dùng chung cho mọi bài)",
+                       f"Over about eight seconds he {series['ready_en']}."))
+    for name, action in series["intro_video"].get("clip_prompts", {}).items():
+        if not (d / name).exists():
+            # Intro shots set their own framing (wide, close-up), so no full-body/tripod rule
+            wanted.append((name, "Cảnh cho video mở đầu", action, CINEMATIC_LOOK))
+    return _write_prompt_file(series, d / "prompts_intro.txt",
+                              f"{series['title']} — video mở đầu", wanted)
+
+
+MOVE_LOOK = ("Realistic vertical 9:16 video, full body visible from head to feet, front view, static camera on a "
+             "tripod at chest height, slow smooth tai chi tempo, natural light. No text, no captions, no music, "
+             "no other people.")
+CINEMATIC_LOOK = ("Realistic vertical 9:16 video, slow smooth tai chi tempo, natural light. "
+                  "No text, no captions, no music, no other people.")
+
+
+def _write_prompt_file(series: dict, path: Path, heading: str, wanted: list) -> Path:
+    """wanted: (file name, Vietnamese description, action sentence[, look]) per missing clip."""
+    d = path.parent
+    lines = [f"PROMPT VIDEO CHO APP GEMINI — {heading}", "",
              "Cách làm:",
              "1. Mở gemini.google.com (hoặc app Gemini) → chọn tạo video.",
              "2. Dán từng prompt bên dưới (mỗi prompt 1 video). Dùng cùng một cuộc trò chuyện để nhân vật giống nhau.",
              "3. Xem kỹ: tay, chân, hướng nhìn có đúng như dòng tiếng Việt không. Sai thì tạo lại.",
              f"4. Tải video về, đổi tên đúng như dòng 'Lưu thành', bỏ vào thư mục {d}/",
              "5. Đủ clip thì chạy lại: .venv/bin/python demo.py --exercise",
-             "   (Hết lượt tạo video trong ngày thì làm các bước lẻ 1, 3 trước: bước thiếu clip dùng clip bước trước.)",
+             "   (Hết lượt tạo video trong ngày thì làm trước các clip lẻ 1, 3: clip thiếu sẽ mượn clip khác.)",
              ""]
-    for name, vi, en in wanted:
-        lines += ["=" * 70, f"Lưu thành: {name}", f"Động tác: {vi}", "",
-                  f"{look} The person is {series.get('character_en', 'a calm middle-aged person')}. "
-                  f"Over about eight seconds he {en}.", ""]
+    for name, vi, action, *look in wanted:
+        lines += ["=" * 70, f"Lưu thành: {name}", f"Nội dung: {vi}", "",
+                  f"{look[0] if look else MOVE_LOOK} The person is "
+                  f"{series.get('character_en', 'a calm middle-aged person')}. {action}", ""]
     if not wanted:
-        lines.append("Đã đủ clip cho bài này.")
-    path = d / f"prompts_{nn}.txt"
+        lines.append("Đã đủ clip.")
     path.write_text("\n".join(lines), encoding="utf-8")
     return path
 
@@ -347,16 +473,23 @@ def write_post_kit(out_dir: Path, script: dict) -> None:
         encoding="utf-8")
 
 
+def _item_label(script: dict) -> str:
+    return {"intro": "video mở đầu", "summary": "video tổng kết"}.get(script["item"], f"bài {script['item']}")
+
+
 def finish(out_dir: Path, script: dict, skip_approval: bool) -> dict:
     video_path = render(script, out_dir)
+    total = sum(s["scene_dur"] for s in script["segments"])
+    if script["item"] == "summary" and total > SUMMARY_MAX_SECONDS:
+        print(f"⚠️  Summary is {total:.0f}s, over the {SUMMARY_MAX_SECONDS}s limit — shorten the cues")
     (out_dir / "script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
     if not skip_approval and not demo.approval_step(script, video_path):
         print("❌ Rejected — files kept. Re-render without new voice calls: "
               f"python demo.py --exercise-rerender {out_dir}")
         return {"status": "rejected", "dir": str(out_dir)}
     write_post_kit(out_dir, script)
-    mark_done(script["series_id"], script["move_n"])
-    print(f"📚 Curriculum: {script['series_title']} bài {script['move_n']} → done")
+    mark_done(script["series_id"], script["item"])
+    print(f"📚 Curriculum: {script['series_title']} {_item_label(script)} → done")
     result = {"status": "ready_for_manual_upload", "dir": str(out_dir)}
     if os.environ.get("DRIVE_FOLDER_ID"):
         result.update(demo.move_to_drive(out_dir, f"Bài tập - {script['series_title']}"))
@@ -365,38 +498,75 @@ def finish(out_dir: Path, script: dict, skip_approval: bool) -> dict:
 
 def run_next(base_dir: Path, skip_approval: bool, allow_stock: bool = False) -> dict:
     cur = load_curriculum()
-    series, move = next_move(cur)
-    if not move:
-        raise RuntimeError("No move left with steps written — add steps to the next move in "
-                           f"{CURRICULUM}")
-    files = scene_clip_files(series, move)
+    kind, series, move = next_item(cur)
+    if kind is None:
+        raise RuntimeError(f"Every series in {CURRICULUM} is done — add the next series")
+    if kind == "blocked":
+        raise RuntimeError(f"Series '{series['title']}' is not written yet (intro_video, steps of every move, "
+                           f"summary_video) — fill it in {CURRICULUM} and have it approved")
+
+    if kind == "intro":
+        script, files, slug = build_intro_script(series), intro_clip_files(series), "00_gioithieu"
+        prompts_fn = lambda: write_intro_prompts(series)
+        heading = f"{series['title']} — video mở đầu"
+    elif kind == "summary":
+        script = build_summary_script(series)
+        files, slug = summary_clip_files(series, script), "99_tongket"
+        prompts_fn, heading = None, f"{series['title']} — video tổng kết"
+    else:
+        script, files, slug = build_script(cur, series, move), scene_clip_files(series, move), f"{move['n']:02d}"
+        prompts_fn = lambda: write_prompts(series, move)
+        heading = f"{series['title']} — bài {move['n']}: {move['name']}"
+
     if files is None and not allow_stock:
-        # Stop before any voice call: the clips for this move have to be made in the Gemini app first
-        prompts = write_prompts(series, move)
-        print(f"🎞️  {series['title']} bài {move['n']} chưa có clip. Làm clip theo {prompts}")
+        # Stop before any voice call: the clips have to be made in the Gemini app first
+        if not prompts_fn:
+            raise RuntimeError("No clips at all for the summary — the move clips are missing from storage/clips")
+        prompts = prompts_fn()
+        print(f"🎞️  {heading}: chưa có clip. Làm clip theo {prompts}")
         return {"status": "needs_clips", "dir": str(prompts)}
-    if files is not None:
-        write_prompts(series, move)  # keeps the list of clips still missing up to date
-    script = build_script(cur, series, move)
-    out_dir = base_dir / f"{datetime.now():%Y%m%d_%H%M%S}_baitap_{series['id']}_{move['n']:02d}"
+    if files is not None and prompts_fn:
+        prompts_fn()  # keeps the list of clips still missing up to date
+
+    out_dir = base_dir / f"{datetime.now():%Y%m%d_%H%M%S}_baitap_{series['id']}_{slug}"
     out_dir.mkdir(parents=True, exist_ok=True)
     print("\n" + "=" * 60)
-    print(f"🧘 {series['title']} — bài {move['n']}: {move['name']}")
+    print(f"🧘 {heading}")
     print("=" * 60)
 
     if files is not None:
         script["clips"], script["scene_clip"] = copy_scene_clips(files, out_dir)
         script["stock"] = False
     else:
-        script["clips"] = download_clips(pick_clips(series, move["n"]), out_dir)
+        script["clips"] = download_clips(pick_clips(series, move["n"] if move else 1), out_dir)
         script["stock"] = True
     persona = demo.choose_persona({"category": "tập luyện"})
-    model = os.environ.get("EXERCISE_TTS_MODEL", DEFAULT_TTS_MODEL)
+    model = (os.environ.get("EXERCISE_TTS_MODEL", DEFAULT_TTS_MODEL) if kind == "move"
+             else os.environ.get("EXERCISE_EXTRA_TTS_MODEL", EXTRA_TTS_MODEL))
     demo.generate_voiceovers(script["segments"], out_dir, persona, model)
     script["voice_persona"] = persona
     return finish(out_dir, script, skip_approval)
 
 
 def rerender(out_dir: Path, skip_approval: bool) -> dict:
+    """Re-render with the existing voice. Picks up clips added to storage/clips/ since the first run,
+    so a video made with stand-in clips can get the real ones without new voice calls."""
     script = json.loads((out_dir / "script.json").read_text(encoding="utf-8"))
+    cur = load_curriculum()
+    series = next((s for s in cur["series"] if s["id"] == script["series_id"]), None)
+    if series:
+        item = script["item"]
+        if item == "intro":
+            files = intro_clip_files(series)
+        elif item == "summary":
+            files = summary_clip_files(series, script)
+        else:
+            move = next(m for m in series["moves"] if m["n"] == item)
+            files = scene_clip_files(series, move)
+        if files is not None:
+            for old in out_dir.glob("clip_*.mp4"):
+                old.unlink()
+            script["clips"], script["scene_clip"] = copy_scene_clips(files, out_dir)
+            script["stock"] = False
+            print(f"🎞️  Clips: {[c['source'] for c in script['clips']]}")
     return finish(out_dir, script, skip_approval)

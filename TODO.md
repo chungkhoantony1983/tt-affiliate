@@ -7,7 +7,7 @@
 >
 > Ký hiệu: ✅ xong · 🟡 đang làm / làm dở · ⬜ chưa làm · ⛔ bị chặn (chờ bên ngoài)
 >
-> Cập nhật lần cuối: 2026-11-05
+> Cập nhật lần cuối: 2026-11-12
 
 ---
 
@@ -102,6 +102,22 @@ Việc cần làm:
 - [ ] Đưa tín hiệu trend vào prompt (cột `notes`: hook của video trend đang chạy)
 - [ ] (Sau) Dạng `scenes[]` chi tiết theo `affiliate-skills-main/skills/content/tiktok-script-writer/SKILL.md`; hỗ trợ clip video sản phẩm
 
+### M2b — Giọng đọc, lưu trữ (2026-11-11)
+- [x] Giọng Gemini TTS có chỉ dẫn cảm xúc thay edge-tts; tự cắt tiếng xoẹt ở mép mỗi câu
+- [x] Chọn giọng theo sản phẩm: điện tử / máy móc / tập luyện → nam Hà Nội; sức khỏe / gia đình / còn lại → nữ Sài Gòn
+- [x] Video đã duyệt tự tải lên Google Drive (`video_output/<sản phẩm>/`) rồi xoá bản trên máy
+- [x] Video sản phẩm đầu tiên có giỏ hàng: Bột mè đen (2026-11-11)
+
+### M2c — Video bài tập hằng ngày, không bán hàng (2026-11-12)
+Khung mọi chuỗi bài: **mở đầu** (gợi tò mò, nguồn gốc, dành cho ai, 1–2 điểm nổi bật có nguồn, tập khi nào) → **mỗi ngày 1 động tác** → **tổng kết** ≤ 3 phút.
+- [x] `exercise.py` + `content/exercise_curriculum.json`: lời đọc lấy nguyên văn giáo trình, không qua AI
+- [x] Bát Đoạn Cẩm: 8 động tác (đã duyệt), video mở đầu, video tổng kết
+- [x] Clip đúng động tác làm bằng app Gemini theo `storage/clips/bdc/prompts_*.txt`; thiếu clip thì dừng trước khi đọc giọng
+- [ ] **[Bạn]** Làm clip: `prompts_intro.txt` (00, intro_1, intro_2) → `prompts_01.txt` (01_1…01_4)
+- [ ] Đăng video mở đầu Bát Đoạn Cẩm, rồi bài 1
+- [ ] Thái Cực Quyền 24 thức: soạn bước từng thức + mở đầu + tổng kết, người vận hành duyệt
+- [ ] (Sau) Chuỗi Tabata không dụng cụ theo cùng khung
+
 ### M3 — Đăng & học từ dữ liệu
 - [ ] Đăng tay 10 video đầu, gắn sản phẩm, ghi kết quả vào §4
 - [ ] Sau 2 tuần: rút ra ngách / kiểu hook / thời lượng thắng → cập nhật tiêu chí chấm điểm ở M1
@@ -137,6 +153,7 @@ Việc cần làm:
 | Ngày | Sản phẩm | Hoa hồng | Hook style | Thời lượng | Views (48h) | Click giỏ hàng | Đơn | Ghi chú |
 |---|---|---|---|---|---|---|---|---|
 | 2026-10-20 | OMNIEAR tai nghe khuếch đại âm thanh | ? | story (con gái + mẹ) | 23.4s | | — (chưa gắn được giỏ hàng) | | Kênh SDC. Đăng tay, đã gắn nhãn AI. Thiếu mục "Sản phẩm" khi đăng → tài khoản chưa bật affiliate |
+| 2026-11-11 | Bột mè đen | 10% | simple, giọng Gemini nữ Sài Gòn | 19.3s | | | | Đã hiện giỏ hàng |
 
 ---
 

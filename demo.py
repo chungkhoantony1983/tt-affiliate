@@ -230,6 +230,11 @@ DELIVERY = {
     "ex_intro": "Ấm áp, mời mọi người cùng tập, nhịp vừa phải.",
     "ex_step":  "Chậm rãi, bình tĩnh, rõ từng ý như đang hướng dẫn người tập làm theo; ngừng nhẹ sau mỗi dấu phẩy.",
     "ex_end":   "Nhẹ nhàng, ân cần nhắc an toàn, kết thúc tươi tắn.",
+    # Series intro / summary videos
+    "ex_hook":  "Gợi tò mò, hào hứng vừa phải, nhấn vào con số và tên bài.",
+    "ex_info":  "Kể chuyện cuốn hút, ấm áp, rõ ràng, nhịp vừa phải.",
+    "ex_end_intro": "Úp mở, gợi tò mò ở nửa đầu; nửa sau thân thiện, hẹn gặp ngày mai.",
+    "ex_recap": "Nhịp nhanh hơn một chút, rõ ràng, dứt khoát như đang điểm lại bài cho người tập theo.",
 }
 
 
