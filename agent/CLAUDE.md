@@ -109,10 +109,30 @@ Hook trong `agent/settings.json` chặn các thao tác sau:
 
 - Push thẳng lên `main` → phải qua PR.
 - `git checkout` / `git switch` ở repo root → dùng worktree: `git worktree add .worktrees/<tên> -b <branch> origin/main`.
-- Sau khi gọi skill kiểu `/task`, `/fix`: phải chạy `workflow_step.py init` trước khi commit/push.
+- Sau khi gọi skill kiểu `/task`, `/fix`: phải chạy `workflow_step.py init` trước khi commit/push. **Hiện `workflow_step.py` không chạy được** (thiếu module `automation_engine`), nên các skill SSoT này bị kẹt ở bước commit. Với dự án này, dùng `/feature` (xem dưới).
 - `CLAUDE.md` ở repo root chỉ được chứa bảng PJ固有パス設定 (GL-006, `claude_md_guard.py`). Hướng dẫn cho dự án đặt ở file này.
 
-`agent/scripts/sync.sh` (chạy từ SSoT bên ngoài) ghi đè `.claude/CLAUDE.md`. Nếu chạy `/sync`, kiểm tra lại nội dung file này.
+`agent/scripts/sync.sh` (chạy từ SSoT bên ngoài) ghi đè `.claude/CLAUDE.md` và chạy `rsync --delete` trên `skills/`, `references/`. Nếu chạy `/sync`, kiểm tra lại nội dung file này. **Không đặt skill riêng của dự án trong `agent/skills/`** vì sẽ bị xoá. Agent và lệnh riêng của dự án nằm ở `agent/agents/` và `agent/commands/` (sync không đụng tới).
+
+---
+
+## Đội vai trò (agents) & workflow
+
+Subagent trong `agent/agents/` (gọi bằng Agent tool, `subagent_type` = tên):
+
+| Agent | Vai trò | Sửa được gì |
+|-------|---------|-------------|
+| `ba` | Phân tích yêu cầu, chi phí, viết DR (bảng quyết định, DoD), cập nhật tài liệu SSoT sau khi xong | DR, docs, `TODO.md` |
+| `dev` | Code theo DR đã duyệt, sửa lỗi do reviewer/tester báo. Làm trong worktree | Code |
+| `reviewer` | Soát diff so với DR: lỗi, bảo mật service local, hồi quy, ràng buộc `C-XXXX` | Chỉ đọc |
+| `tester` | Test theo bảng quyết định trên **bản sao** video, edge-tts, không Gemini/Drive/Sheet/TikTok thật | Chỉ thư mục tạm |
+| `marketing` | (1) Review video trước khi đăng: hook 3s, không bịa, ràng buộc ngành hàng, CTA, vùng an toàn, caption → `marketing-review.md` + đề xuất sửa cho Studio. (2) Review độ dễ dùng giao diện/tài liệu cho người vận hành | `marketing-review.md` |
+
+Lệnh trong `agent/commands/`:
+
+- `/feature <yêu cầu>`: worktree + nhánh → **ba** viết DR (thêm **marketing** nếu người dùng/người xem thấy kết quả) → **dừng chờ người dùng duyệt** → **dev** → **reviewer + tester + marketing** song song (tối đa 2 vòng sửa) → **ba** cập nhật tài liệu → báo cáo, hỏi trước khi commit/PR.
+- `/video-review [thư mục…]`: **marketing** review từng video (bỏ trống = mọi video Chờ duyệt) → bảng tổng hợp → người dùng chọn đề xuất → áp dụng qua API Studio (`PUT` + `render`), **không** tự duyệt.
+- Khung hình cho review: `.venv/bin/python scripts/review_frames.py storage/videos/<thư mục>` → `storage/review-frames/<thư mục>/` (gitignored).
 
 ---
 
