@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio duyệt video</title>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e3e1dc;
+  --accent: #e0245e; --accent-ink: #ffffff; --soft: #f1efea; --focus: #2f6fed;
+  --ok: #1f7a3f; --ok-bg: #e3f4e8; --warn: #8a5a00; --warn-bg: #fdf1d6;
+  --bad: #b3261e; --bad-bg: #fde7e5; --info-bg: #e8f0fe; --info: #1f4fb4;
+  --fs-caption: 12px; --fs-note: 13px; --fs-small: 14px; --fs-body: 15px;
+  --fs-h3: 17px; --fs-h1: 20px; --fs-h2: 22px;
+  --radius: 12px; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141416; --panel: #1e1e21; --ink: #f2f2f3; --muted: #a0a0a8; --line: #33333a;
+    --accent: #ff4f86; --accent-ink: #1a0610; --soft: #26262a; --focus: #7aa5ff;
+    --ok: #7ad69a; --ok-bg: #173022; --warn: #f3c25b; --warn-bg: #352a10;
+    --bad: #ff8a80; --bad-bg: #3a1a18; --info-bg: #1b2740; --info: #9dbbff;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+button, input, textarea { font: inherit; color: inherit; }
+a { color: inherit; }
+header { padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+header h1 { margin: 0; font-size: var(--fs-h1); }
+header p { margin: 0; color: var(--muted); font-size: var(--fs-small); }
+.layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 58px); }
+aside { border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto;
+  max-height: calc(100vh - 58px); position: sticky; top: 0; }
+aside h2 { font-size: var(--fs-note); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 16px 8px; }
+.vlist { list-style: none; margin: 0; padding: 0 8px 16px; }
+.vlist button { width: 100%; text-align: left; background: none; border: 0; border-left: 3px solid transparent;
+  border-radius: 10px; padding: 10px 12px; cursor: pointer; display: grid; gap: 4px; }
+.vlist button:hover { background: var(--soft); }
+.vlist button[aria-current="true"] { background: var(--soft); border-left-color: var(--accent); }
+.vlist .t { font-weight: 600; }
+.vlist .m { display: flex; gap: 8px; align-items: center; font-size: var(--fs-note); color: var(--muted); }
+.badge { display: inline-block; font-size: var(--fs-caption); font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.b-review { background: var(--warn-bg); color: var(--warn); }
+.b-needs_images { background: var(--bad-bg); color: var(--bad); }
+.b-approved { background: var(--ok-bg); color: var(--ok); }
+.b-view_only { background: var(--soft); color: var(--muted); }
+main { padding: 20px 24px 120px; min-width: 0; }
+.empty { color: var(--muted); padding: 40px 0; text-align: center; }
+.back { display: none; }
+.title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.title-row h2 { margin: 0; font-size: var(--fs-h2); }
+.detail { display: grid; grid-template-columns: minmax(240px, 360px) 1fr; gap: 24px; align-items: start; }
+.player { position: sticky; top: 16px; }
+video { width: 100%; aspect-ratio: 9 / 16; background: #000; border-radius: var(--radius); display: block; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+.card h3 { margin: 0 0 4px; font-size: var(--fs-h3); }
+.card .sub { margin: 0 0 12px; color: var(--muted); font-size: var(--fs-small); }
+label.f { display: block; font-size: var(--fs-small); font-weight: 600; margin: 12px 0 4px; }
+input[type=text], input[type=number], textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--bg); }
+textarea { resize: vertical; min-height: 64px; }
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.hint { font-size: var(--fs-note); color: var(--muted); margin-top: 4px; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 9px 14px;
+  cursor: pointer; font-weight: 600; min-height: 42px; }
+.btn:hover:not(:disabled) { background: var(--soft); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.07); background: var(--accent); }
+.btn.small { min-height: 34px; padding: 5px 10px; font-size: var(--fs-small); }
+.scene { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+.scene:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+.scene-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.scene-head b { font-size: var(--fs-body); }
+.chip { font-size: var(--fs-caption); padding: 2px 8px; border-radius: 99px; background: var(--soft); color: var(--muted); }
+.chip.re { background: var(--info-bg); color: var(--info); font-weight: 600; }
+.scene-img { display: flex; gap: 12px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.scene-img .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.thumb { width: 72px; aspect-ratio: 9 / 16; border-radius: 8px; object-fit: cover; background: var(--soft);
+  border: 1px dashed var(--line); display: grid; place-items: center; font-size: var(--fs-caption); color: var(--muted); text-align: center; }
+.pimgs { display: flex; gap: 14px; flex-wrap: wrap; }
+.pimg { display: grid; gap: 6px; justify-items: center; }
+.pimg .thumb { width: 96px; aspect-ratio: 1; }
+.banner { border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; font-size: var(--fs-body); }
+.banner.info { background: var(--info-bg); color: var(--info); }
+.banner.ok { background: var(--ok-bg); color: var(--ok); }
+.banner.warn { background: var(--warn-bg); color: var(--warn); }
+.banner.bad { background: var(--bad-bg); color: var(--bad); }
+.banner .acts { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.banner details { margin-top: 8px; font-size: var(--fs-note); }
+.banner pre { white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; margin: 6px 0 4px; color: var(--ink); }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent;
+  border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+.actionbar { position: fixed; left: 320px; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--line);
+  padding: 10px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; z-index: 5; }
+.actionbar[hidden] { display: none; }
+.actionbar .why { color: var(--muted); font-size: var(--fs-small); flex: 1 1 200px; }
+dialog { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--ink);
+  max-width: 440px; width: calc(100% - 32px); }
+dialog::backdrop { background: rgba(0, 0, 0, .45); }
+dialog h3 { margin-top: 0; }
+dialog .acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.copy-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.detail > * { min-width: 0; }
+@media (max-width: 900px) {
+  .detail { grid-template-columns: minmax(0, 1fr); }
+  .player { position: static; max-width: 340px; margin: 0 auto; width: 100%; }
+}
+@media (max-width: 720px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { max-height: none; position: static; border-right: 0; }
+  body.has-detail aside { display: none; }
+  body:not(.has-detail) main { display: none; }
+  main { padding: 16px 16px 150px; }
+  .back { display: inline-flex; margin-bottom: 10px; }
+  .actionbar { left: 0; padding: 10px 16px; }
+  .actionbar .btn { flex: 1 1 auto; }
+  header { padding: 12px 16px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Studio duyệt video</h1>
+  <p>Xem video, sửa chữ và lời đọc, dựng lại, rồi duyệt.</p>
+</header>
+<div class="layout">
+  <aside>
+    <h2>Video trên máy</h2>
+    <ul class="vlist" id="list"><li class="empty">Đang tải…</li></ul>
+  </aside>
+  <main id="main"><p class="empty">Chọn một video ở danh sách bên trái.</p></main>
+</div>
+<div class="actionbar" id="bar" hidden></div>
+
+<dialog id="confirm">
+  <h3>Duyệt video này?</h3>
+  <p id="confirm-text"></p>
+  <div class="acts">
+    <button class="btn" id="confirm-no">Để sau</button>
+    <button class="btn primary" id="confirm-yes">Duyệt & lưu</button>
+  </div>
+</dialog>
+<div class="sr" aria-live="polite" id="live"></div>
+
+<script>
+"use strict";
+const API = "/api/studio";
+const LABELS = { review: "Chờ duyệt", needs_images: "Cần ảnh", approved: "Đã duyệt", view_only: "Chỉ xem" };
+const SPEAKERS = { narrator: "Người dẫn", con_gai: "Con gái", con_trai: "Con trai", me: "Mẹ", bo: "Bố", ba: "Bà", ong: "Ông" };
+const KINDS = { story: "Tiểu phẩm", product: "Sản phẩm", cta: "Kêu gọi mua" };
+const GEMINI_PER_DAY = 10;
+
+let videos = [], drive = false, current = null, dirty = false, polling = null, banner = null;
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const say = (msg) => { $("#live").textContent = msg; };
+const norm = (s) => String(s || "").trim().replace(/\s+/g, " ");
+
+async function api(path, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  if (opts.method && opts.method !== "GET") headers["X-Studio"] = "1";
+  if (opts.json !== undefined) { headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(opts.json); }
+  let res;
+  try { res = await fetch(API + path, { ...opts, headers }); }
+  catch { throw new Error("Không kết nối được máy chủ Studio. Kiểm tra cửa sổ Terminal của Studio còn mở không."); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const d = data.detail;
+    throw new Error(typeof d === "string" ? d : "Có lỗi, thử lại sau (mã " + res.status + ")");
+  }
+  return data;
+}
+
+function when(folder) {
+  const m = /^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})/.exec(folder);
+  return m ? `${m[3]}/${m[2]} ${m[4]}:${m[5]}` : "";
+}
+
+// ---------------- list ----------------
+async function loadList() {
+  const data = await api("/videos");
+  videos = data.videos; drive = data.drive;
+  const ul = $("#list");
+  if (!videos.length) { ul.innerHTML = '<li class="empty">Chưa có video nào trên máy.</li>'; return; }
+  ul.innerHTML = videos.map((v) => `
+    <li><button data-folder="${esc(v.folder)}" ${current && current.folder === v.folder ? 'aria-current="true"' : ""}>
+      <span class="t">${esc(v.title)}</span>
+      <span class="m"><span class="badge b-${v.label}">${LABELS[v.label]}</span>${esc(when(v.folder))}</span>
+    </button></li>`).join("");
+}
+
+$("#list").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-folder]");
+  if (b) openVideo(b.dataset.folder);
+});
+
+function leaveOk() {
+  return !dirty || confirm("Bạn có thay đổi chưa lưu. Bỏ các thay đổi đó?");
+}
+
+async function openVideo(folder, keepBanner = false) {
+  if (current && current.folder !== folder && !leaveOk()) return;
+  try {
+    current = await api("/videos/" + encodeURIComponent(folder));
+  } catch (err) { showBanner("bad", err.message); return; }
+  dirty = false;
+  if (!keepBanner) banner = null;
+  history.replaceState(null, "", "#" + encodeURIComponent(folder));
+  document.body.classList.add("has-detail");
+  render();
+  window.scrollTo(0, 0);
+  loadList();
+}
+
+// ---------------- detail ----------------
+function render() {
+  const v = current, main = $("#main");
+  const head = `
+    <button class="btn small back" id="back">← Danh sách</button>
+    <div class="title-row"><h2>${esc(v.title)}</h2><span class="badge b-${v.label}">${LABELS[v.label]}</span></div>
+    <div id="banner">${banner ? bannerMarkup() : ""}</div>`;
+  const player = `<div class="player"><video id="vid" controls playsinline preload="metadata" src="${esc(v.video_url)}#t=0.1"></video></div>`;
+
+  if (v.label === "view_only") {
+    main.innerHTML = head + `<div class="detail">${player}<div>
+      <div class="card"><h3>Chữ đăng kèm video</h3>
+        <p class="sub">Video này làm bằng công cụ khác nên chỉ xem được, không sửa được ở đây.</p>
+        <textarea readonly rows="4">${esc(v.post_text)}</textarea>
+        <div class="copy-row"><button class="btn small" data-copy="post">Chép chữ đăng kèm</button></div>
+      </div></div></div>`;
+    $("#bar").hidden = true;
+    bindCommon();
+    return;
+  }
+
+  main.innerHTML = head + `<div class="detail">${player}<div>
+    <div id="voicenote"></div>
+    <div class="card">
+      <h3>Chữ đăng kèm video</h3>
+      <p class="sub">Dán vào TikTok khi đăng. Sửa phần này không cần dựng lại video.</p>
+      <label class="f" for="caption">Lời giới thiệu</label>
+      <textarea id="caption" rows="3">${esc(v.caption)}</textarea>
+      <label class="f" for="hashtags">Hashtag</label>
+      <input type="text" id="hashtags" value="${esc(v.hashtags)}">
+      <div class="hint">Cách nhau bằng dấu cách, ví dụ: #botmeden #tiktokshop</div>
+      <div class="copy-row"><button class="btn small" data-copy="post">Chép chữ đăng kèm</button></div>
+    </div>
+    <div class="card">
+      <h3>Chữ trên video</h3>
+      <p class="sub">Sửa phần này xong cần bấm <b>Dựng lại video</b>.</p>
+      <label class="f" for="hook">Câu mở đầu (chữ lớn ở cảnh 1)</label>
+      <input type="text" id="hook" value="${esc(v.hook)}">
+      <label class="f" for="price">Giá hiện trên video (đồng)</label>
+      <input type="number" id="price" min="0" step="1000" inputmode="numeric" value="${v.price}">
+      <div class="hint">Ghi 0 nếu không muốn hiện giá.</div>
+    </div>
+    <div class="card">
+      <h3>Từng cảnh</h3>
+      <p class="sub">Lời đọc là câu giọng nói sẽ đọc. Câu nào sửa thì chỉ câu đó được đọc lại.</p>
+      ${v.segments.map(sceneMarkup).join("")}
+    </div>
+    <div class="card">
+      <h3>Ảnh sản phẩm</h3>
+      <p class="sub">Video dùng tối đa 3 ảnh. Ảnh đầu tiên dùng cho cảnh mở đầu và cảnh kêu gọi mua.</p>
+      <div class="pimgs">${productImagesMarkup()}</div>
+    </div>
+  </div></div>`;
+  bindCommon();
+  main.querySelectorAll("input, textarea").forEach((el) => el.addEventListener("input", () => { dirty = true; updateBar(); }));
+  updateBar();
+}
+
+function sceneMarkup(s) {
+  const first = s.index === 0;
+  const tag = first ? "Mở đầu" : KINDS[s.kind] || "Cảnh";
+  const showText = s.kind === "product" && !first;
+  let img = "";
+  if (s.kind === "story") {
+    const thumb = s.image_url ? `<img class="thumb" src="${esc(s.image_url)}" alt="Ảnh cảnh ${s.index + 1}">`
+                              : `<div class="thumb">Chưa có ảnh</div>`;
+    img = `<div class="scene-img">${thumb}<div><div class="acts">
+      <button class="btn small" data-upload="scene" data-index="${s.index}">${s.image_url ? "Đổi ảnh" : "Tải ảnh lên"}</button>
+      ${s.image_prompt ? `<button class="btn small" data-prompt="${s.index}">Chép gợi ý tạo ảnh</button>` : ""}</div>
+      <div class="hint">Ảnh dọc, người Việt, không có chữ trong ảnh.</div></div></div>`;
+  }
+  return `<div class="scene" data-scene="${s.index}">
+    <div class="scene-head"><b>Cảnh ${s.index + 1}</b><span class="chip">${esc(tag)}</span>
+      <span class="chip">${esc(SPEAKERS[s.speaker] || s.speaker)}</span>
+      <span class="chip re" data-re hidden>Sẽ đọc lại</span></div>
+    <label class="f" for="line-${s.index}">Lời đọc</label>
+    <textarea id="line-${s.index}" rows="2" data-line="${s.index}">${esc(s.line)}</textarea>
+    ${showText ? `<label class="f" for="text-${s.index}">Chữ trên màn hình (ngắn, tối đa 4 từ)</label>
+      <input type="text" id="text-${s.index}" data-text="${s.index}" value="${esc(s.text)}">` : ""}
+    ${img}</div>`;
+}
+
+function productImagesMarkup() {
+  const imgs = current.product_images;
+  const slots = imgs.map((p) => `<div class="pimg">
+      ${p.url ? `<img class="thumb" src="${esc(p.url)}" alt="Ảnh sản phẩm ${p.slot + 1}">` : `<div class="thumb">Ảnh trên máy</div>`}
+      <button class="btn small" data-upload="product" data-index="${p.slot}">Thay ảnh ${p.slot + 1}</button></div>`);
+  if (imgs.length < 3) slots.push(`<div class="pimg"><div class="thumb">Trống</div>
+      <button class="btn small" data-upload="product" data-index="${imgs.length}">Thêm ảnh</button></div>`);
+  return slots.join("");
+}
+
+function bindCommon() {
+  $("#back")?.addEventListener("click", () => {
+    if (!leaveOk()) return;
+    current = null; dirty = false; banner = null;
+    history.replaceState(null, "", location.pathname);
+    document.body.classList.remove("has-detail");
+    $("#bar").hidden = true;
+    $("#main").innerHTML = '<p class="empty">Chọn một video ở danh sách.</p>';
+    loadList();
+  });
+  $("#main").querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => {
+    const text = current.label === "view_only" ? current.post_text
+      : `${$("#caption").value.trim()} ${$("#hashtags").value.trim()}`.trim();
+    copy(text, b);
+  }));
+  $("#main").querySelectorAll("[data-prompt]").forEach((b) => b.addEventListener("click", () => {
+    copy(current.segments[+b.dataset.prompt].image_prompt, b);
+  }));
+  $("#main").querySelectorAll("[data-upload]").forEach((b) =>
+    b.addEventListener("click", () => pickImage(b.dataset.upload, +b.dataset.index)));
+  bindBanner();
+}
+
+async function copy(text, btn) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t);
+    t.select(); document.execCommand("copy"); t.remove();
+  }
+  const old = btn.textContent; btn.textContent = "Đã chép ✓"; setTimeout(() => (btn.textContent = old), 1500);
+}
+
+function formValues() {
+  return {
+    caption: $("#caption").value,
+    hashtags: $("#hashtags").value,
+    hook: $("#hook").value,
+    price: Math.max(0, parseInt($("#price").value || "0", 10) || 0),
+    segments: current.segments.map((s) => ({
+      line: $(`[data-line="${s.index}"]`).value,
+      text: $(`[data-text="${s.index}"]`)?.value ?? s.text,
+    })),
+  };
+}
+
+function changedLines() {
+  return current.segments.filter((s) => norm($(`[data-line="${s.index}"]`).value) !== norm(s.audio_line)).map((s) => s.index);
+}
+
+function formNeedsRender() {
+  const f = formValues(), v = current;
+  if (norm(f.hook) !== norm(v.hook) || f.price !== v.price) return true;
+  return v.segments.some((s, i) => norm(f.segments[i].line) !== norm(s.line) || f.segments[i].text.trim() !== (s.text || ""));
+}
+
+function jobBusy() { return !!polling; }
+
+function updateBar() {
+  const v = current, bar = $("#bar");
+  if (!v || v.label === "view_only") { bar.hidden = true; return; }
+  const changed = changedLines();
+  document.querySelectorAll("[data-scene]").forEach((el) => {
+    el.querySelector("[data-re]").hidden = !changed.includes(+el.dataset.scene);
+  });
+  // Cost of re-voicing, shown before the button is pressed
+  let note = "";
+  if (changed.length) {
+    const guess = v.voice_engine_known ? "" : " (Video này làm trước khi có Studio, máy đoán theo cài đặt hiện tại.)";
+    note = v.voice_engine === "gemini"
+      ? `<div class="banner ${changed.length > GEMINI_PER_DAY ? "bad" : "info"}">Bạn sửa ${changed.length} lời đọc. Dựng lại sẽ dùng <b>${changed.length} lượt</b> giọng Gemini, mỗi ngày tối đa ${GEMINI_PER_DAY} lượt cho mọi video.${guess}</div>`
+      : `<div class="banner info">Bạn sửa ${changed.length} lời đọc. Video dùng giọng miễn phí, không giới hạn lượt.${guess}</div>`;
+  }
+  $("#voicenote").innerHTML = note;
+
+  const busy = jobBusy();
+  const needsRender = v.needs_render || (dirty && formNeedsRender());
+  let why;
+  if (busy) why = "Đang chạy, đợi một chút…";
+  else if (dirty && needsRender) why = "Có thay đổi chưa lưu. Bấm Dựng lại video để lưu và xem kết quả.";
+  else if (dirty) why = "Có thay đổi chưa lưu.";
+  else if (v.needs_render) why = "Video chưa cập nhật theo chỗ bạn vừa sửa. Bấm Dựng lại video.";
+  else if (v.label === "needs_images") why = "Còn cảnh chưa có ảnh nhân vật. Tải ảnh lên rồi dựng lại.";
+  else if (v.label === "approved") why = "Video này đã duyệt trước đó.";
+  else why = "Xem hết video. Đạt thì bấm Duyệt & lưu.";
+  const canApprove = !busy && !dirty && !v.needs_render && v.label !== "needs_images";
+  bar.hidden = false;
+  bar.innerHTML = `<span class="why">${esc(why)}</span>
+    <button class="btn" id="b-save" ${!dirty || busy ? "disabled" : ""}>Lưu thay đổi</button>
+    <button class="btn ${needsRender && !busy ? "primary" : ""}" id="b-render" ${busy ? "disabled" : ""}>Dựng lại video</button>
+    <button class="btn ${canApprove ? "primary" : ""}" id="b-approve" ${canApprove ? "" : "disabled"}>Duyệt & lưu</button>`;
+  $("#b-save").onclick = () => save().then(() => { showBanner("ok", "Đã lưu."); render(); }).catch((e) => showBanner("bad", e.message));
+  $("#b-render").onclick = () => startRender();
+  $("#b-approve").onclick = () => askApprove();
+}
+
+async function save() {
+  if (!dirty) return;
+  current = await api("/videos/" + encodeURIComponent(current.folder), { method: "PUT", json: formValues() });
+  dirty = false;
+  say("Đã lưu");
+}
+
+function pickImage(target, index) {
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = "image/png,image/jpeg,image/webp";
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) { showBanner("bad", "Ảnh quá lớn (tối đa 15 MB)."); return; }
+    try {
+      await save();
+      current = await api(`/videos/${encodeURIComponent(current.folder)}/image?target=${target}&index=${index}`,
+        { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream" } });
+      banner = { kind: "warn", html: "Đã nhận ảnh. Bấm <b>Dựng lại video</b> để đưa ảnh vào video." };
+      render();
+    } catch (e) { showBanner("bad", e.message); }
+  };
+  input.click();
+}
+
+// ---------------- jobs ----------------
+async function startRender(revoiceAll) {
+  try {
+    await save();
+    await api(`/videos/${encodeURIComponent(current.folder)}/render`, { method: "POST", json: revoiceAll ? { revoice_all: "edge" } : {} });
+    watchJob();
+  } catch (e) { showBanner("bad", e.message); }
+}
+
+function askApprove() {
+  const dlg = $("#confirm");
+  $("#confirm-text").textContent = drive
+    ? "Máy sẽ lưu chữ đăng kèm, tải cả thư mục video lên Google Drive, rồi xoá bản trên máy. Sau đó video không còn trong danh sách này."
+    : "Máy sẽ lưu chữ đăng kèm và danh sách việc cần làm khi đăng vào thư mục video, rồi đánh dấu Đã duyệt. Video vẫn giữ trên máy.";
+  dlg.showModal();
+  $("#confirm-no").onclick = () => dlg.close();
+  $("#confirm-yes").onclick = async () => {
+    dlg.close();
+    try {
+      await api(`/videos/${encodeURIComponent(current.folder)}/approve`, { method: "POST" });
+      watchJob();
+    } catch (e) { showBanner("bad", e.message); }
+  };
+}
+
+function stepText(job) {
+  const log = job.log.join("\n");
+  if (job.action === "approve") return /Drive|Upload/i.test(log) ? "Đang tải lên Google Drive…" : "";
+  if (/Rendering video|Scene \d/.test(log)) return "Đang dựng hình…";
+  if (/voic/i.test(log)) return "Đang tạo giọng đọc…";
+  return "Đang chuẩn bị…";
+}
+
+function watchJob() {
+  clearInterval(polling);
+  const tick = async () => {
+    let job;
+    try { job = await api("/job"); } catch { return; }
+    if (job.state === "running") {
+      const what = job.action === "approve" ? "Đang duyệt." : "Đang dựng lại video, thường mất 1–2 phút.";
+      banner = { kind: "job", html: `<span class="spinner"></span>${what} ${esc(stepText(job))}` };
+      paintBanner();
+      return;
+    }
+    clearInterval(polling); polling = null;
+    if (job.state === "idle") { banner = null; paintBanner(); return; }
+    await jobFinished(job);
+  };
+  polling = setInterval(tick, 2000);
+  tick();
+}
+
+async function jobFinished(job) {
+  const log = `<details><summary>Xem chi tiết kỹ thuật</summary><pre>${esc(job.log.join("\n"))}</pre></details>`;
+  const driveLink = job.drive_link ? ` <a href="${esc(job.drive_link)}" target="_blank" rel="noopener">Mở thư mục Drive</a>` : "";
+  if (job.state === "done" && job.action === "render") {
+    banner = { kind: "ok", html: "Đã dựng xong. Xem lại video." };
+    await openVideo(job.folder, true);
+    say("Đã dựng xong video");
+  } else if (job.state === "done" && job.action === "approve") {
+    if (job.folder_kept) {
+      banner = { kind: "ok", html: "Đã duyệt. Chữ đăng kèm đã lưu cạnh video." + driveLink };
+      await openVideo(job.folder, true);
+    } else {
+      current = null; dirty = false; banner = null;
+      document.body.classList.remove("has-detail");
+      $("#bar").hidden = true;
+      $("#main").innerHTML = `<div class="banner ok">Đã duyệt và chuyển video lên Google Drive.${driveLink}</div>`;
+      document.body.classList.add("has-detail");
+      await loadList();
+    }
+    say("Đã duyệt video");
+  } else if (job.error_kind === "revoice") {
+    banner = { kind: "bad", html: "Không đọc lại được câu đã sửa bằng giọng Gemini, thường do hết 10 lượt miễn phí trong ngày. Video và giọng cũ vẫn giữ nguyên."
+      + `<div class="acts"><button class="btn small" data-act="revoice">Đọc lại toàn bộ bằng giọng miễn phí</button></div>`
+      + `<div class="hint">Hoặc để mai thử lại. Cả video phải dùng chung một giọng, nên không đổi riêng được câu đã sửa.</div>` + log };
+    await openVideo(job.folder, true);
+  } else if (job.error_kind === "not_ready") {
+    banner = { kind: "bad", html: "Chưa duyệt được: video cần dựng lại, hoặc còn cảnh thiếu ảnh nhân vật." + log };
+    await openVideo(job.folder, true);
+  } else {
+    banner = { kind: "bad", html: (job.action === "approve" ? "Duyệt bị lỗi." : "Dựng lại video bị lỗi.")
+      + " Thư mục video vẫn còn nguyên, có thể thử lại." + log };
+    if (videos.some((v) => v.folder === job.folder)) await openVideo(job.folder, true); else paintBanner();
+  }
+}
+
+// ---------------- banner ----------------
+function bannerMarkup() {
+  const cls = banner.kind === "job" ? "info" : banner.kind;
+  return `<div class="banner ${cls}" role="status">${banner.html}</div>`;
+}
+function showBanner(kind, text) { banner = { kind, html: esc(text) }; paintBanner(); }
+function paintBanner() {
+  const el = $("#banner");
+  if (el) el.innerHTML = banner ? bannerMarkup() : "";
+  else if (banner) $("#main").insertAdjacentHTML("afterbegin", `<div id="banner">${bannerMarkup()}</div>`);
+  bindBanner();
+  if (current) updateBar();
+}
+function bindBanner() {
+  document.querySelector('[data-act="revoice"]')?.addEventListener("click", () => startRender(true));
+}
+
+window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+(async () => {
+  try { await loadList(); }
+  catch (e) { $("#list").innerHTML = `<li class="empty">${esc(e.message)}</li>`; return; }
+  const job = await api("/job").catch(() => ({ state: "idle" }));
+  const wanted = job.state === "running" ? job.folder : decodeURIComponent(location.hash.slice(1));
+  if (wanted && videos.some((v) => v.folder === wanted)) await openVideo(wanted);
+  if (job.state === "running") watchJob();
+})();
+</script>
+</body>
+</html>

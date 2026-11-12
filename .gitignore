@@ -6,6 +6,7 @@ __pycache__/
 storage/videos/
 storage/images/
 storage/demo/
+storage/studio-logs/
 .worktrees/
 *.mp4
 *.mp3

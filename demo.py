@@ -13,6 +13,11 @@ Usage:
   python demo.py --csv products.csv
   python demo.py --product "Máy hút bụi mini" --price 189000 --images a.jpg,b.jpg \
                  --points "Hút mạnh|Sạc USB|Nhỏ gọn" --style simple
+
+Review (APPROVAL_MODE=web, default): new videos stop at status "review"; edit and approve them in the
+Studio page (http://127.0.0.1:8000/studio), which runs:
+  python demo.py --render-only DIR [--revoice-all edge]   # re-voice edited lines, re-render
+  python demo.py --approve DIR                            # post.txt → Drive → sheet status=done
 """
 
 import argparse
@@ -384,20 +389,19 @@ async def _tts(text: str, speaker: str, output_path: str, persona: str = "nu_nam
             await asyncio.sleep(2 * (attempt + 1))
 
 
-def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam") -> None:
-    """Write audio_{i}.mp3 per segment; stores path + duration on each segment."""
+def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam", provider: str = None) -> str:
+    """Write audio_{i}.mp3 per segment; stores path, duration and the spoken line on each segment.
+    Returns the provider actually used ("gemini" or "edge")."""
     from mutagen.mp3 import MP3
 
-    provider = tts_provider()
+    provider = provider or tts_provider()
     label = {"nu_nam": "nữ miền Nam", "nam_bac": "nam miền Bắc"}.get(persona, persona)
     if provider == "gemini":
         print(f"🎙️  Generating voiceover with Gemini TTS, narrator {label} ({len(segments)} segments)...")
         try:
             for i, seg in enumerate(segments):
-                kind = seg.get("kind", "product")
-                if i == 0 and kind == "product":
-                    kind = "hook"
-                _gemini_tts(seg["line"], seg["speaker"], kind, str(out_dir / f"audio_{i}.mp3"), persona)
+                _gemini_tts(seg["line"], seg["speaker"], _segment_kind_for_tts(segments, i),
+                            str(out_dir / f"audio_{i}.mp3"), persona)
                 if i < len(segments) - 1:
                     time.sleep(7)  # free tier allows few requests per minute
         except Exception as e:
@@ -405,6 +409,7 @@ def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam") 
             print(f"   ⚠️  {e} → falling back to edge-tts for this video")
             provider = "edge"
     if provider != "gemini":
+        provider = "edge"
         print(f"🎙️  Generating voiceover with edge-tts, narrator {label} ({len(segments)} segments)...")
         for i, seg in enumerate(segments):
             asyncio.run(_tts(seg["line"], seg["speaker"], str(out_dir / f"audio_{i}.mp3"), persona))
@@ -412,8 +417,58 @@ def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam") 
         path = out_dir / f"audio_{i}.mp3"
         seg["audio_path"] = str(path)
         seg["duration"] = float(MP3(str(path)).info.length)
+        seg["audio_line"] = seg["line"]
     total = sum(s["duration"] for s in segments) + GAP * len(segments)
     print(f"✅ Voiceover ({provider}): {total:.1f}s")
+    return provider
+
+
+class RevoiceError(RuntimeError):
+    """Re-voicing edited lines failed; no audio file was changed."""
+
+
+def _segment_kind_for_tts(segments: list, i: int) -> str:
+    kind = segments[i].get("kind", "product")
+    return "hook" if i == 0 and kind == "product" else kind
+
+
+def revoice_changed(script: dict, out_dir: Path) -> list:
+    """Re-voice only the segments whose line differs from the line their audio was made from,
+    with the video's own voice engine (C-0001-1). All new clips are made first; files are
+    swapped in only when every clip succeeded, so a failure leaves the old audio untouched.
+    Returns the changed segment indexes."""
+    from mutagen.mp3 import MP3
+
+    segments = script["segments"]
+    changed = [i for i, s in enumerate(segments)
+               if s["line"].strip() != (s.get("audio_line") or s["line"]).strip()]
+    if not changed:
+        return []
+    provider = script.get("tts_provider") or tts_provider()
+    persona = script.get("voice_persona") or "nu_nam"
+    print(f"🎙️  Re-voicing {len(changed)} edited line(s) with {provider}: scenes {[i + 1 for i in changed]}")
+    tmp = {i: out_dir / f"_new_audio_{i}.mp3" for i in changed}
+    try:
+        for n, i in enumerate(changed):
+            seg = segments[i]
+            if provider == "gemini":
+                _gemini_tts(seg["line"], seg["speaker"], _segment_kind_for_tts(segments, i), str(tmp[i]), persona)
+                if n < len(changed) - 1:
+                    time.sleep(7)
+            else:
+                asyncio.run(_tts(seg["line"], seg["speaker"], str(tmp[i]), persona))
+    except Exception as e:
+        for p in tmp.values():
+            p.unlink(missing_ok=True)
+        raise RevoiceError(f"{provider} TTS failed, no audio changed: {e}") from None
+    for i, p in tmp.items():
+        dest = out_dir / f"audio_{i}.mp3"
+        p.replace(dest)
+        segments[i]["audio_path"] = str(dest)
+        segments[i]["duration"] = float(MP3(str(dest)).info.length)
+        segments[i]["audio_line"] = segments[i]["line"]
+    script["tts_provider"] = provider
+    return changed
 
 
 # ---------------------------------------------------------------------------
@@ -481,9 +536,12 @@ def write_image_prompts(segments: list, out_dir: Path) -> list:
         "",
         "1. Mở 1 cuộc trò chuyện MỚI, dán lần lượt từng prompt bên dưới (cùng 1 chat để nhân vật giống nhau).",
         "   Từ prompt thứ 2 trở đi, thêm câu: \"Giữ nguyên các nhân vật giống hệt ảnh trước.\"",
-        "2. Tải ảnh về, đổi tên đúng như dòng 'Lưu thành', bỏ vào thư mục:",
+        "2. Tải ảnh về máy, rồi mở trang Studio (http://127.0.0.1:8000/studio), chọn video này,",
+        "   bấm 'Tải ảnh lên' ở từng cảnh, sau đó bấm 'Dựng lại video'.",
+        "",
+        "   Cách cũ, không dùng Studio: đổi tên ảnh đúng như dòng 'Lưu thành', bỏ vào thư mục",
         f"   {out_dir.resolve()}",
-        "3. Chạy: .venv/bin/python demo.py --rerender " + str(out_dir),
+        "   rồi chạy: .venv/bin/python demo.py --rerender " + str(out_dir),
         "",
     ]
     for i, seg in missing:
@@ -663,6 +721,8 @@ def _load_image(src: str, out_dir: Path, idx: int):
             req = urllib.request.Request(src, headers={"User-Agent": "Mozilla/5.0"})
             dest.write_bytes(_http_bytes(req, timeout=30))
             src = str(dest)
+        elif (out_dir / src).is_file() and not Path(src).is_absolute():
+            src = str(out_dir / src)  # image uploaded into the video folder (Studio: anh_sp_N.ext)
         return Image.open(src).convert("RGB")
     except Exception as e:
         print(f"   ⚠️  Cannot load image {src}: {e}")
@@ -910,10 +970,9 @@ def run_sheet(sheet_ref: str, tab: str, base_dir: Path, style: str,
             if not row["name"].strip():
                 raise ValueError("no product name (add a name or a product link)")
             result = run_one(_product_from_row(row), base_dir, style, skip_approval)
-            if result["status"] == "ready_for_manual_upload":
-                sheet.update(row, {"status": "done"})
-            elif result["status"] == "needs_images":
-                sheet.update(row, {"status": "needs_images"})
+            status = SHEET_STATUS.get(result["status"])
+            if status:
+                sheet.update(row, {"status": status})
             results.append((label, result))
         except Exception as e:
             print(f"❌ {label}: {e}")
@@ -921,21 +980,26 @@ def run_sheet(sheet_ref: str, tab: str, base_dir: Path, style: str,
     return results
 
 
-def mark_sheet_done(product_url: str, tab: str) -> None:
-    """After a re-render is approved, set status=done on the matching sheet row, if a sheet is set up."""
+# run result status → sheet status ("rejected" and "error" leave the row empty so it is redone)
+SHEET_STATUS = {"ready_for_manual_upload": "done", "needs_images": "needs_images", "review": "review"}
+
+
+def set_sheet_status(product_url: str, tab: str, result_status: str) -> None:
+    """After work on an existing folder, update status on the matching sheet row, if a sheet is set up."""
+    status = SHEET_STATUS.get(result_status)
     sheet_ref = os.environ.get("SPREADSHEET_ID", "")
-    if not (product_url and sheet_ref and Path("google-credentials.json").exists()):
+    if not (status and product_url and sheet_ref and Path("google-credentials.json").exists()):
         return
     from product_sources import ProductSheet
 
     try:
         sheet = ProductSheet(sheet_ref, tab)
         row = sheet.find_by_url(product_url)
-        if row:
-            sheet.update(row, {"status": "done"})
-            print(f"📄 Sheet '{tab}': marked done")
+        if row and row["status"].strip() != status:
+            sheet.update(row, {"status": status})
+            print(f"📄 Sheet '{tab}': status={status}")
     except Exception as e:
-        print(f"   ⚠️  Could not update the sheet ({e}) — set status=done by hand")
+        print(f"   ⚠️  Could not update the sheet ({e}) — set status={status} by hand")
 
 
 def run_one(product: dict, base_dir: Path, style: str, skip_approval: bool) -> dict:
@@ -949,29 +1013,54 @@ def run_one(product: dict, base_dir: Path, style: str, skip_approval: bool) -> d
 
     script = generate_script(product, style)
     script["voice_persona"] = choose_persona(product)
-    generate_voiceovers(script["segments"], out_dir, script["voice_persona"])
+    script["tts_provider"] = generate_voiceovers(script["segments"], out_dir, script["voice_persona"])
     generate_story_images(script["segments"], out_dir, seed=zlib.crc32(product["name"].encode()) % 100000)
-    (out_dir / "script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
+    save_script(out_dir, script)
     (out_dir / "product.json").write_text(json.dumps(product, ensure_ascii=False, indent=2), encoding="utf-8")
     return finish(out_dir, script, product, skip_approval)
 
 
-def finish(out_dir: Path, script: dict, product: dict, skip_approval: bool) -> dict:
-    """Render → (draft if story images missing) → approval → upload kit."""
-    video_path = str(out_dir / "video.mp4")
-    render_video(script, product, video_path)
+def approval_mode() -> str:
+    """APPROVAL_MODE=web (default): stop after rendering and approve in the Studio page.
+    APPROVAL_MODE=terminal: the old y/n prompt."""
+    mode = os.environ.get("APPROVAL_MODE", "web").strip().lower()
+    return mode if mode in ("web", "terminal") else "web"
 
+
+def save_script(out_dir: Path, script: dict) -> None:
+    (out_dir / "script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def render_and_check(out_dir: Path, script: dict, product: dict) -> list:
+    """Render video.mp4, refresh prompts.txt; return the story scenes still missing an image."""
+    render_video(script, product, str(out_dir / "video.mp4"))
+    script.pop("needs_render", None)  # set by the Studio page when an edit needs a new render
+    save_script(out_dir, script)
     missing = write_image_prompts(script["segments"], out_dir)
     if missing:
         print(f"\n🖼️  Cần ảnh nhân vật cho cảnh {missing} → làm theo {out_dir / 'prompts.txt'}")
         print("   (video.mp4 hiện là bản nháp, dùng ảnh sản phẩm thay cho cảnh nhân vật)")
+    return missing
+
+
+def finish(out_dir: Path, script: dict, product: dict, skip_approval: bool) -> dict:
+    """Render → (draft if story images missing) → approval → upload kit."""
+    if render_and_check(out_dir, script, product):
         return {"status": "needs_images", "dir": str(out_dir)}
 
-    if not skip_approval and not approval_step(script, video_path):
-        print("❌ Rejected — kept files for reference.")
-        return {"status": "rejected", "dir": str(out_dir)}
+    if not skip_approval:
+        if approval_mode() == "web":
+            print(f"\n👀 Ready for review: open http://127.0.0.1:8000/studio and pick {out_dir.name}")
+            return {"status": "review", "dir": str(out_dir)}
+        if not approval_step(script, str(out_dir / "video.mp4")):
+            print("❌ Rejected — kept files for reference.")
+            return {"status": "rejected", "dir": str(out_dir)}
+    return publish(out_dir, script, product)
 
-    result = publish_to_tiktok(video_path, script, product)
+
+def publish(out_dir: Path, script: dict, product: dict) -> dict:
+    """Approved: write the upload kit, then move the folder to Drive if configured."""
+    result = publish_to_tiktok(str(out_dir / "video.mp4"), script, product)
     result["dir"] = str(out_dir)
     if os.environ.get("DRIVE_FOLDER_ID"):
         result.update(move_to_drive(out_dir, product["name"]))
@@ -1007,6 +1096,44 @@ def rerender(out_dir: Path, skip_approval: bool) -> dict:
     return finish(out_dir, script, product, skip_approval)
 
 
+# Exit codes for --render-only / --approve, read by the Studio service (backend/app/api/studio.py)
+EXIT_REVOICE_FAILED = 3   # edited lines could not be re-voiced; audio unchanged
+EXIT_NOT_READY = 4        # --approve on a folder that still needs a render or story images
+
+
+def render_only(out_dir: Path, revoice_all: str = None) -> dict:
+    """Studio "Dựng lại video": re-voice edited lines (or every line with revoice_all), render,
+    refresh prompts.txt. Never asks for approval and never touches Drive."""
+    script = json.loads((out_dir / "script.json").read_text(encoding="utf-8"))
+    product = json.loads((out_dir / "product.json").read_text(encoding="utf-8"))
+    print(f"🔁 Render only: {product['name']}  ({out_dir})")
+    if revoice_all:
+        persona = script.get("voice_persona") or choose_persona(product)
+        script["voice_persona"] = persona
+        script["tts_provider"] = generate_voiceovers(script["segments"], out_dir, persona, provider=revoice_all)
+    else:
+        revoice_changed(script, out_dir)
+    save_script(out_dir, script)  # keep new audio metadata even if the render below fails
+    (out_dir / "post.txt").unlink(missing_ok=True)  # a new video needs a new approval
+    missing = render_and_check(out_dir, script, product)
+    return {"status": "needs_images" if missing else "review", "dir": str(out_dir)}
+
+
+def approve(out_dir: Path) -> dict:
+    """Studio "Duyệt & lưu": upload kit → Drive (local folder deleted unless --keep-local)."""
+    script = json.loads((out_dir / "script.json").read_text(encoding="utf-8"))
+    product = json.loads((out_dir / "product.json").read_text(encoding="utf-8"))
+    if script.get("needs_render"):
+        print("❌ The video is older than the latest edits — render it again before approving")
+        sys.exit(EXIT_NOT_READY)
+    missing = write_image_prompts(script["segments"], out_dir)
+    if missing:
+        print(f"❌ Story scenes {missing} still have no image — add them and render again")
+        sys.exit(EXIT_NOT_READY)
+    print(f"✅ Approved: {product['name']}  ({out_dir})")
+    return publish(out_dir, script, product)
+
+
 def main():
     parser = argparse.ArgumentParser(description="TT Content Publisher — TikTok Shop affiliate video")
     parser.add_argument("--sheet", nargs="?", const="", metavar="LINK",
@@ -1017,6 +1144,12 @@ def main():
     parser.add_argument("--csv", help="Products CSV (batch mode)")
     parser.add_argument("--rerender", nargs="+", metavar="DIR",
                         help="Re-render output folder(s) after adding canh_N.png images")
+    parser.add_argument("--render-only", metavar="DIR",
+                        help="Re-voice edited lines and re-render a folder; no approval, no Drive (Studio)")
+    parser.add_argument("--revoice-all", choices=["edge", "gemini"],
+                        help="With --render-only: re-voice every line with this engine")
+    parser.add_argument("--approve", metavar="DIR",
+                        help="Approve a rendered folder: post.txt → Drive → sheet status=done (Studio)")
     parser.add_argument("--product", help="Product name")
     parser.add_argument("--price", type=int, help="Price in VND")
     parser.add_argument("--category", default="Nhà cửa", help="Product category")
@@ -1035,14 +1168,30 @@ def main():
     global KEEP_LOCAL
     KEEP_LOCAL = args.keep_local
     load_env()
+    if args.revoice_all and not args.render_only:
+        parser.error("--revoice-all needs --render-only DIR")
+    if args.render_only or args.approve:
+        d = Path(args.render_only or args.approve)
+        # Read before approving: an approved folder is moved to Drive and deleted locally.
+        product = json.loads((d / "product.json").read_text(encoding="utf-8"))
+        if args.render_only:
+            try:
+                r = render_only(d, args.revoice_all)
+            except RevoiceError as e:
+                print(f"❌ {e}")
+                sys.exit(EXIT_REVOICE_FAILED)
+        else:
+            r = approve(d)
+        print(f"\n{r['status']:<24} {r.get('dir', '')}")
+        set_sheet_status(product.get("product_url", ""), args.tab, r["status"])
+        return
     if args.rerender:
         for d in args.rerender:
             # Read before re-rendering: an approved folder is moved to Drive and deleted locally.
             product = json.loads((Path(d) / "product.json").read_text(encoding="utf-8"))
             r = rerender(Path(d), args.skip_approval)
             print(f"\n{r['status']:<24} {r.get('dir', '')}")
-            if r["status"] == "ready_for_manual_upload":
-                mark_sheet_done(product.get("product_url", ""), args.tab)
+            set_sheet_status(product.get("product_url", ""), args.tab, r["status"])
         return
     if not os.environ.get("GROQ_API_KEY"):
         print("❌ GROQ_API_KEY not set. Add it to .env (see .env.example)")
