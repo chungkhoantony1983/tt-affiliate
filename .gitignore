@@ -9,6 +9,7 @@ storage/demo/
 storage/clips/
 storage/pixabay_cache/
 storage/studio-logs/
+storage/review-frames/
 .worktrees/
 *.mp4
 *.mp3

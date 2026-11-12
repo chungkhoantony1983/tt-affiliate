@@ -181,6 +181,8 @@ Không dùng hình người nổi tiếng hay nhân vật phim: TikTok có thể
 
 Làm xong video, máy **không hỏi gì trên Terminal** nữa mà dừng lại chờ bạn duyệt trên trang Studio (`http://127.0.0.1:8000/studio`, xem mục 3).
 
+> **Nhờ AI marketing xem trước (không bắt buộc, miễn phí):** trong Claude Code, gõ `/video-review`. AI xem từng video đang chờ duyệt rồi ghi nhận xét vào file `marketing-review.md` trong thư mục video: câu mở đầu có giữ chân người xem không, có câu nào nói quá hay không có nguồn không, chữ có bị nút TikTok che không, caption và hashtag ổn chưa. AI chỉ đề xuất. Muốn áp dụng, bạn trả lời đề xuất nào cần sửa, AI sẽ sửa và dựng lại video, nhưng **không tự duyệt**. AI không nghe được giọng đọc, nên bạn vẫn phải tự nghe.
+
 1. Chọn video có nhãn **Chờ duyệt** ở danh sách bên trái.
 2. Xem hết video, nghe kỹ giọng đọc. Kiểm tra:
    - Lời nói đúng sự thật, không hứa quá mức, không bịa thông số.
