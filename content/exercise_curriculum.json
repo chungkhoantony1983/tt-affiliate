@@ -1,0 +1,329 @@
+{
+  "_doc": "Giáo trình video bài tập không dụng cụ, đăng hằng ngày (không phải video bán hàng): mỗi video 1 động tác, đi theo thứ tự các chuỗi bài. 'done' = đã duyệt video. Động tác chưa có 'steps' sẽ bị bỏ qua cho đến khi soạn xong. Clip: storage/clips/<id chuỗi bài>/00.mp4 = tư thế chuẩn bị (dùng chung), <NN>_<bước>.mp4 = từng bước của bài NN (tạo bằng app Gemini theo prompts_<NN>.txt máy viết sẵn từ 'steps_en'); chỉ khi chạy --allow-stock mới tìm Pixabay theo 'clip_query', chỉ lấy clip có tag 'clip_tag', bỏ id trong 'clip_exclude'. Bát Đoạn Cẩm theo bản phổ biến (Kiện thân khí công), người vận hành đã duyệt 2026-11-12; Thái Cực Quyền 24 thức kiểu Dương.",
+  "safety": [
+    "Đây là bài tập vận động nhẹ, không phải phương pháp chữa bệnh.",
+    "Người đang có bệnh, đau lưng, cao huyết áp, mới phẫu thuật nên hỏi bác sĩ trước khi tập.",
+    "Chỉ làm trong biên độ thấy thoải mái, không ép. Dừng lại nếu đau hoặc chóng mặt."
+  ],
+  "series": [
+    {
+      "id": "bdc",
+      "title": "Bát Đoạn Cẩm",
+      "intro": "8 động tác khí công cổ truyền, nhẹ nhàng, hợp người mới và người lớn tuổi.",
+      "clip_query": "tai chi",
+      "clip_tag": "tai chi",
+      "clip_exclude": [
+        349489
+      ],
+      "hashtags": [
+        "#batdoancam",
+        "#khicong",
+        "#taptainha",
+        "#vandongnhe"
+      ],
+      "prepare": "Đứng thẳng, hai chân rộng bằng vai, gối hơi chùng, vai thả lỏng, thở đều bằng mũi.",
+      "moves": [
+        {
+          "n": 1,
+          "name": "Hai tay nâng trời",
+          "han_viet": "Lưỡng thủ kình thiên",
+          "steps": [
+            "Đan mười ngón tay trước bụng, lòng bàn tay hướng lên.",
+            "Hít vào, nâng hai tay lên ngang ngực rồi xoay lòng bàn tay hướng lên trời.",
+            "Đẩy hai tay lên cao qua đầu, mắt nhìn theo tay, giữ 1–2 giây, cảm giác duỗi cả người.",
+            "Thở ra, tách tay, hạ hai tay sang hai bên xuống, về trước bụng."
+          ],
+          "reps": "6 lần",
+          "careful": "Không ngửa cổ quá mức.",
+          "done": false,
+          "steps_en": [
+            "interlaces the fingers of both hands in front of the lower belly, palms facing up",
+            "slowly raises the interlaced hands to chest height, then turns them so the palms face the sky",
+            "pushes the interlaced hands straight up above the head, palms facing the sky, eyes following the hands, and holds the full-body stretch for a moment",
+            "separates the hands and lowers both arms out to the sides and down, bringing the hands back in front of the belly"
+          ]
+        },
+        {
+          "n": 2,
+          "name": "Giương cung bắn chim",
+          "han_viet": "Tả hữu khai cung",
+          "steps": [
+            "Bước chân trái sang ngang, chùng gối vừa sức như ngồi ngựa, hai tay bắt chéo trước ngực.",
+            "Tay trái dựng ngón trỏ, đẩy chậm sang trái; tay phải co lại kéo về ngang vai phải như kéo dây cung.",
+            "Mắt nhìn theo ngón trỏ tay trái, giữ 1–2 giây.",
+            "Thu tay, đứng lên, làm sang bên phải."
+          ],
+          "reps": "Mỗi bên 3 lần",
+          "careful": "Gối không vượt quá mũi chân.",
+          "done": false,
+          "steps_en": [
+            "steps the left foot out to the side into a wide stance with knees bent as if riding a horse, crossing both wrists in front of the chest",
+            "slowly extends the left arm to the left with the index finger pointing up, while the right hand pulls back to the right shoulder as if drawing a bow string",
+            "holds the bow-drawing pose, eyes looking at the left index finger",
+            "releases the pose, straightens up, brings the feet together, then does the same bow-drawing motion to the right side"
+          ]
+        },
+        {
+          "n": 3,
+          "name": "Một tay nâng trời",
+          "han_viet": "Điều lý tỳ vị tu đơn cử",
+          "steps": [
+            "Hai tay để trước bụng, lòng bàn tay hướng lên.",
+            "Tay trái nâng lên qua đầu, lòng bàn tay hướng lên trời; tay phải ấn xuống cạnh hông, lòng bàn tay hướng đất.",
+            "Kéo giãn hai tay theo hai hướng ngược nhau, giữ 1–2 giây.",
+            "Hạ tay về trước bụng, đổi bên."
+          ],
+          "reps": "Mỗi bên 3 lần",
+          "careful": "Giữ thân thẳng, không nghiêng người.",
+          "done": false,
+          "steps_en": [
+            "stands with both hands in front of the belly, palms facing up",
+            "raises the left hand above the head with the palm facing the sky while pressing the right hand down beside the right hip with the palm facing the ground",
+            "holds the stretch with the two arms pushing in opposite directions, body upright",
+            "brings both hands back in front of the belly, then raises the right hand up and presses the left hand down"
+          ]
+        },
+        {
+          "n": 4,
+          "name": "Ngoảnh nhìn ra sau",
+          "han_viet": "Ngũ lao thất thương hướng hậu tiều",
+          "steps": [
+            "Hai tay thả xuôi, xoay lòng bàn tay ra ngoài, mở nhẹ vai.",
+            "Từ từ xoay đầu nhìn ra phía sau bên trái, thân giữ nguyên, giữ 1–2 giây.",
+            "Xoay đầu về giữa, thả lỏng tay.",
+            "Làm sang bên phải."
+          ],
+          "reps": "Mỗi bên 3 lần",
+          "careful": "Xoay cổ thật chậm, người đau cổ xoay ít.",
+          "done": false,
+          "steps_en": [
+            "lets the arms hang by the sides, turns the palms outward and gently opens the shoulders",
+            "slowly turns only the head to look back over the left shoulder, body still facing forward, and holds briefly",
+            "turns the head back to the front and relaxes the arms",
+            "slowly turns the head to look back over the right shoulder, then returns to the front"
+          ]
+        },
+        {
+          "n": 5,
+          "name": "Lắc đầu vẫy đuôi",
+          "han_viet": "Dao đầu bãi vĩ",
+          "steps": [
+            "Chùng gối như ngồi ngựa, hai tay chống nhẹ lên đùi.",
+            "Nghiêng thân sang phải, rồi xoay thân thành một vòng cung chậm sang trái.",
+            "Đầu và hông chuyển động ngược chiều nhau, nhẹ nhàng.",
+            "Về giữa, làm theo chiều ngược lại."
+          ],
+          "reps": "Mỗi bên 3 lần",
+          "careful": "Người đau lưng, cao huyết áp làm biên độ nhỏ hoặc bỏ qua.",
+          "done": false,
+          "steps_en": [
+            "stands in a wide stance with knees bent as if riding a horse, both hands resting lightly on the thighs",
+            "leans the upper body to the right, then slowly sweeps the torso in a low arc to the left",
+            "keeps the motion gentle, head and hips moving in opposite directions during the arc",
+            "returns to the center, then sweeps the torso slowly in the opposite direction"
+          ]
+        },
+        {
+          "n": 6,
+          "name": "Hai tay vịn chân",
+          "han_viet": "Lưỡng thủ phan túc",
+          "steps": [
+            "Nâng hai tay lên cao qua đầu.",
+            "Hạ tay xuống trước ngực, luồn ra sau lưng, vuốt dọc theo lưng xuống chân.",
+            "Cúi người theo tay đến mức thoải mái, có thể chạm mu bàn chân.",
+            "Từ từ đứng lên, hai tay đưa ra trước rồi lên cao."
+          ],
+          "reps": "6 lần",
+          "careful": "Không ép cúi; người cao huyết áp, đau lưng chỉ cúi ít và đứng lên chậm.",
+          "done": false,
+          "steps_en": [
+            "raises both arms straight up above the head",
+            "lowers the hands to the chest, moves them around to the back and slides them down along the back and legs",
+            "bends forward gently following the hands down the legs, touching the tops of the feet only if comfortable",
+            "slowly rises back up, bringing both arms forward and then up overhead"
+          ]
+        },
+        {
+          "n": 7,
+          "name": "Nắm tay trợn mắt",
+          "han_viet": "Toàn quyền nộ mục",
+          "steps": [
+            "Chùng gối như ngồi ngựa, hai tay nắm hờ đặt cạnh hông.",
+            "Đấm chậm tay trái ra trước, mắt mở to nhìn theo nắm tay.",
+            "Xòe tay, xoay cổ tay, nắm lại rồi thu về hông.",
+            "Làm với tay phải."
+          ],
+          "reps": "Mỗi bên 3 lần",
+          "careful": "Đấm chậm, không giật khuỷu tay.",
+          "done": false,
+          "steps_en": [
+            "stands in a wide stance with knees bent as if riding a horse, both loose fists held at the waist",
+            "slowly punches the left fist straight forward, eyes wide open looking at the fist",
+            "opens the left hand, rotates the wrist, closes it into a fist again and pulls it back to the waist",
+            "slowly punches the right fist straight forward in the same way and pulls it back"
+          ]
+        },
+        {
+          "n": 8,
+          "name": "Nhón gót",
+          "han_viet": "Bối hậu thất điên",
+          "steps": [
+            "Đứng thẳng, hai chân khép, hai tay thả xuôi.",
+            "Nhón hai gót lên, giữ thăng bằng 1–2 giây.",
+            "Hạ gót xuống chạm đất nhẹ nhàng."
+          ],
+          "reps": "7 lần",
+          "careful": "Người khó giữ thăng bằng nên vịn ghế hoặc tường.",
+          "done": false,
+          "steps_en": [
+            "stands upright with the feet together and the arms hanging by the sides",
+            "rises up onto the toes, lifting both heels, and balances for a second",
+            "lowers the heels gently back to the ground"
+          ]
+        }
+      ],
+      "character_en": "the same Vietnamese man in his fifties with short grey hair, wearing a loose plain white tai chi uniform and black cloth shoes, in a quiet park with green trees in soft morning light",
+      "ready_en": "stands still in a relaxed ready stance, feet shoulder-width apart, knees slightly bent, arms hanging naturally, breathing calmly"
+    },
+    {
+      "id": "tcq24",
+      "title": "Thái Cực Quyền 24 thức",
+      "intro": "Bài quyền Thái Cực phổ biến nhất, chuyển động chậm, liên tục.",
+      "clip_query": "tai chi",
+      "clip_tag": "tai chi",
+      "clip_exclude": [
+        349489
+      ],
+      "hashtags": [
+        "#thaicucquyen",
+        "#taichi",
+        "#taptainha",
+        "#vandongnhe"
+      ],
+      "prepare": "Đứng thẳng, hai chân khép, thả lỏng, thở đều.",
+      "_todo": "Các bước chi tiết từng thức sẽ soạn theo đợt, người vận hành duyệt trước khi dùng.",
+      "moves": [
+        {
+          "n": 1,
+          "name": "Khởi thế",
+          "done": false
+        },
+        {
+          "n": 2,
+          "name": "Tả hữu dã mã phân tông",
+          "done": false
+        },
+        {
+          "n": 3,
+          "name": "Bạch hạc lượng xí",
+          "done": false
+        },
+        {
+          "n": 4,
+          "name": "Tả hữu lâu tất ảo bộ",
+          "done": false
+        },
+        {
+          "n": 5,
+          "name": "Thủ huy tỳ bà",
+          "done": false
+        },
+        {
+          "n": 6,
+          "name": "Tả hữu đảo quyển hoành",
+          "done": false
+        },
+        {
+          "n": 7,
+          "name": "Tả lãm tước vĩ",
+          "done": false
+        },
+        {
+          "n": 8,
+          "name": "Hữu lãm tước vĩ",
+          "done": false
+        },
+        {
+          "n": 9,
+          "name": "Đơn tiên",
+          "done": false
+        },
+        {
+          "n": 10,
+          "name": "Vân thủ",
+          "done": false
+        },
+        {
+          "n": 11,
+          "name": "Đơn tiên",
+          "done": false
+        },
+        {
+          "n": 12,
+          "name": "Cao thám mã",
+          "done": false
+        },
+        {
+          "n": 13,
+          "name": "Hữu đăng cước",
+          "done": false
+        },
+        {
+          "n": 14,
+          "name": "Song phong quán nhĩ",
+          "done": false
+        },
+        {
+          "n": 15,
+          "name": "Chuyển thân tả đăng cước",
+          "done": false
+        },
+        {
+          "n": 16,
+          "name": "Tả hạ thế độc lập",
+          "done": false
+        },
+        {
+          "n": 17,
+          "name": "Hữu hạ thế độc lập",
+          "done": false
+        },
+        {
+          "n": 18,
+          "name": "Tả hữu xuyên thoa",
+          "done": false
+        },
+        {
+          "n": 19,
+          "name": "Hải để châm",
+          "done": false
+        },
+        {
+          "n": 20,
+          "name": "Thiểm thông bối",
+          "done": false
+        },
+        {
+          "n": 21,
+          "name": "Chuyển thân ban lan chủy",
+          "done": false
+        },
+        {
+          "n": 22,
+          "name": "Như phong tự bế",
+          "done": false
+        },
+        {
+          "n": 23,
+          "name": "Thập tự thủ",
+          "done": false
+        },
+        {
+          "n": 24,
+          "name": "Thu thế",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

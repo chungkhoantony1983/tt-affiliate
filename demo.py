@@ -226,6 +226,10 @@ DELIVERY = {
     "story":   "Đang nói chuyện trong gia đình, cảm xúc đúng tình huống của câu.",
     "product": "Hào hứng khoe, nhấn vào tên sản phẩm và điểm nổi bật.",
     "cta":     "Thân thiện, rủ rê, nhanh và vui, nhấn 'giỏ hàng vàng'.",
+    # Exercise videos (exercise.py): calm instructor, slow enough to follow along
+    "ex_intro": "Ấm áp, mời mọi người cùng tập, nhịp vừa phải.",
+    "ex_step":  "Chậm rãi, bình tĩnh, rõ từng ý như đang hướng dẫn người tập làm theo; ngừng nhẹ sau mỗi dấu phẩy.",
+    "ex_end":   "Nhẹ nhàng, ân cần nhắc an toàn, kết thúc tươi tắn.",
 }
 
 
@@ -275,7 +279,9 @@ def _gemini_tts_prompt(text: str, speaker: str, kind: str, persona: str = "nu_na
         scene = "đang nói chuyện trong một tiểu phẩm gia đình ngắn trên TikTok."
     else:
         voice, who, accent = GEMINI_NARRATORS.get(persona, GEMINI_NARRATORS["nu_nam"])
-        scene = "đang quay video review sản phẩm trên TikTok cho bạn bè xem."
+        scene = ("đang hướng dẫn mọi người tập một bài vận động nhẹ nhàng trên TikTok."
+                 if kind.startswith("ex_") else
+                 "đang quay video review sản phẩm trên TikTok cho bạn bè xem.")
     voice = os.environ.get("GEMINI_TTS_VOICE", voice) if speaker == "narrator" else voice
     prompt = (f"# AUDIO PROFILE\n{who}, {scene}\n\n"
               f"### DIRECTOR'S NOTES\n{accent}, tự nhiên, gần gũi, như đang nói chuyện thật chứ không đọc bản tin. "
@@ -317,11 +323,12 @@ def _trim_gemini_edges(pcm: bytes) -> bytes:
     return s[start * win:end * win].tobytes()
 
 
-def _gemini_tts(text: str, speaker: str, kind: str, output_path: str, persona: str = "nu_nam") -> None:
+def _gemini_tts(text: str, speaker: str, kind: str, output_path: str, persona: str = "nu_nam",
+                model: str = None) -> None:
     import wave
 
     key = os.environ["GEMINI_API_KEY"]
-    model = os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
+    model = model or os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
     voice, prompt = _gemini_tts_prompt(_clean_tts_text(text), speaker, kind, persona)
     body = {"contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"responseModalities": ["AUDIO"],
@@ -384,8 +391,9 @@ async def _tts(text: str, speaker: str, output_path: str, persona: str = "nu_nam
             await asyncio.sleep(2 * (attempt + 1))
 
 
-def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam") -> None:
-    """Write audio_{i}.mp3 per segment; stores path + duration on each segment."""
+def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam", model: str = None) -> None:
+    """Write audio_{i}.mp3 per segment; stores path + duration on each segment.
+    model overrides GEMINI_TTS_MODEL (each Gemini model has its own free-tier daily quota)."""
     from mutagen.mp3 import MP3
 
     provider = tts_provider()
@@ -397,7 +405,7 @@ def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam") 
                 kind = seg.get("kind", "product")
                 if i == 0 and kind == "product":
                     kind = "hook"
-                _gemini_tts(seg["line"], seg["speaker"], kind, str(out_dir / f"audio_{i}.mp3"), persona)
+                _gemini_tts(seg["line"], seg["speaker"], kind, str(out_dir / f"audio_{i}.mp3"), persona, model)
                 if i < len(segments) - 1:
                     time.sleep(7)  # free tier allows few requests per minute
         except Exception as e:
@@ -1030,11 +1038,27 @@ def main():
     parser.add_argument("--skip-approval", action="store_true", help="Skip manual approval step")
     parser.add_argument("--keep-local", action="store_true",
                         help="Keep the local folder after uploading to Drive (DRIVE_FOLDER_ID)")
+    parser.add_argument("--exercise", action="store_true",
+                        help="Daily exercise video: next move in content/exercise_curriculum.json")
+    parser.add_argument("--exercise-rerender", metavar="DIR",
+                        help="Re-render an exercise folder without new voice calls")
+    parser.add_argument("--allow-stock", action="store_true",
+                        help="With --exercise: use generic Pixabay clips when the move has no clips yet")
     args = parser.parse_args()
 
     global KEEP_LOCAL
     KEEP_LOCAL = args.keep_local
     load_env()
+    if args.exercise or args.exercise_rerender:
+        import exercise
+        label = "exercise"
+        try:
+            r = (exercise.rerender(Path(args.exercise_rerender), args.skip_approval) if args.exercise_rerender
+                 else exercise.run_next(Path(args.output_dir), args.skip_approval, args.allow_stock))
+        except Exception as e:
+            r = {"status": "error", "error": str(e)}
+        print_summary([(label, r)])
+        return
     if args.rerender:
         for d in args.rerender:
             # Read before re-rendering: an approved folder is moved to Drive and deleted locally.
