@@ -137,6 +137,65 @@ storage/
 
 ---
 
+## Duyệt & sửa trên web (Studio) — DR-0001
+
+> Áp dụng cho MVP `demo.py`. Quyết định và lý do: `docs/decision-records/DR-0001-video-review-studio.md`.
+
+### Luồng
+
+```
+demo.py … → render_video → [APPROVAL_MODE=web, mặc định] dừng, status=review, giữ thư mục
+                 │
+                 ▼  http://127.0.0.1:8000/studio  (service creator_main, bấm đúp scripts/mo-studio.command)
+        Xem video → sửa caption / hashtag / hook / chữ cảnh / giá / lời đọc / ảnh
+                 → "Dựng lại video" = demo.py --render-only DIR   (chỉ đọc lại câu đã sửa)
+                 → "Duyệt & lưu"    = demo.py --approve DIR       (post.txt → Drive → status=done)
+```
+
+- `APPROVAL_MODE=terminal`: giữ cách cũ (`approval_step`, hỏi `y/n`). `--skip-approval`: duyệt luôn, không dừng.
+- `--render-only` xoá `post.txt` cũ nếu có: video mới phải duyệt lại.
+- `--approve` từ chối (exit 4) nếu `script.json` còn `needs_render` hoặc còn cảnh story thiếu ảnh.
+
+### Dữ liệu trong thư mục video
+
+| Trường / file | Ý nghĩa |
+|---------------|---------|
+| `script.json` → `tts_provider` | `gemini` hoặc `edge`: bộ giọng của video. Thư mục cũ không có thì đoán theo cài đặt hiện tại |
+| `script.json` → `segments[i].audio_line` | Câu đã dùng để tạo `audio_i.mp3`. `line != audio_line` → câu cần đọc lại |
+| `script.json` → `needs_render` | Studio đặt khi sửa hook/giá/lời đọc/chữ cảnh/ảnh. `render_and_check` xoá sau khi dựng |
+| `product.json` → `images[k]` | URL, hoặc `anh_sp_{k+1}.<ext>` (ảnh tải lên, nằm trong thư mục video) |
+| `canh_N.<ext>` | Ảnh cảnh story N (tải lên từ Studio hoặc chép tay) |
+| `storage/studio-logs/<thư mục>.log` | Log của job Studio gần nhất. Nằm ngoài thư mục video để không bị tải lên Drive |
+
+Cột `status` trên Sheet thêm giá trị `review` (đã dựng, chờ duyệt trên web).
+
+### Quy tắc giọng đọc (C-0001-1)
+
+- Một video chỉ dùng một bộ giọng. `revoice_changed()` đọc lại các câu đã sửa bằng `tts_provider` của video.
+- Tạo hết file mới (`_new_audio_i.mp3`) rồi mới thay. Lỗi ở bất kỳ câu nào → xoá file tạm, **không đổi audio nào**, exit 3.
+- Studio khi đó đưa lựa chọn `--revoice-all edge`: đọc lại toàn bộ bằng edge-tts, `tts_provider=edge`.
+- Mỗi câu sửa trên video Gemini = 1 lượt (free tier 10 lượt/ngày). Trang hiện số lượt trước khi dựng.
+
+### API (`backend/app/api/studio.py`, prefix `/api/studio`)
+
+| Method | Path | Việc |
+|--------|------|------|
+| GET | `/videos` | Danh sách thư mục có `video.mp4`, nhãn `review` / `needs_images` / `approved` / `view_only` |
+| GET | `/videos/{folder}` | Chi tiết: caption, hook, giá, từng cảnh, ảnh, bộ giọng, `needs_render` |
+| GET | `/videos/{folder}/video`, `/files/{name}` | Phát video; ảnh `canh_N`, `anh_sp_N`, `img_N` |
+| PUT | `/videos/{folder}` | Lưu sửa vào JSON, không dựng |
+| POST | `/videos/{folder}/image?target=scene\|product&index=` | Body là bytes ảnh. PNG/JPG/WEBP, ≤ 15 MB, kiểm bằng Pillow |
+| POST | `/videos/{folder}/render` | Body `{"revoice_all": "edge"}` tuỳ chọn. Chạy `demo.py --render-only` nền |
+| POST | `/videos/{folder}/approve` | Chạy `demo.py --approve` nền |
+| GET | `/job` | `idle` / `running` / `done` / `error` (`error_kind`: `revoice`, `not_ready`, `failed`) + log |
+
+- Mỗi lúc chỉ một job. Job thứ hai, hoặc sửa/tải ảnh khi job đang chạy → 409.
+- API ghi bắt buộc header `X-Studio: 1` và Host là `127.0.0.1`/`localhost` (C-0001-3). Header này không nằm trong CORS `allow_headers`.
+- Thư mục không có `product.json` hoặc `segments` (video bài tập làm ngoài repo) → `view_only`, API ghi trả 409.
+- `api/studio.py` không xử lý video (C-0001-2): chỉ đọc/ghi JSON, ảnh và chạy `demo.py` bằng `sys.executable`, cwd = repo root.
+
+---
+
 ## Files
 
 ```

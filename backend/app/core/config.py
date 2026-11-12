@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     # Database (Google Sheets)
     SPREADSHEET_ID: str = ""
     GOOGLE_APPLICATION_CREDENTIALS: str = "google-credentials.json"
+    DRIVE_FOLDER_ID: str = ""  # Studio warns that approving moves the folder to Drive
+    TTS_PROVIDER: str = ""     # Studio: voice engine guess for folders made before tts_provider was saved
 
     # Social Media
     TIKTOK_CLIENT_KEY: str = ""

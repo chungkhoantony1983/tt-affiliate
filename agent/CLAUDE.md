@@ -36,10 +36,13 @@ cp .env.example .env                       # bắt buộc: GROQ_API_KEY
 .venv/bin/python demo.py --product "Tên SP" --price 189000 --images a.jpg,b.jpg \
                          --points "Ý 1|Ý 2|Ý 3" --style simple
 .venv/bin/python demo.py --rerender storage/videos/<thư mục>   # sau khi thêm canh_N.png; không gọi lại AI
+.venv/bin/python demo.py --render-only storage/videos/<thư mục> [--revoice-all edge]  # Studio: đọc lại câu đã sửa + dựng
+.venv/bin/python demo.py --approve storage/videos/<thư mục>     # Studio: post.txt → Drive → status=done
 # Cờ khác: --skip-approval, --keep-local, --tab <tên tab>, --output-dir <dir>, --url, --notes
 
-# Service local cho app.html (đăng nhập TikTok, gửi video vào inbox)
+# Service local: app.html (đăng nhập TikTok, gửi video vào inbox) + trang Studio /studio (duyệt, sửa video)
 .venv/bin/uvicorn --app-dir backend app.creator_main:app --host 127.0.0.1 --port 8000
+# hoặc bấm đúp scripts/mo-studio.command (bật service nếu chưa chạy, mở http://127.0.0.1:8000/studio)
 
 # Stack backend đầy đủ (đang hoãn, xem "Kiến trúc thực tế")
 docker compose -f docker/docker-compose.yml up -d
@@ -55,7 +58,7 @@ docker compose -f docker/docker-compose.yml up -d
 ### Hai lớp code
 
 1. **MVP đang chạy**: script ở root `demo.py` + `product_sources.py` (Google Sheet, đọc trang TikTok Shop) + `drive_upload.py`. **Không import gì từ `backend/`.** Render bằng FFmpeg qua `subprocess` + Pillow (không dùng moviepy).
-2. **`backend/`** (FastAPI + Celery + Postgres + Redis + N8N, thiết kế trong `docs/specs/`): **đang hoãn** đến khi M1–M3 trong `TODO.md` chứng minh có đơn. Chỉ một phần đang dùng thật: `backend/app/creator_main.py` + `app/api/creator.py` + `app/services/tiktok/`, phục vụ `app.html`. Phần còn lại (`app/main.py`, Celery tasks) mới kiểm tra import, chưa test với Postgres/Redis/API thật.
+2. **`backend/`** (FastAPI + Celery + Postgres + Redis + N8N, thiết kế trong `docs/specs/`): **đang hoãn** đến khi M1–M3 trong `TODO.md` chứng minh có đơn. Chỉ một phần đang dùng thật: `backend/app/creator_main.py` + `app/api/creator.py` + `app/services/tiktok/`, phục vụ `app.html`; `app/api/studio.py` + `app/web/studio.html` cho trang Studio. Phần còn lại (`app/main.py`, Celery tasks) mới kiểm tra import, chưa test với Postgres/Redis/API thật.
 
 ### Luồng `demo.py`
 
@@ -66,16 +69,25 @@ input (Sheet / CSV / CLI)
  → choose_persona + generate_voiceovers   Gemini TTS mặc định; hết quota → cả video chuyển edge-tts
  → generate_story_images   IMAGE_PROVIDER=manual (mặc định) → ghi prompts.txt, status=needs_images
  → render_video        1080×1920, 25fps
- → approval_step       mở video, hỏi y/n
+ → duyệt               APPROVAL_MODE=web (mặc định): dừng, status=review → duyệt trên Studio (demo.py --approve)
+                       APPROVAL_MODE=terminal: approval_step mở video, hỏi y/n
  → publish_to_tiktok   STUB: chỉ ghi post.txt (caption + checklist đăng tay)
  → move_to_drive       nếu có DRIVE_FOLDER_ID: upload rồi XOÁ thư mục local (trừ khi --keep-local)
  → sheet status=done
 ```
 
 - **Thư mục output**: `storage/videos/<YYYYmmdd_HHMMSS>_<slug>/` gồm `video.mp4`, `post.txt`, `script.json`, `product.json`, `audio_N.mp3`, `prompts.txt`. `--rerender` dùng lại `script.json` + `product.json` + audio, nhận ảnh `canh_N.png`.
-- **Cột `status`** (Sheet/CSV): trống = cần làm; `done`, `skip`, `needs_images` bị bỏ qua. Danh sách cột: `product_sources.SHEET_COLUMNS`.
+- **Cột `status`** (Sheet/CSV): trống = cần làm; `done`, `skip`, `needs_images`, `review` bị bỏ qua. Danh sách cột: `product_sources.SHEET_COLUMNS`.
 - **Lưu ý**: `api/creator.py` chỉ liệt kê thư mục trong `storage/videos/` có `video.mp4`. Khi bật Drive, thư mục đã duyệt bị xoá nên không còn hiện trên `app.html` (dùng `--keep-local` nếu cần).
 - **Prompt script** có ràng buộc chống bịa thông số, bịa trải nghiệm cá nhân. Ràng buộc riêng cho từng sản phẩm (vd sản phẩm sức khỏe) nằm ở cột `notes`.
+
+### Studio (DR-0001)
+
+- Trang `http://127.0.0.1:8000/studio`, tiếng Việt, cho người vận hành. **Không** đụng `app.html` (đang xét duyệt).
+- `api/studio.py` chỉ đọc/ghi JSON, ảnh, rồi chạy `demo.py --render-only` / `--approve` bằng subprocess (C-0001-2). Một job một lúc; log ở `storage/studio-logs/`.
+- Sửa lời đọc: chỉ đọc lại câu có `line != audio_line`, bằng `script.json → tts_provider` của video. Lỗi thì không đổi audio nào (exit 3), Studio đưa lựa chọn `--revoice-all edge`. Không trộn 2 bộ giọng (C-0001-1).
+- API ghi bắt buộc header `X-Studio: 1`, không mở qua CORS (C-0001-3). Thư mục không có `product.json` → "Chỉ xem".
+- Chi tiết: `docs/specs/architecture/capabilities/video-render.md` § Studio.
 
 ### TikTok
 
@@ -162,7 +174,7 @@ Giọng narrator tự chọn theo danh mục/tên sản phẩm (`choose_persona`
 
 ### Ảnh nhân vật (style `story`)
 
-- `IMAGE_PROVIDER=manual` (mặc định): người dùng tạo ảnh trong Gemini app theo `prompts.txt` → lưu `canh_N.png` → `--rerender`.
+- `IMAGE_PROVIDER=manual` (mặc định): người dùng tạo ảnh trong Gemini app theo `prompts.txt` → tải lên từng cảnh trên Studio → Dựng lại (hoặc lưu `canh_N.png` → `--rerender`).
 - `IMAGE_PROVIDER=gemini` (`gemini-2.5-flash-image`) cần bật billing (free tier quota ảnh = 0). Pollinations không dùng được (xem `TODO.md` §5).
 
 ### Video AI (optional, Phase 3+)

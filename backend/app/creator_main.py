@@ -1,14 +1,20 @@
 """
-Local service for app.html — no database, Redis or video stack needed.
+Local service for app.html and the Studio review page (/studio) — no database, Redis or video stack needed.
 
 Run from the repo root:
   .venv/bin/uvicorn --app-dir backend app.creator_main:app --host 127.0.0.1 --port 8000
 """
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
 
 from app.api.creator import router
+from app.api.studio import router as studio_router
 from app.core.config import settings
+
+STUDIO_PAGE = Path(__file__).resolve().parent / "web" / "studio.html"
 
 
 class PrivateNetworkAccess:
@@ -37,8 +43,21 @@ app.add_middleware(
 )
 app.add_middleware(PrivateNetworkAccess)
 app.include_router(router)
+# Studio (DR-0001): same-origin page for the operator. Its write endpoints need the X-Studio
+# header, which is deliberately not in allow_headers above.
+app.include_router(studio_router)
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse("/studio")
+
+
+@app.get("/studio", include_in_schema=False)
+def studio_page():
+    return FileResponse(STUDIO_PAGE, media_type="text/html", headers={"Cache-Control": "no-store"})
