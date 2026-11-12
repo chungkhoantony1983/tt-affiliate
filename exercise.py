@@ -543,7 +543,7 @@ def run_next(base_dir: Path, skip_approval: bool, allow_stock: bool = False) -> 
     persona = demo.choose_persona({"category": "tập luyện"})
     model = (os.environ.get("EXERCISE_TTS_MODEL", DEFAULT_TTS_MODEL) if kind == "move"
              else os.environ.get("EXERCISE_EXTRA_TTS_MODEL", EXTRA_TTS_MODEL))
-    demo.generate_voiceovers(script["segments"], out_dir, persona, model)
+    demo.generate_voiceovers(script["segments"], out_dir, persona, model=model)
     script["voice_persona"] = persona
     return finish(out_dir, script, skip_approval)
 

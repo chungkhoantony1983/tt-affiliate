@@ -20,7 +20,7 @@ Hệ thống hiện tại **không tự đăng video**. Máy lo phần viết k�
 | Đọc giọng | Máy (AI) | Tự động |
 | Ảnh nhân vật cho video kiểu tiểu phẩm | **Người**, dùng Gemini | Bỏ qua được nếu chọn video kiểu đơn giản |
 | Dựng video | Máy | Tự động |
-| Duyệt video trước khi đăng | **Người** | Bắt buộc |
+| Duyệt video trước khi đăng, sửa chữ hoặc lời đọc nếu cần | **Người** | Bắt buộc, làm trên trang **Studio** |
 | Gửi video vào điện thoại | Máy | Bấm 1 nút trên trang web |
 | Gắn giỏ hàng, bật nhãn AI, bấm Đăng | **Người** | Trên app TikTok |
 | Ghi kết quả | **Người** | Sau 48 giờ |
@@ -68,6 +68,10 @@ Video đã duyệt được tải lên Google Drive, mỗi sản phẩm một th
 ## 3. Mỗi buổi làm việc: bật máy chủ
 
 Làm một lần ở đầu buổi.
+
+**Cách nhanh:** mở Finder, vào thư mục dự án → `scripts`, **bấm đúp** file `mo-studio.command`. Một cửa sổ Terminal hiện ra và trình duyệt tự mở trang Studio (`http://127.0.0.1:8000/studio`). **Để nguyên cửa sổ Terminal đó** trong suốt buổi. Đóng cửa sổ là tắt máy chủ.
+
+Cách gõ lệnh (nếu bấm đúp không chạy):
 
 1. Mở ứng dụng **Terminal** (bấm `Cmd + Space`, gõ `Terminal`, Enter).
 2. Dán lệnh sau, Enter:
@@ -154,42 +158,58 @@ Máy tự ghi vào cột `status`:
 
 | Giá trị | Nghĩa |
 |---|---|
+| `review` | Đã dựng xong, chờ bạn duyệt trên Studio: làm bước 5 |
 | `done` | Đã duyệt video, chờ đăng |
 | `needs_images` | Kiểu tiểu phẩm, đang chờ ảnh nhân vật: làm bước 4 |
 | `skip` | Bạn tự ghi, máy bỏ qua |
 
 ### Bước 4. Ảnh nhân vật (chỉ với kiểu tiểu phẩm)
 
-Nếu Terminal báo `Cần ảnh nhân vật cho cảnh ...`:
+Video có nhãn **Cần ảnh** trên Studio là video kiểu tiểu phẩm còn thiếu ảnh nhân vật. Video hiện tại chỉ là bản nháp, dùng ảnh sản phẩm thay chỗ nhân vật.
 
-1. Mở file `prompts.txt` trong thư mục video vừa tạo.
+1. Mở Studio, chọn video đó. Kéo xuống mục **Từng cảnh**.
 2. Mở [gemini.google.com](https://gemini.google.com), tạo **một** cuộc trò chuyện mới.
-3. Dán lần lượt từng đoạn prompt. Từ đoạn thứ 2, thêm câu: *"Giữ nguyên các nhân vật giống hệt ảnh trước."*
-4. Tải từng ảnh về, đổi tên đúng như dòng **Lưu thành** (ví dụ `canh_1.png`), bỏ vào thư mục video đó.
-5. Chạy lệnh có sẵn ở cuối hướng dẫn trong `prompts.txt`, dạng:
-   ```bash
-   .venv/bin/python demo.py --rerender storage/videos/<tên thư mục>
-   ```
+3. Ở từng cảnh "Chưa có ảnh", bấm **Chép gợi ý tạo ảnh**, dán vào Gemini. Từ cảnh thứ 2, thêm câu: *"Giữ nguyên các nhân vật giống hệt ảnh trước."*
+4. Tải ảnh Gemini tạo về máy, quay lại Studio, bấm **Tải ảnh lên** ở đúng cảnh đó. Không cần đổi tên file.
+5. Đủ ảnh thì bấm **Dựng lại video**. Đợi 1–2 phút, nhãn chuyển sang **Chờ duyệt**.
+
+Studio nhận ảnh PNG, JPG, WEBP, tối đa 15 MB. Ảnh iPhone dạng HEIC thì xuất sang JPG trước.
 
 Không dùng hình người nổi tiếng hay nhân vật phim: TikTok có thể gỡ video hoặc khoá tính năng tiếp thị liên kết.
 
 ### Bước 5. Duyệt video
 
-Máy tự mở video và hiện kịch bản trên Terminal. Kiểm tra:
-- Lời nói đúng sự thật, không hứa quá mức, không bịa thông số.
-- Không sai chính tả trên màn hình.
-- Giá đúng, nếu có hiện giá.
+Làm xong video, máy **không hỏi gì trên Terminal** nữa mà dừng lại chờ bạn duyệt trên trang Studio (`http://127.0.0.1:8000/studio`, xem mục 3).
 
-Gõ `y` rồi Enter để đồng ý, `n` để bỏ. Đồng ý thì máy:
-- tạo file `post.txt` cạnh video, có caption để dán;
-- tự ghi `done` vào Google Sheet;
-- tải cả thư mục lên Google Drive vào `<tên sản phẩm>/<ngày giờ>_<tên>/`, kiểm tra từng file đã lên đủ, rồi **xoá bản trên máy**. Terminal in ra link thư mục Drive.
+1. Chọn video có nhãn **Chờ duyệt** ở danh sách bên trái.
+2. Xem hết video, nghe kỹ giọng đọc. Kiểm tra:
+   - Lời nói đúng sự thật, không hứa quá mức, không bịa thông số.
+   - Không sai chính tả trên màn hình.
+   - Giá đúng, nếu có hiện giá.
+3. Chỗ nào chưa đạt thì sửa ngay trên trang:
 
-Muốn giữ bản trên máy thì thêm `--keep-local` vào lệnh. Nếu tải lên lỗi (mất mạng, chưa kết nối Drive), máy giữ nguyên thư mục và báo lỗi, không mất gì.
+| Muốn sửa | Sửa ở | Sau đó |
+|---|---|---|
+| Lời giới thiệu, hashtag khi đăng | **Chữ đăng kèm video** | Bấm **Lưu thay đổi**. Không cần dựng lại |
+| Câu mở đầu, giá trên video | **Chữ trên video** | Bấm **Dựng lại video** (1–2 phút) |
+| Chữ nhỏ trên từng cảnh | **Từng cảnh** → Chữ trên màn hình | Bấm **Dựng lại video** |
+| Câu giọng nói đọc sai hoặc chưa hay | **Từng cảnh** → Lời đọc | Bấm **Dựng lại video**. Chỉ câu đã sửa được đọc lại |
+| Ảnh sản phẩm xấu hoặc sai | **Ảnh sản phẩm** → Thay ảnh | Bấm **Dựng lại video** |
 
-Lưu ý: nghe kỹ giọng đọc. Giọng Gemini đôi khi đọc sai chữ, ví dụ "pha" thành "sờ và". Câu nào sai thì gõ `n` và chạy lại.
+4. Đạt rồi thì bấm **Duyệt & lưu**, xác nhận. Máy sẽ:
+   - lưu caption để dán (file `post.txt` trong thư mục video);
+   - tự ghi `done` vào Google Sheet;
+   - tải cả thư mục lên Google Drive vào `<tên sản phẩm>/<ngày giờ>_<tên>/`, kiểm tra từng file đã lên đủ, rồi **xoá bản trên máy**. Trang hiện link thư mục Drive. Nếu tải lên lỗi (mất mạng, chưa kết nối Drive), máy giữ nguyên thư mục, không mất gì.
 
-Gõ `n` thì `status` vẫn trống, lần chạy sau máy làm lại video mới cho sản phẩm đó. Không muốn làm lại thì ghi `skip`.
+**Lượt giọng Gemini:** giọng Gemini miễn phí chỉ có **10 lượt mỗi ngày** cho mọi video, mỗi câu sửa tốn 1 lượt. Trang báo trước số lượt sẽ dùng. Nếu hết lượt, video và giọng cũ vẫn giữ nguyên. Khi đó chọn **Đọc lại toàn bộ bằng giọng miễn phí**, hoặc để mai sửa tiếp. Một video không được trộn hai loại giọng.
+
+Lưu ý: giọng Gemini đôi khi đọc sai chữ, ví dụ "pha" thành "sờ và". Sửa câu đó trong **Lời đọc** (có thể viết lại cho dễ đọc hơn) rồi dựng lại.
+
+Video không đạt và không muốn sửa: cứ để đó, ghi `skip` vào ô `status` trên Sheet. Muốn làm lại từ đầu bằng kịch bản mới: xoá trống ô `status`, chạy lại bước 3.
+
+Video bài tập (nhãn **Chỉ xem**) làm bằng công cụ khác: chỉ xem và chép chữ đăng kèm được, không sửa trên Studio.
+
+> Muốn duyệt kiểu cũ trên Terminal (gõ `y/n`): thêm dòng `APPROVAL_MODE=terminal` vào file `.env`.
 
 ### Bước 6. Gửi video vào điện thoại
 
@@ -278,6 +298,11 @@ Clip bài tập đã làm được giữ trong `storage/clips/`, không bị xo�
 |---|---|
 | Trang web báo *"local … service is not running"* | Máy chủ chưa bật hoặc đã tắt: làm lại mục 3. Nếu máy chủ vẫn chạy: bấm biểu tượng bên trái thanh địa chỉ Chrome, cho phép truy cập mạng cục bộ, tải lại trang |
 | Danh sách video trống | Chưa có video nào được tạo: làm bước 3 |
+| Studio báo *Không kết nối được máy chủ Studio* | Cửa sổ Terminal của máy chủ đã bị đóng: bấm đúp lại `scripts/mo-studio.command` (mục 3) |
+| Studio báo *Đang có việc chạy* | Đang dựng hoặc duyệt một video khác. Đợi xong rồi bấm lại |
+| Nút **Duyệt & lưu** bị mờ | Đọc dòng chữ cạnh nút: có thay đổi chưa lưu, video chưa dựng lại, hoặc còn thiếu ảnh nhân vật |
+| Studio báo *Không đọc lại được câu đã sửa bằng giọng Gemini* | Hết 10 lượt Gemini trong ngày. Bấm **Đọc lại toàn bộ bằng giọng miễn phí**, hoặc để mai |
+| Studio báo *Dựng lại video bị lỗi* | Bấm **Xem chi tiết kỹ thuật**, chụp màn hình gửi người phụ trách kỹ thuật. Thư mục video không mất gì |
 | Bấm Send báo *Connect your TikTok account first* | Đăng nhập lại (bước 6.3) |
 | Báo lỗi có chữ `spam_risk_too_many_pending_share` | Đã có 5 video chờ đăng: đăng hết trên điện thoại, hoặc chờ sang ngày hôm sau |
 | Terminal báo `TikTok returned no product data` | TikTok tạm chặn việc đọc tự động. Chờ một lúc rồi chạy lại, hoặc tự điền các ô còn trống |
