@@ -217,11 +217,42 @@ Sau 48 giờ, mở `TODO.md`, mục **4. Nhật ký video đã đăng**, thêm m
 
 ---
 
+## 4b. Video bài tập hằng ngày (không bán hàng)
+
+Mỗi ngày 1 video dạy 1 động tác, đi lần lượt theo giáo trình `content/exercise_curriculum.json`: Bát Đoạn Cẩm 8 bài, rồi Thái Cực Quyền 24 thức. Lời đọc và chữ trên màn hình lấy nguyên văn từ giáo trình, không cho AI viết lại. Giọng nam Hà Nội.
+
+**1. Chạy lệnh:**
+```bash
+.venv/bin/python demo.py --exercise
+```
+
+**2. Nếu Terminal báo `chưa có clip`:** mở file prompt nó chỉ ra, ví dụ `storage/clips/bdc/prompts_01.txt`.
+- Mở [gemini.google.com](https://gemini.google.com), chọn tạo video, dán từng prompt. Làm trong **cùng một cuộc trò chuyện** để nhân vật giống nhau.
+- Xem kỹ từng clip: tay, chân, hướng nhìn có đúng như dòng tiếng Việt ghi bên trên prompt không. Sai thì tạo lại.
+- Tải về, đổi tên đúng như dòng **Lưu thành** (`00.mp4`, `01_1.mp4`…), bỏ vào thư mục `storage/clips/bdc/`.
+- `00.mp4` là tư thế chuẩn bị, chỉ làm một lần, dùng cho mọi bài.
+- Hết lượt tạo video trong ngày: làm trước bước 1 và 3. Bước thiếu clip sẽ mượn clip bước liền trước.
+- Chạy lại lệnh ở mục 1.
+
+Máy dừng trước khi đọc giọng nếu chưa có clip, nên không tốn lượt Gemini.
+
+**3. Duyệt:** như bước 5 của video sản phẩm. Gõ `y` thì máy đánh dấu bài đó đã làm và tải lên Drive vào `video_output/Bài tập - Bát Đoạn Cẩm/`. Gõ `n` thì sửa xong chạy lại không tốn lượt đọc giọng:
+```bash
+.venv/bin/python demo.py --exercise-rerender storage/videos/<thư mục vừa tạo>
+```
+
+**4. Đăng:** như video sản phẩm, nhưng **không gắn sản phẩm**. Vẫn bật nhãn **"Nội dung do AI tạo"**.
+
+Clip bài tập đã làm được giữ trong `storage/clips/`, không bị xoá sau khi đăng.
+
+---
+
 ## 5. Lịch gợi ý
 
 | Khi nào | Việc |
 |---|---|
-| Mỗi ngày | 1–2 video: bước 3 → 7 |
+| Mỗi ngày | 1–2 video sản phẩm: bước 3 → 7 |
+| Mỗi ngày | 1 video bài tập (mục 4b); làm sẵn clip Gemini cho bài hôm sau |
 | Mỗi ngày | Ghi kết quả các video đăng 2 ngày trước (bước 8) |
 | Đầu tuần | Chọn 5–10 sản phẩm mới (bước 1–2) |
 | Cuối tuần | Xem nhật ký: sản phẩm, kiểu hook nào nhiều đơn thì làm thêm |
