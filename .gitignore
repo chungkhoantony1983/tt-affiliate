@@ -6,6 +6,8 @@ __pycache__/
 storage/videos/
 storage/images/
 storage/demo/
+storage/clips/
+storage/pixabay_cache/
 storage/studio-logs/
 .worktrees/
 *.mp4
