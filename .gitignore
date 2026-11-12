@@ -14,3 +14,5 @@ node_modules/
 venv/
 google-credentials.json
 client_secret*.json
+google-oauth-client.json
+google-drive-token.json

@@ -47,6 +47,22 @@ Nhờ người phụ trách kỹ thuật làm phần này, hoặc tự làm theo
 
 Key Sandbox chỉ dùng được với tài khoản thử. Sau bước này, app dùng được với tài khoản thật.
 
+### Kết nối Google Drive (làm một lần)
+
+Video đã duyệt được tải lên Google Drive, mỗi sản phẩm một thư mục con, rồi xoá khỏi máy cho nhẹ. Chương trình đăng nhập Drive bằng **tài khoản Google của bạn**, vì tài khoản bot đọc Google Sheet không có dung lượng Drive.
+
+1. Vào [console.cloud.google.com](https://console.cloud.google.com), chọn project **omni-affiliate**.
+2. **APIs & Services → Library**, tìm **Google Drive API**, bấm **Enable**.
+3. **APIs & Services → OAuth consent screen**: thêm email của bạn vào **Test users**, rồi bấm **Publish app** để chuyển sang **In production**. Nếu để ở Testing, cứ 7 ngày lại phải đăng nhập lại.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**, loại **Desktop app**. Bấm **Download JSON**, đổi tên thành `google-oauth-client.json`, bỏ vào thư mục dự án.
+5. Mở file `.env`, thêm dòng:
+   ```
+   DRIVE_FOLDER_ID=18PdyjmrQD7MTqkhiR66pfYsIMAYZLEdz
+   ```
+6. Lần đầu duyệt video, trình duyệt sẽ mở trang đăng nhập Google. Chọn tài khoản, bấm **Continue** ở cảnh báo "Google hasn't verified this app" (app của chính bạn), cho phép. Từ lần sau không phải đăng nhập nữa.
+
+> Không gửi `google-oauth-client.json`, `google-drive-token.json` cho ai.
+
 ---
 
 ## 3. Mỗi buổi làm việc: bật máy chủ
@@ -123,7 +139,16 @@ Trong cửa sổ Terminal thứ hai, chọn một trong hai kiểu.
 .venv/bin/python demo.py --sheet
 ```
 
-Máy làm lần lượt từng dòng có `status` trống, và tự điền các ô còn trống trước khi làm. Video nằm trong thư mục `storage/videos/<ngày giờ>_<tên sản phẩm>/`.
+Máy làm lần lượt từng dòng có `status` trống, và tự điền các ô còn trống trước khi làm.
+
+Giọng đọc được chọn tự động theo cột `category` và tên sản phẩm:
+
+| Sản phẩm | Giọng |
+|---|---|
+| Điện tử, công nghệ, máy móc, dụng cụ, ô tô/xe, thể thao, tập luyện | Nam Hà Nội |
+| Sức khỏe, gia đình, mẹ và bé, người già, quà tặng, tình cảm, và mọi loại khác | Nữ Sài Gòn |
+
+Muốn đổi giọng cho một sản phẩm thì sửa ô `category`, ví dụ ghi `Điện tử` để dùng giọng nam. Video nằm trong thư mục `storage/videos/<ngày giờ>_<tên sản phẩm>/`.
 
 Máy tự ghi vào cột `status`:
 
@@ -155,7 +180,14 @@ Máy tự mở video và hiện kịch bản trên Terminal. Kiểm tra:
 - Không sai chính tả trên màn hình.
 - Giá đúng, nếu có hiện giá.
 
-Gõ `y` rồi Enter để đồng ý, `n` để bỏ. Đồng ý thì máy tạo file `post.txt` cạnh video có caption để dán, và tự ghi `done` vào Google Sheet.
+Gõ `y` rồi Enter để đồng ý, `n` để bỏ. Đồng ý thì máy:
+- tạo file `post.txt` cạnh video, có caption để dán;
+- tự ghi `done` vào Google Sheet;
+- tải cả thư mục lên Google Drive vào `<tên sản phẩm>/<ngày giờ>_<tên>/`, kiểm tra từng file đã lên đủ, rồi **xoá bản trên máy**. Terminal in ra link thư mục Drive.
+
+Muốn giữ bản trên máy thì thêm `--keep-local` vào lệnh. Nếu tải lên lỗi (mất mạng, chưa kết nối Drive), máy giữ nguyên thư mục và báo lỗi, không mất gì.
+
+Lưu ý: nghe kỹ giọng đọc. Giọng Gemini đôi khi đọc sai chữ, ví dụ "pha" thành "sờ và". Câu nào sai thì gõ `n` và chạy lại.
 
 Gõ `n` thì `status` vẫn trống, lần chạy sau máy làm lại video mới cho sản phẩm đó. Không muốn làm lại thì ghi `skip`.
 
