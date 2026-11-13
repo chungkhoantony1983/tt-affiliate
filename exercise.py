@@ -206,6 +206,42 @@ def scene_clip_files(series: dict, move: dict):
     return [calm] + resolved + [calm]
 
 
+# Extra camera angles for steps that are hard to read from the front (move["angles"] = {"K": view}).
+# The angle clip plays in a small panel beside the front clip, so the front view stays the main one.
+ANGLE_VIEWS = {
+    "side": ("Góc nghiêng", "side view from his left, the whole body in profile"),
+    "back": ("Nhìn từ sau", "back view from behind him, so left and right match the viewer's"),
+}
+
+
+def _angle_wanted(move: dict) -> list:
+    """[(step k, view, file name)] for the angle clips this move asks for."""
+    nn = f"{move['n']:02d}"
+    return [(int(k), view, f"{nn}_{k}_{view}.mp4") for k, view in sorted(move.get("angles", {}).items())
+            if view in ANGLE_VIEWS and 1 <= int(k) <= len(move["steps"])]
+
+
+def scene_angle_files(series: dict, move: dict) -> list:
+    """Per scene (same order as scene_clip_files): (path, view) of an existing angle clip, or None."""
+    d = _clip_dir(series)
+    by_step = {k: (d / name, view) for k, view, name in _angle_wanted(move) if (d / name).exists()}
+    return [None] + [by_step.get(k) for k in range(1, len(move["steps"]) + 1)] + [None]
+
+
+def attach_angles(script: dict, series: dict, move: dict, out_dir: Path) -> None:
+    """Copy the move's angle clips into the video folder; script["scene_angle"][i] = {clip, label} or None."""
+    angles = scene_angle_files(series, move)
+    script["scene_angle"] = [None] * len(script["segments"])
+    for i, a in enumerate(angles[:len(script["segments"])]):
+        if not a:
+            continue
+        path, view = a
+        dest = out_dir / f"clip_{len(script['clips'])}.mp4"
+        dest.write_bytes(path.read_bytes())
+        script["clips"].append({"file": dest.name, "source": f"local:{path.name}"})
+        script["scene_angle"][i] = {"clip": len(script["clips"]) - 1, "label": ANGLE_VIEWS[view][0]}
+
+
 def write_prompts(series: dict, move: dict) -> Path:
     """prompts_NN.txt with one Gemini-app video prompt per clip still missing for this move."""
     d, nn = _clip_dir(series), f"{move['n']:02d}"
@@ -217,6 +253,13 @@ def write_prompts(series: dict, move: dict) -> Path:
     for k, (vi, en) in enumerate(zip(move["steps"], move.get("steps_en", [])), 1):
         if not (d / f"{nn}_{k}.mp4").exists():
             wanted.append((f"{nn}_{k}.mp4", f"Bước {k}: {vi}", f"Over about eight seconds he {en}."))
+    steps_en = move.get("steps_en", [])
+    for k, view, name in _angle_wanted(move):
+        if not (d / name).exists() and k <= len(steps_en):
+            label, framing = ANGLE_VIEWS[view]
+            wanted.append((name, f"Bước {k} – {label} (khung nhỏ cạnh clip chính): {move['steps'][k - 1]}",
+                           f"Over about eight seconds he {steps_en[k - 1]}.",
+                           MOVE_LOOK.replace("front view", framing)))
     return _write_prompt_file(series, d / f"prompts_{nn}.txt",
                               f"{series['title']} bài {move['n']}: {move['name']}", wanted)
 
@@ -265,17 +308,22 @@ def write_intro_prompts(series: dict) -> Path:
     if not (d / "00.mp4").exists() and series.get("ready_en"):
         wanted.append(("00.mp4", "Tư thế chuẩn bị (dùng chung cho mọi bài)",
                        f"Over about eight seconds he {series['ready_en']}."))
+    segs = series["intro_video"]["segments"]
     for name, action in series["intro_video"].get("clip_prompts", {}).items():
         if not (d / name).exists():
-            # Intro shots set their own framing (wide, close-up), so no full-body/tripod rule
-            wanted.append((name, "Cảnh cho video mở đầu", action, CINEMATIC_LOOK))
+            # Show which narration each clip plays under, so the operator can judge the fit
+            used = [f"cảnh {i}: {s.get('screen') or s.get('text', '')}" for i, s in enumerate(segs, 1)
+                    if s.get("clip") == name]
+            # Intro shots set their own framing (wide, close-up), so no full-body rule
+            wanted.append((name, "; ".join(used) or "Cảnh cho video mở đầu", action, CINEMATIC_LOOK))
     return _write_prompt_file(series, d / "prompts_intro.txt",
                               f"{series['title']} — video mở đầu", wanted)
 
 
-MOVE_LOOK = ("Realistic vertical 9:16 video, full body visible from head to feet, front view, static camera on a "
-             "tripod at chest height, slow smooth tai chi tempo, natural light. No text, no captions, no music, "
-             "no other people.")
+# Avoid the word "tripod": video models tend to draw one in the frame. Describe the framing instead.
+MOVE_LOOK = ("Realistic vertical 9:16 video, full body visible from head to feet, front view, locked-off "
+             "static shot from chest height with no camera movement, slow smooth tai chi tempo, natural light. "
+             "No text, no captions, no music, no other people, no camera equipment or stands visible in the frame.")
 CINEMATIC_LOOK = ("Realistic vertical 9:16 video, slow smooth tai chi tempo, natural light. "
                   "No text, no captions, no music, no other people.")
 
@@ -285,8 +333,9 @@ def _write_prompt_file(series: dict, path: Path, heading: str, wanted: list) -> 
     d = path.parent
     lines = [f"PROMPT VIDEO CHO APP GEMINI — {heading}", "",
              "Cách làm:",
-             "1. Mở gemini.google.com (hoặc app Gemini) → chọn tạo video.",
-             "2. Dán từng prompt bên dưới (mỗi prompt 1 video). Dùng cùng một cuộc trò chuyện để nhân vật giống nhau.",
+             "1. Mở gemini.google.com (hoặc app Gemini) → Video → chọn khung Dọc (9:16).",
+             "2. Dán từng prompt bên dưới, MỖI PROMPT MỘT CUỘC TRÒ CHUYỆN MỚI (chat cũ làm Gemini bám theo clip",
+             "   trước và làm sai động tác). Nhân vật giữ giống nhau nhờ phần mô tả người trong prompt.",
              "3. Xem kỹ: tay, chân, hướng nhìn có đúng như dòng tiếng Việt không. Sai thì tạo lại.",
              f"4. Tải video về, đổi tên đúng như dòng 'Lưu thành', bỏ vào thư mục {d}/",
              "5. Đủ clip thì chạy lại: .venv/bin/python demo.py --exercise",
@@ -350,12 +399,20 @@ def download_clips(hits: list, out_dir: Path) -> list:
 # Render
 # ---------------------------------------------------------------------------
 
-def _overlay(script: dict, i: int):
-    """Transparent 1080x1920 layer with the texts for scene i (kept clear of TikTok's bottom UI)."""
+def _overlay(script: dict, i: int, angle_box: tuple = None):
+    """Transparent 1080x1920 layer with the texts for scene i (kept clear of TikTok's bottom UI).
+    angle_box: (x, y, w, h) of the angle panel, labelled above it."""
     from PIL import Image, ImageDraw
     seg = script["segments"][i]
     canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(canvas)
+    if angle_box:
+        label = (script.get("scene_angle") or [])[i]["label"]
+        x, y, w, _ = angle_box
+        font = demo._font(30)
+        tw = draw.textlength(label, font=font)
+        draw.text((x + (w - tw) / 2, y - 44), label, font=font, fill="#FFE14D",
+                  stroke_width=4, stroke_fill="black")
     demo._text_block(draw, script["series_title"].upper(), 120, demo._font(40), color="#FFE14D", stroke=4)
     demo._text_block(draw, script["hook"], 180, demo._font(70), stroke=7)
     if script.get("stock", True):  # generic stock footage, not the move itself
@@ -396,36 +453,87 @@ def _fg_filter(path: Path) -> str:
     return f"scale={bw}:{bh}:force_original_aspect_ratio=decrease"
 
 
+def _pingpong(clip: Path) -> Path:
+    """clip played forward then backward: loops without the jump back to the first frame
+    (slow tai chi motion reads naturally in reverse). Cached next to the clip."""
+    pp = clip.with_name(f"_pp_{clip.name}")
+    if not pp.exists():
+        subprocess.run([demo._ffmpeg_bin(), "-y", "-v", "error", "-i", str(clip), "-filter_complex",
+                        "[0:v]split[f][b];[b]reverse[r];[f][r]concat=n=2:v=1:a=0[v]", "-map", "[v]",
+                        "-an", "-c:v", "libx264", "-crf", "16", "-preset", "fast", str(pp)], check=True)
+    return pp
+
+
+def _clip_input(clip: Path, dur: float) -> tuple:
+    """ffmpeg input args for a scene of dur seconds and the slowdown factor. Short clips (Gemini makes
+    8–10 s) are slowed a little to fit the narration; if still too short they ping-pong instead of
+    jumping back to the start."""
+    clip_secs = _clip_info(clip)[2] or dur
+    slow = min(max(dur / clip_secs, 1.0), MAX_SLOWDOWN)
+    src = _pingpong(clip) if dur / slow > clip_secs + 0.05 else clip
+    return ["-stream_loop", "-1", "-t", f"{dur / slow + 0.1:.3f}", "-i", str(src)], slow
+
+
+ANGLE_PANEL_W, ANGLE_PANEL_MARGIN = 250, 14  # angle clip panel, right of the (portrait) front clip
+
+
+def _angle_panel_box(clip: Path) -> tuple:
+    """(x, y, w, h) of the angle panel: bottom-right of the clip box."""
+    w, h, _ = _clip_info(clip)
+    ph = round(ANGLE_PANEL_W * h / w / 2) * 2
+    top, box_h = VIDEO_BOX
+    return W - ANGLE_PANEL_W - ANGLE_PANEL_MARGIN, top + box_h - ph, ANGLE_PANEL_W, ph
+
+
 def render(script: dict, out_dir: Path) -> str:
     segs, clips = script["segments"], script["clips"]
     n = len(segs)
+    angles = script.get("scene_angle") or [None] * n
     inputs, filters, temp = [], [], []
+    for p in out_dir.glob("_pp_*.mp4"):  # left over from a failed render; the clip may have changed
+        p.unlink()
+    k = 0  # next ffmpeg input index
     for i, seg in enumerate(segs):
         dur = seg["duration"] + demo.GAP + (demo.END_HOLD if i == n - 1 else 0)
         seg["scene_dur"] = dur
         ci = script["scene_clip"][i] if script.get("scene_clip") else i % len(clips)
         clip = out_dir / clips[ci]["file"]
+        angle = angles[i] if i < len(angles) else None
+        aclip = out_dir / clips[angle["clip"]]["file"] if angle else None
         png = out_dir / f"_scene_{i}.png"
-        _overlay(script, i).save(png)
+        _overlay(script, i, _angle_panel_box(aclip) if aclip else None).save(png)
         temp.append(png)
-        # Short clips (Gemini makes ~8 s) are slowed a little to fit the narration; tai chi tempo hides it
-        clip_secs = _clip_info(clip)[2] or dur
-        slow = min(max(dur / clip_secs, 1.0), MAX_SLOWDOWN)
-        inputs += ["-stream_loop", "-1", "-t", f"{dur / slow + 0.1:.3f}", "-i", str(clip)]
-        inputs += ["-loop", "1", "-framerate", str(demo.FPS), "-t", f"{dur:.3f}", "-i", str(png)]
-        v, o = 2 * i, 2 * i + 1
+        args, slow = _clip_input(clip, dur)
+        inputs += args
+        v = k
+        k += 1
         # Blurred full-frame copy behind, clip in the box between the texts, texts on top
         top, box_h = VIDEO_BOX
-        filters.append(
-            f"[{v}:v]setpts={slow:.3f}*PTS,fps={demo.FPS},split=2[bgs{i}][fgs{i}];"
-            f"[bgs{i}]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
-            f"boxblur=25:2,eq=brightness=-0.18[bg{i}];"
-            f"[fgs{i}]{_fg_filter(clip)}[fg{i}];"
-            f"[bg{i}][fg{i}]overlay=(W-w)/2:{top}+({box_h}-h)/2[base{i}];"
-            f"[base{i}][{o}:v]overlay=0:0,setsar=1,format=yuv420p,trim=duration={dur:.3f}[v{i}]")
+        chain = (f"[{v}:v]setpts={slow:.3f}*PTS,fps={demo.FPS},split=2[bgs{i}][fgs{i}];"
+                 f"[bgs{i}]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                 f"boxblur=25:2,eq=brightness=-0.18[bg{i}];"
+                 f"[fgs{i}]{_fg_filter(clip)}[fg{i}];"
+                 f"[bg{i}][fg{i}]overlay=(W-w)/2:{top}+({box_h}-h)/2[base{i}];")
+        if aclip:
+            aargs, aslow = _clip_input(aclip, dur)
+            inputs += aargs
+            x, y, pw, ph = _angle_panel_box(aclip)
+            chain += (f"[{k}:v]setpts={aslow:.3f}*PTS,fps={demo.FPS},scale={pw - 8}:{ph - 8},"
+                      f"pad={pw}:{ph}:4:4:white[ang{i}];"
+                      f"[base{i}][ang{i}]overlay={x}:{y}[based{i}];")
+            k += 1
+            base_label = f"based{i}"
+        else:
+            base_label = f"base{i}"
+        inputs += ["-loop", "1", "-framerate", str(demo.FPS), "-t", f"{dur:.3f}", "-i", str(png)]
+        o = k
+        k += 1
+        filters.append(chain + f"[{base_label}][{o}:v]overlay=0:0,setsar=1,format=yuv420p,"
+                               f"trim=duration={dur:.3f}[v{i}]")
         print(f"   Scene {i + 1} [{seg['kind']}]: {dur:.1f}s  {clips[ci]['source']}"
-              + (f" (x{slow:.2f} slower)" if slow > 1.01 else ""))
-    base = 2 * n
+              + (f" (x{slow:.2f} slower)" if slow > 1.01 else "")
+              + (f" + {angle['label']}: {clips[angle['clip']]['source']}" if angle else ""))
+    base = k
     for i, seg in enumerate(segs):
         inputs += ["-i", str(out_dir / Path(seg["audio_path"]).name)]
         pad = demo.GAP + (demo.END_HOLD if i == n - 1 else 0)
@@ -442,7 +550,7 @@ def render(script: dict, out_dir: Path) -> str:
            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(video_path)]
     print(f"🎬 Rendering exercise video ({n} scenes, {len(clips)} clip(s))...")
     result = subprocess.run(cmd, capture_output=True, text=True)
-    for p in temp:
+    for p in temp + list(out_dir.glob("_pp_*.mp4")):  # ping-pong copies are rebuilt on each render
         p.unlink(missing_ok=True)
     if result.returncode != 0:
         print(result.stderr[-3000:])
@@ -537,6 +645,8 @@ def run_next(base_dir: Path, skip_approval: bool, allow_stock: bool = False) -> 
     if files is not None:
         script["clips"], script["scene_clip"] = copy_scene_clips(files, out_dir)
         script["stock"] = False
+        if kind == "move":
+            attach_angles(script, series, move, out_dir)
     else:
         script["clips"] = download_clips(pick_clips(series, move["n"] if move else 1), out_dir)
         script["stock"] = True
@@ -568,5 +678,8 @@ def rerender(out_dir: Path, skip_approval: bool) -> dict:
                 old.unlink()
             script["clips"], script["scene_clip"] = copy_scene_clips(files, out_dir)
             script["stock"] = False
+            script.pop("scene_angle", None)
+            if item not in ("intro", "summary"):
+                attach_angles(script, series, move, out_dir)
             print(f"🎞️  Clips: {[c['source'] for c in script['clips']]}")
     return finish(out_dir, script, skip_approval)

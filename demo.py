@@ -319,18 +319,27 @@ def _trim_gemini_edges(pcm: bytes) -> bytes:
         rms = math.sqrt(sum(x * x for x in chunk) / len(chunk)) if chunk else 0
         return 20 * math.log10(rms / 32768) if rms > 0 else -120
 
-    start, end = 0, n
-    k = 0
-    while k < min(5, n) and db(k) > -40:          # up to 100 ms of noise at the start
-        k += 1
-    if 0 < k < n and db(k) < -45:
-        start = k
-    k = n - 1
-    while k > max(n - 16, start) and db(k) > -40:  # up to 300 ms of noise at the end
-        k -= 1
-    if k < n - 1 and db(k) < -45:
-        end = k + 1
-    return s[start * win:end * win].tobytes()
+    levels = [db(k) for k in range(n)]
+
+    def burst(order: list, max_len: int):
+        """Index just past a short loud run at this edge (quiet windows before it are skipped,
+        quiet must follow it), or None. The noise is often followed by ~20 ms of quiet, so it is
+        not always the very first/last window (2026-11-13: every clip kept a 40 ms burst)."""
+        j = 0
+        while j < len(order) and levels[order[j]] <= -35:  # quiet padding at the edge
+            j += 1
+        run = j
+        while j < len(order) and levels[order[j]] > -30:   # the click / burst (about -6 dB)
+            j += 1
+        if run < j <= run + max_len and j < len(order) and levels[order[j]] < -45:
+            return j
+        return None
+
+    head = burst(list(range(min(10, n))), 5)                # click within the first 200 ms
+    tail = burst(list(range(n - 1, max(n - 20, -1), -1)), 8)  # burst within the last 400 ms
+    start = head if head else 0
+    end = n - tail if tail else n
+    return s[start * win:end * win].tobytes() if end > start else pcm
 
 
 def _gemini_tts(text: str, speaker: str, kind: str, output_path: str, persona: str = "nu_nam",
@@ -410,17 +419,25 @@ def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam", 
 
     provider = provider or tts_provider()
     label = {"nu_nam": "nữ miền Nam", "nam_bac": "nam miền Bắc"}.get(persona, persona)
+    used_model = None
     if provider == "gemini":
-        print(f"🎙️  Generating voiceover with Gemini TTS, narrator {label} ({len(segments)} segments)...")
-        try:
-            for i, seg in enumerate(segments):
-                _gemini_tts(seg["line"], seg["speaker"], _segment_kind_for_tts(segments, i),
-                            str(out_dir / f"audio_{i}.mp3"), persona, model)
-                if i < len(segments) - 1:
-                    time.sleep(7)  # free tier allows few requests per minute
-        except Exception as e:
-            # Redo every segment with edge-tts so one video never mixes two voice engines.
-            print(f"   ⚠️  {e} → falling back to edge-tts for this video")
+        models = gemini_tts_models(model)
+        for m in models:
+            print(f"🎙️  Generating voiceover with Gemini TTS ({m}), narrator {label} ({len(segments)} segments)...")
+            try:
+                for i, seg in enumerate(segments):
+                    _gemini_tts(seg["line"], seg["speaker"], _segment_kind_for_tts(segments, i),
+                                str(out_dir / f"audio_{i}.mp3"), persona, m)
+                    if i < len(segments) - 1:
+                        time.sleep(7)  # free tier allows few requests per minute
+                used_model = m
+                break
+            except Exception as e:
+                # Redo every segment with the next model (each has its own daily quota), so one video
+                # never mixes two models or engines (C-0001-1).
+                nxt = models[models.index(m) + 1] if m != models[-1] else "edge-tts"
+                print(f"   ⚠️  {e} → trying {nxt} for this video")
+        if not used_model:
             provider = "edge"
     if provider != "gemini":
         provider = "edge"
@@ -432,9 +449,61 @@ def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam", 
         seg["audio_path"] = str(path)
         seg["duration"] = float(MP3(str(path)).info.length)
         seg["audio_line"] = seg["line"]
+        seg["tts_model"] = used_model  # Studio re-voices edited lines with the same model
     total = sum(s["duration"] for s in segments) + GAP * len(segments)
-    print(f"✅ Voiceover ({provider}): {total:.1f}s")
+    print(f"✅ Voiceover ({provider}{', ' + used_model if used_model else ''}): {total:.1f}s")
     return provider
+
+
+# Backup Gemini TTS models, tried in order when the main one fails (e.g. its 10 requests/day are used up).
+# They are the exercise videos' models, so a busy product day can eat into their quota.
+DEFAULT_TTS_FALLBACK_MODELS = "gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts"
+
+
+def gemini_tts_models(model: str = None) -> list:
+    """Main model (argument or GEMINI_TTS_MODEL) followed by GEMINI_TTS_FALLBACK_MODELS, no repeats."""
+    main = model or os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
+    extra = os.environ.get("GEMINI_TTS_FALLBACK_MODELS", DEFAULT_TTS_FALLBACK_MODELS)
+    out = []
+    for m in [main] + [x.strip() for x in extra.split(",")]:
+        if m and m not in out:
+            out.append(m)
+    return out
+
+
+def clean_gemini_audio(script: dict, out_dir: Path) -> list:
+    """Run the edge trim again on a Gemini video's existing audio files, so clips voiced before a
+    trim fix lose their click on the next render without new TTS calls. Idempotent: a clean clip
+    is left as is. Returns the indexes of the clips that changed."""
+    if script.get("tts_provider", "gemini") != "gemini":
+        return []
+    import wave
+    from mutagen.mp3 import MP3
+
+    changed = []
+    for i, seg in enumerate(script["segments"]):
+        path = out_dir / f"audio_{i}.mp3"
+        if not path.exists():
+            continue
+        pcm = subprocess.run([_ffmpeg_bin(), "-v", "error", "-i", str(path), "-f", "s16le", "-ac", "1",
+                              "-ar", str(GEMINI_TTS_RATE), "-"], capture_output=True, check=True).stdout
+        trimmed = _trim_gemini_edges(pcm)
+        if len(pcm) - len(trimmed) < GEMINI_TTS_RATE // 50 * 2:  # under one 20 ms window: nothing cut
+            continue
+        wav = path.with_suffix(".wav")
+        with wave.open(str(wav), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(GEMINI_TTS_RATE)
+            w.writeframes(trimmed)
+        subprocess.run([_ffmpeg_bin(), "-loglevel", "error", "-y", "-i", str(wav), "-b:a", "160k", str(path)],
+                       check=True)
+        wav.unlink()
+        seg["duration"] = float(MP3(str(path)).info.length)
+        changed.append(i)
+    if changed:
+        print(f"🔇 Removed the Gemini click/burst from scenes {[i + 1 for i in changed]}")
+    return changed
 
 
 class RevoiceError(RuntimeError):
@@ -460,13 +529,17 @@ def revoice_changed(script: dict, out_dir: Path) -> list:
         return []
     provider = script.get("tts_provider") or tts_provider()
     persona = script.get("voice_persona") or "nu_nam"
-    print(f"🎙️  Re-voicing {len(changed)} edited line(s) with {provider}: scenes {[i + 1 for i in changed]}")
+    # Same model as the rest of the video (older videos have none recorded → the main model)
+    model = next((s["tts_model"] for s in segments if s.get("tts_model")), None)
+    print(f"🎙️  Re-voicing {len(changed)} edited line(s) with {provider}"
+          f"{' (' + model + ')' if model and provider == 'gemini' else ''}: scenes {[i + 1 for i in changed]}")
     tmp = {i: out_dir / f"_new_audio_{i}.mp3" for i in changed}
     try:
         for n, i in enumerate(changed):
             seg = segments[i]
             if provider == "gemini":
-                _gemini_tts(seg["line"], seg["speaker"], _segment_kind_for_tts(segments, i), str(tmp[i]), persona)
+                _gemini_tts(seg["line"], seg["speaker"], _segment_kind_for_tts(segments, i), str(tmp[i]), persona,
+                            model)
                 if n < len(changed) - 1:
                     time.sleep(7)
             else:
@@ -1107,6 +1180,7 @@ def rerender(out_dir: Path, skip_approval: bool) -> dict:
     print("\n" + "=" * 60)
     print(f"🔁 Re-render: {product['name']}  ({out_dir})")
     print("=" * 60)
+    clean_gemini_audio(script, out_dir)
     return finish(out_dir, script, product, skip_approval)
 
 
@@ -1127,6 +1201,7 @@ def render_only(out_dir: Path, revoice_all: str = None) -> dict:
         script["tts_provider"] = generate_voiceovers(script["segments"], out_dir, persona, provider=revoice_all)
     else:
         revoice_changed(script, out_dir)
+    clean_gemini_audio(script, out_dir)
     save_script(out_dir, script)  # keep new audio metadata even if the render below fails
     (out_dir / "post.txt").unlink(missing_ok=True)  # a new video needs a new approval
     missing = render_and_check(out_dir, script, product)

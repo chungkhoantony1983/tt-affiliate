@@ -35,7 +35,7 @@
           ],
           "reps": "6 lần",
           "careful": "Không ngửa cổ quá mức.",
-          "done": false,
+          "done": true,
           "steps_en": [
             "interlaces the fingers of both hands in front of the lower belly, palms facing up",
             "slowly raises the interlaced hands to chest height, then turns them so the palms face the sky",
@@ -65,7 +65,10 @@
             "releases the pose, straightens up, brings the feet together, then does the same bow-drawing motion to the right side"
           ],
           "cue": "Ngồi tấn, một tay đẩy ngón trỏ, một tay kéo dây cung.",
-          "peak_step": 2
+          "peak_step": 2,
+          "angles": {
+            "2": "back"
+          }
         },
         {
           "n": 3,
@@ -131,7 +134,10 @@
             "returns to the center, then sweeps the torso slowly in the opposite direction"
           ],
           "cue": "Ngồi tấn, tay chống đùi, xoay thân thành vòng cung chậm.",
-          "peak_step": 2
+          "peak_step": 2,
+          "angles": {
+            "2": "back"
+          }
         },
         {
           "n": 6,
@@ -153,7 +159,11 @@
             "slowly rises back up, bringing both arms forward and then up overhead"
           ],
           "cue": "Tay lên cao, vuốt dọc lưng xuống chân, cúi vừa sức rồi đứng lên.",
-          "peak_step": 3
+          "peak_step": 3,
+          "angles": {
+            "2": "side",
+            "3": "side"
+          }
         },
         {
           "n": 7,
@@ -175,7 +185,10 @@
             "slowly punches the right fist straight forward in the same way and pulls it back"
           ],
           "cue": "Ngồi tấn, đấm chậm, mắt mở to nhìn theo nắm tay.",
-          "peak_step": 2
+          "peak_step": 2,
+          "angles": {
+            "2": "side"
+          }
         },
         {
           "n": 8,
@@ -195,10 +208,13 @@
             "lowers the heels gently back to the ground"
           ],
           "cue": "Nhón gót, giữ thăng bằng, hạ gót nhẹ.",
-          "peak_step": 2
+          "peak_step": 2,
+          "angles": {
+            "2": "side"
+          }
         }
       ],
-      "character_en": "the same Vietnamese man in his fifties with short grey hair, wearing a loose plain white tai chi uniform and black cloth shoes, in a quiet park with green trees in soft morning light",
+      "character_en": "the same Vietnamese man in his fifties with short grey hair, wearing a loose plain white tai chi uniform with knotted buttons and black cloth shoes. Location, identical in every clip: a wide light-grey stone-paved path in a quiet city park; behind him a row of tall leafy green trees, low trimmed hedges and a few dark green park lamp posts; soft hazy morning light",
       "ready_en": "stands still in a relaxed ready stance, feet shoulder-width apart, knees slightly bent, arms hanging naturally, breathing calmly",
       "intro_video": {
         "done": false,
@@ -226,36 +242,40 @@
           {
             "kind": "ex_info",
             "text": "Điểm nổi bật",
-            "clip": "00.mp4",
+            "clip": "intro_3.mp4",
             "line": "Năm hai nghìn không trăm hai mươi hai, các nhà khoa học tổng hợp kết quả của mười bảy thử nghiệm, và ghi nhận: người lớn tuổi tập Bát Đoạn Cẩm giữ thăng bằng tốt hơn nhóm không tập bài này.",
             "screen": "Tổng hợp 17 thử nghiệm (2022): người lớn tuổi tập bài này giữ thăng bằng tốt hơn."
           },
           {
             "kind": "ex_info",
             "text": "Dành cho ai",
-            "clip": "intro_1.mp4",
+            "clip": "intro_4.mp4",
             "line": "Bài tập hợp với người mới, người ít vận động, dân văn phòng ngồi nhiều, và người lớn tuổi.",
             "screen": "Người mới · ít vận động · dân văn phòng · người lớn tuổi"
           },
           {
             "kind": "ex_info",
             "text": "Tập khi nào",
-            "clip": "intro_2.mp4",
+            "clip": "intro_5.mp4",
             "line": "Tập vào sáng sớm hoặc chiều mát, chỗ thoáng, mặc đồ rộng, đừng tập ngay sau khi ăn no. Theo nhịp của chuỗi này, tập trọn tám động tác chỉ mất khoảng mười phút.",
             "screen": "Sáng sớm hoặc chiều mát · đồ rộng · không tập khi vừa ăn no · cả bài khoảng 10 phút"
           },
           {
             "kind": "ex_end_intro",
             "text": "Bắt đầu từ ngày mai",
-            "clip": "00.mp4",
+            "clip": "intro_6.mp4",
             "line": "Động tác thứ hai trông như đang giương cung bắn chim, còn động tác cuối cùng thì đơn giản đến bất ngờ. Theo dõi kênh nhé, ngày mai mình bắt đầu bài một: Hai tay nâng trời.",
             "screen": "Ngày mai: Bài 1 · Hai tay nâng trời"
           }
         ],
         "caption": "Bát Đoạn Cẩm: 8 động tác khí công truyền lại hơn 800 năm, không cần dụng cụ. Chuỗi tập mỗi ngày 1 động tác bắt đầu từ ngày mai. Bài vận động nhẹ, không phải phương pháp chữa bệnh.",
         "clip_prompts": {
-          "intro_1.mp4": "Cinematic wide shot at dawn, light mist in the park. He practices slow tai chi movements alone, arms flowing gently, calm and graceful.",
-          "intro_2.mp4": "Medium shot from the waist up. He slowly raises both open hands in front of the chest and lowers them again, very calm, soft morning light on the hands."
+          "intro_1.mp4": "Cinematic wide shot at dawn with light mist between the trees, the camera very slowly pushes in toward him. Over about ten seconds he flows through slow continuous tai chi movements alone: he raises both arms gracefully above his head, then lowers them out to the sides in a wide arc. Calm, graceful, one smooth continuous take with no cuts.",
+          "intro_2.mp4": "Close-up shot of his hands and loose white sleeves, the camera slowly glides sideways. Over about ten seconds his open hands move slowly and softly through the air in front of his chest, the silky fabric of the sleeves catching the warm morning light. Elegant and calm, one smooth continuous take with no cuts.",
+          "intro_3.mp4": "Full body side view, fixed camera. Over about ten seconds he slowly shifts his weight from one leg to the other in a steady, balanced tai chi step, arms moving calmly in front of the body, perfectly stable and controlled. One smooth continuous take with no cuts.",
+          "intro_4.mp4": "Medium shot from the knees up, the camera slowly circles a little around him. Over about ten seconds he gently opens both arms wide to the sides at shoulder height, opening the chest, then softly brings the hands back in front of the belly, relaxed and smiling slightly. One smooth continuous take with no cuts.",
+          "intro_5.mp4": "Wide shot of the park at sunrise, golden light through the trees. Over about ten seconds he walks calmly into the open space in his loose white uniform, stops, places his feet shoulder-width apart and settles into a relaxed ready stance, arms hanging naturally, breathing calmly. One smooth continuous take with no cuts.",
+          "intro_6.mp4": "Full body three-quarter back view, fixed camera, his face not clearly visible. Over about ten seconds he steps into a wide low stance with knees bent as if riding a horse and slowly draws an imaginary bow: the left arm extends to the side with the index finger pointing up, the right hand pulls back to the right shoulder, his gaze following the left hand. He holds the pose. One smooth continuous take with no cuts."
         }
       },
       "summary_video": {
