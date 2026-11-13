@@ -110,12 +110,27 @@ Việc cần làm:
 - [x] Video đã duyệt tự tải lên Google Drive (`video_output/<sản phẩm>/`) rồi xoá bản trên máy
 - [x] Video sản phẩm đầu tiên có giỏ hàng: Bột mè đen (2026-11-11)
 
+### Giọng đọc (2026-11-13)
+- [x] Hết tiếng xoẹt khi chuyển cảnh: Gemini để lại tiếng nổ ~40 ms (−6 dB) cách mép ~20 ms im lặng, hàm cắt cũ
+      bỏ sót. Đã sửa `_trim_gemini_edges`; dựng lại (Studio / `--rerender`) tự làm sạch audio cũ, không gọi lại TTS
+- [x] Giọng dự phòng: Gemini chính → `GEMINI_TTS_FALLBACK_MODELS` (2 model Gemini khác, 10 lượt/ngày mỗi model)
+      → edge-tts. Cả video dùng một model; Studio đọc lại câu sửa bằng đúng model đó
+- [ ] Gemini TTS đôi khi đọc bịa thêm câu (trà ô long: "mình mới mua… 120 ngàn"): cân nhắc tự kiểm bằng
+      Whisper (Groq) sau khi đọc giọng
+
 ### M2c — Video bài tập hằng ngày, không bán hàng (2026-11-12)
 Khung mọi chuỗi bài: **mở đầu** (gợi tò mò, nguồn gốc, dành cho ai, 1–2 điểm nổi bật có nguồn, tập khi nào) → **mỗi ngày 1 động tác** → **tổng kết** ≤ 3 phút.
 - [x] `exercise.py` + `content/exercise_curriculum.json`: lời đọc lấy nguyên văn giáo trình, không qua AI
 - [x] Bát Đoạn Cẩm: 8 động tác (đã duyệt), video mở đầu, video tổng kết
 - [x] Clip đúng động tác làm bằng app Gemini theo `storage/clips/bdc/prompts_*.txt`; thiếu clip thì dừng trước khi đọc giọng
-- [ ] **[Bạn]** Làm clip: `prompts_intro.txt` (00, intro_1, intro_2) → `prompts_01.txt` (01_1…01_4)
+- [x] Clip bài 1 (01_1…01_4), bài 1 đã duyệt (2026-11-13)
+- [x] Dựng: clip ngắn hơn lời đọc thì chạy tới-lui thay vì nhảy về đầu (hết giật); `angles` trong giáo trình
+      (bài 2, 5, 6, 7, 8) thêm clip góc nghiêng/sau `NN_K_side|back.mp4`, hiện ở khung nhỏ cạnh clip chính
+- [x] Khung cảnh cố định cho mọi clip: mô tả địa điểm chi tiết trong `character_en`; mỗi prompt một chat mới
+- [ ] Video mở đầu làm lại: 6 clip riêng `intro_1…6` (đã có intro_1). Gemini Pro hết lượt 2026-11-13 → làm tiếp
+      intro_2…6, rồi `demo.py --exercise-rerender storage/videos/20261112_143304_baitap_bdc_00_gioithieu`
+      (giữ giọng Gemini cũ), duyệt
+- [ ] Gemini app không nhận ảnh khung đầu (ảnh người thật → lỗi) nên chưa khoá được nền bằng ảnh tham chiếu
 - [ ] Đăng video mở đầu Bát Đoạn Cẩm, rồi bài 1
 - [ ] Thái Cực Quyền 24 thức: soạn bước từng thức + mở đầu + tổng kết, người vận hành duyệt
 - [ ] (Sau) Chuỗi Tabata không dụng cụ theo cùng khung
