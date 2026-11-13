@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_PROJECT_DIR/scripts/branch_observer.py\"; [ -f \"$f\" ] && python3 \"$f\" session || true",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_PROJECT_DIR/scripts/branch_observer.py\"; [ -f \"$f\" ] && python3 \"$f\" hook || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

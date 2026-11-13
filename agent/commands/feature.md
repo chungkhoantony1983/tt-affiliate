@@ -17,7 +17,8 @@ $ARGUMENTS
    git fetch -q && git worktree add .worktrees/<tên-ngắn> -b <feat|fix|docs>/<tên-ngắn> origin/main
    ```
    Từ đây trở đi, mọi đường dẫn giao cho agent đều là đường dẫn tuyệt đối trong worktree này.
-3. Báo người dùng một dòng: tên nhánh, worktree, và vai trò sẽ tham gia.
+3. Chạy `python3 scripts/branch_observer.py report --fetch`. Nếu nhánh khác (cửa sổ Claude khác, người khác) đang sửa những file mà yêu cầu này nhiều khả năng cũng phải sửa, báo người dùng ngay để chọn: làm tiếp song song (merge sau và xử lý xung đột) hay chờ nhánh kia merge xong.
+4. Báo người dùng một dòng: tên nhánh, worktree, và vai trò sẽ tham gia.
 
 ## Phase 1: Phân tích (BA, và MKTG nếu người vận hành hoặc người xem nhìn thấy kết quả)
 
@@ -55,7 +56,7 @@ Báo người dùng bằng tiếng Việt, ngắn gọn:
 - Đã làm gì (theo việc trong DR), file chính đã đổi.
 - Kết quả kiểm: số PASS / FAIL / "Cần người kiểm", và **liệt kê rõ những việc người dùng phải tự kiểm** (nghe giọng, xem giao diện thật…).
 - Việc còn lại, nếu có.
-- Hỏi người dùng có muốn commit, push nhánh và mở PR không. **Chỉ làm khi người dùng đồng ý.** Commit message viết tiếng Anh. Không bao giờ push lên `main`.
+- Hỏi người dùng có muốn commit, push nhánh và mở PR không. **Chỉ làm khi người dùng đồng ý.** Commit message viết tiếng Anh. Không bao giờ push lên `main`. Merge PR bằng `/merge-pr`.
 
 ## Lưu ý
 

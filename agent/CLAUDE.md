@@ -112,6 +112,17 @@ Hook trong `agent/settings.json` chặn các thao tác sau:
 - Sau khi gọi skill kiểu `/task`, `/fix`: phải chạy `workflow_step.py init` trước khi commit/push. **Hiện `workflow_step.py` không chạy được** (thiếu module `automation_engine`), nên các skill SSoT này bị kẹt ở bước commit. Với dự án này, dùng `/feature` (xem dưới).
 - `CLAUDE.md` ở repo root chỉ được chứa bảng PJ固有パス設定 (GL-006, `claude_md_guard.py`). Hướng dẫn cho dự án đặt ở file này.
 
+### Làm song song & merge (observer)
+
+Nhiều cửa sổ Claude (VS Code, terminal) hoặc nhiều người có thể làm cùng lúc, mỗi bên một worktree. `scripts/branch_observer.py` theo dõi mọi worktree, nhánh và PR:
+
+- **Hook tự chạy** (`agent/settings.local.json`): đầu phiên báo nếu có nhánh đụng cùng file, `main` ở máy có commit chưa lên GitHub, hoặc còn nhánh đã merge chưa xoá. Trước mỗi lần Write/Edit, cảnh báo (không chặn) nếu file đó cũng đang bị sửa ở worktree hoặc nhánh khác. Mỗi file chỉ cảnh báo một lần mỗi phiên. Gặp cảnh báo này thì báo người dùng.
+- `report --fetch`: nhánh nào đụng file nào, có xung đột thật không (`git merge-tree`), thứ tự merge gợi ý.
+- `prune [--yes]`: xoá worktree + nhánh local + nhánh GitHub đã merge (nhận ra cả squash merge qua PR), kéo `main` ở máy lên nếu chỉ bị chậm.
+- Merge PR bằng **`/merge-pr`** (quan sát → chọn thứ tự → merge → tự dọn nhánh). Không merge nhánh vào `main` ở máy: đó là nguyên nhân lệch nhánh ngày 2026-11-12.
+
+Hook và lệnh này nằm ngoài `skills/`, `scripts/`, `hooks/`, `settings.json` của `agent/` vì sync ghi đè các chỗ đó. Skill SSoT `merge` vẫn giữ nguyên.
+
 `agent/scripts/sync.sh` (chạy từ SSoT bên ngoài) ghi đè `.claude/CLAUDE.md` và chạy `rsync --delete` trên `skills/`, `references/`. Nếu chạy `/sync`, kiểm tra lại nội dung file này. **Không đặt skill riêng của dự án trong `agent/skills/`** vì sẽ bị xoá. Agent và lệnh riêng của dự án nằm ở `agent/agents/` và `agent/commands/` (sync không đụng tới).
 
 ---
