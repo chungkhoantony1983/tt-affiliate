@@ -127,9 +127,11 @@ Khung mọi chuỗi bài: **mở đầu** (gợi tò mò, nguồn gốc, dành c
 - [x] Dựng: clip ngắn hơn lời đọc thì chạy tới-lui thay vì nhảy về đầu (hết giật); `angles` trong giáo trình
       (bài 2, 5, 6, 7, 8) thêm clip góc nghiêng/sau `NN_K_side|back.mp4`, hiện ở khung nhỏ cạnh clip chính
 - [x] Khung cảnh cố định cho mọi clip: mô tả địa điểm chi tiết trong `character_en`; mỗi prompt một chat mới
-- [ ] Video mở đầu làm lại: 6 clip riêng `intro_1…6` (đã có intro_1). Gemini Pro hết lượt 2026-11-13 → làm tiếp
-      intro_2…6, rồi `demo.py --exercise-rerender storage/videos/20261112_143304_baitap_bdc_00_gioithieu`
-      (giữ giọng Gemini cũ), duyệt
+- [x] Video mở đầu làm lại: đủ 6 clip đồng bộ `intro_1…6` trong `storage/clips/bdc/`, đã dựng `20261113_183051_baitap_bdc_00_gioithieu` (51.8s, 6 cảnh) và tải lên Google Drive (2026-11-13)
+- [x] Marketing review video mở đầu (`marketing-review.md`) → tinh chỉnh dựng bài tập: cắt khoảng lặng đầu/cuối audio
+      (chuyển cảnh 1,3s → 0,46s), hoà hình 0,3s giữa cảnh, xuất 24 fps theo clip Gemini, che dấu ✦ Gemini (delogo),
+      dòng "không phải phương pháp chữa bệnh" ở cảnh cuối video mở đầu, rút gọn chữ cảnh 3 và 5. Video còn 46,9s (2026-11-13)
+- [ ] Bản trên Google Drive là bản cũ 51,8s → thay bằng `video.mp4` mới trong thư mục local
 - [ ] Gemini app không nhận ảnh khung đầu (ảnh người thật → lỗi) nên chưa khoá được nền bằng ảnh tham chiếu
 - [ ] Đăng video mở đầu Bát Đoạn Cẩm, rồi bài 1
 - [ ] Thái Cực Quyền 24 thức: soạn bước từng thức + mở đầu + tổng kết, người vận hành duyệt
