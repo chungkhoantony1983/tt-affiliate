@@ -1,9 +1,9 @@
 ---
-description: Làm một tính năng/thay đổi theo đội vai trò BA → Dev → Reviewer + Tester + MKTG, có cổng duyệt DR
+description: Làm một tính năng/thay đổi theo đội vai trò BA → Dev → Reviewer + Tester + Tech Lead + MKTG, có cổng duyệt DR
 argument-hint: <mô tả yêu cầu bằng lời thường>
 ---
 
-Bạn là **người điều phối**. Bạn không tự làm phần việc của từng vai trò. Mỗi phase giao cho subagent tương ứng bằng Agent tool (`subagent_type`: `ba`, `dev`, `reviewer`, `tester`, `marketing`). Bạn chuyển kết quả giữa các vai trò, giữ cổng duyệt và lo phần git.
+Bạn là **người điều phối**. Bạn không tự làm phần việc của từng vai trò. Mỗi phase giao cho subagent tương ứng bằng Agent tool (`subagent_type`: `ba`, `dev`, `reviewer`, `tester`, `techlead`, `marketing`). Bạn chuyển kết quả giữa các vai trò, giữ cổng duyệt và lo phần git.
 
 Yêu cầu của người dùng:
 
@@ -24,6 +24,7 @@ $ARGUMENTS
 
 - Giao **ba**: yêu cầu nguyên văn + worktree. BA viết DR trong `docs/decision-records/` của worktree.
 - Nếu thay đổi chạm tới thứ người vận hành dùng (Studio, tài liệu, lệnh) hoặc thứ người xem thấy (video, caption), giao thêm **marketing** (chế độ 2) đọc DR và góp ý từ góc người dùng. Chuyển góp ý cho BA cập nhật DR.
+- Nếu DR chạm tới backend, service local, subprocess/FFmpeg, Docker, dữ liệu nhạy cảm hoặc đổi cấu trúc module, giao thêm **techlead** (chế độ 1) đọc DR. Chuyển phát hiện Chặn/Nên sửa cho BA cập nhật DR trước cổng duyệt.
 
 ## Phase 2: Cổng duyệt (bắt buộc dừng)
 
@@ -39,12 +40,14 @@ Giao **dev**: worktree + DR + danh sách việc. Nhiều việc độc lập l�
 Gửi trong **cùng một lượt** các Agent sau:
 - **reviewer**: worktree + DR.
 - **tester**: worktree + DR + thư mục video mẫu trong `storage/videos/` của repo gốc (tester tự copy ra thư mục tạm).
+- **techlead** nếu thay đổi thuộc hạ tầng, backend, bộ nhớ/hiệu năng, bảo mật hoặc kiến trúc (cùng điều kiện như Phase 1).
 - **marketing** chế độ 2 nếu có giao diện hoặc tài liệu cho người vận hành; chế độ 1 trên **bản sao** video nếu thay đổi ảnh hưởng nội dung video.
 
 Gom kết quả:
 - Có phát hiện **Chặn**, test **FAIL** hoặc MKTG mức **Chặn** → giao lại **dev** đúng danh sách đó → chạy lại **chỉ** những agent đã báo lỗi.
 - Tối đa 2 vòng sửa. Sau 2 vòng mà vẫn còn lỗi thì dừng, báo người dùng tình trạng và đề xuất cách xử lý.
 - Mức "Nên sửa" và "Gợi ý": sửa luôn nếu nhỏ và nằm trong DR, còn lại ghi vào DR là việc sau.
+- **Bug không sửa trong vòng này** (ngoài phạm vi DR, trong code cũ, còn lại sau 2 vòng, hoặc techlead xếp Loại "Bug") → ghi GitHub issue theo Phase 1 của `/bug` (nhãn `role:dev`, `role:tester`, `role:ba`), ghi số issue vào DR. Không bỏ qua bug chỉ vì nằm ngoài phạm vi.
 
 ## Phase 5: Tài liệu (BA)
 
@@ -54,6 +57,7 @@ Giao **ba**: cập nhật mục "Kết quả" trong DR (dán nguyên bảng củ
 
 Báo người dùng bằng tiếng Việt, ngắn gọn:
 - Đã làm gì (theo việc trong DR), file chính đã đổi.
+- Issue bug đã ghi trong lúc làm (link), nếu có.
 - Kết quả kiểm: số PASS / FAIL / "Cần người kiểm", và **liệt kê rõ những việc người dùng phải tự kiểm** (nghe giọng, xem giao diện thật…).
 - Việc còn lại, nếu có.
 - Hỏi người dùng có muốn commit, push nhánh và mở PR không. **Chỉ làm khi người dùng đồng ý.** Commit message viết tiếng Anh. Không bao giờ push lên `main`. Merge PR bằng `/merge-pr`.

@@ -134,15 +134,22 @@ Subagent trong `agent/agents/` (gọi bằng Agent tool, `subagent_type` = tên)
 | Agent | Vai trò | Sửa được gì |
 |-------|---------|-------------|
 | `ba` | Phân tích yêu cầu, chi phí, viết DR (bảng quyết định, DoD), cập nhật tài liệu SSoT sau khi xong | DR, docs, `TODO.md` |
-| `dev` | Code theo DR đã duyệt, sửa lỗi do reviewer/tester báo. Làm trong worktree | Code |
+| `dev` | **Dev full stack**: pipeline `demo.py` + FFmpeg/Pillow, backend FastAPI, Studio HTML/JS, script, Docker. Code theo DR đã duyệt, sửa lỗi do reviewer/tester/techlead báo hoặc từ GitHub issue. Làm trong worktree. Skill: `dev-selfcheck` | Code |
 | `reviewer` | Soát diff so với DR: lỗi, bảo mật service local, hồi quy, ràng buộc `C-XXXX` | Chỉ đọc |
+| `techlead` | Review và đề xuất tối ưu: hạ tầng, backend, bộ nhớ/hiệu năng, bảo mật, kiến trúc. Review DR/diff hoặc audit một vùng code; phân loại Bug / Tối ưu / Nợ kỹ thuật. Skill: `tech-audit` | Chỉ đọc |
 | `tester` | Test theo bảng quyết định trên **bản sao** video, edge-tts, không Gemini/Drive/Sheet/TikTok thật | Chỉ thư mục tạm |
-| `marketing` | (1) Review video trước khi đăng: hook 3s, không bịa, ràng buộc ngành hàng, CTA, vùng an toàn, caption → `marketing-review.md` + đề xuất sửa cho Studio. (2) Review độ dễ dùng giao diện/tài liệu cho người vận hành | `marketing-review.md` |
+| `marketing` | (1) Review video trước khi đăng: hook 3s, không bịa, ràng buộc ngành hàng, CTA, vùng an toàn, caption → `marketing-review.md` + đề xuất sửa cho Studio. (2) Review độ dễ dùng giao diện/tài liệu cho người vận hành. (3) Review video du lịch Việt Nam tiếng Anh: dữ kiện có nguồn, bản quyền clip, tiếng Anh, phụ đề Việt (skill `travel-review`). (4) Phân tích hiệu quả bài đăng, tiếp cận người xem (skill `post-analytics`) | `marketing-review.md`, `storage/analytics/` |
 
 Lệnh trong `agent/commands/`:
 
-- `/feature <yêu cầu>`: worktree + nhánh → **ba** viết DR (thêm **marketing** nếu người dùng/người xem thấy kết quả) → **dừng chờ người dùng duyệt** → **dev** → **reviewer + tester + marketing** song song (tối đa 2 vòng sửa) → **ba** cập nhật tài liệu → báo cáo, hỏi trước khi commit/PR.
+- `/feature <yêu cầu>`: worktree + nhánh → **ba** viết DR (thêm **marketing** nếu người dùng/người xem thấy kết quả) → **dừng chờ người dùng duyệt** → **dev** → **reviewer + tester + marketing** song song, thêm **techlead** khi chạm backend/hạ tầng/bảo mật/hiệu năng/kiến trúc (tối đa 2 vòng sửa; bug không sửa trong vòng → issue qua `/bug`) → **ba** cập nhật tài liệu → báo cáo, hỏi trước khi commit/PR.
+- `/bug <mô tả> | #<số>`: ghi bug thành **GitHub issue** (mẫu `.github/ISSUE_TEMPLATE/bug.md`, nhãn `bug` + `role:dev` + `role:tester` + `role:ba`, assignee là người dùng) → hỏi người dùng → **dev** sửa trong worktree `fix/issue-<số>-…` → **tester + reviewer** (+ **techlead**) → **ba** ghi `TODO.md` → comment kết quả vào issue → hỏi trước khi commit/PR (`Fixes #<số>`). Bug tìm thấy trong `/feature` mà không sửa trong vòng đó cũng đi đường này.
 - `/video-review [thư mục…]`: **marketing** review từng video (bỏ trống = mọi video Chờ duyệt) → bảng tổng hợp → người dùng chọn đề xuất → áp dụng qua API Studio (`PUT` + `render`), **không** tự duyệt.
+- `/tech-audit <vùng>`: **techlead** audit hạ tầng, backend, bộ nhớ, bảo mật, kiến trúc → Bug thì ghi issue qua `/bug`, Nợ kỹ thuật thì **ba** ghi `TODO.md`.
+- `/travel-review [thư mục…] | studio`: **marketing** review video du lịch (T1–T12) hoặc chức năng travel trên Studio.
+- `/post-analytics [file số liệu]`: **marketing** phân tích số liệu TikTok Studio (người vận hành nhập, API không đọc được) → `storage/analytics/` → **ba** ghi điều rút ra vào `TODO.md`.
+- `/dev-selfcheck`: sổ tay tự kiểm theo lớp của **dev** (agent tự dùng).
+- Skill của agent khai báo ở trường `skills:` trong frontmatter, trỏ tới lệnh trong `agent/commands/` (không đặt ở `agent/skills/` vì `/sync` xoá). Các skill SSoT (`review`, `survey`, `fix`…) không gán cho agent vì cần `workflow_step.py` đang hỏng.
 - Khung hình cho review: `.venv/bin/python scripts/review_frames.py storage/videos/<thư mục>` → `storage/review-frames/<thư mục>/` (gitignored).
 
 ---

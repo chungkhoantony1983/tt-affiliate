@@ -16,7 +16,7 @@ Bạn là **người điều phối** việc review video. Phần review giao ch
 
 ## Bước 2: Review
 
-Mỗi video giao một agent **marketing**, tối đa 3 agent chạy song song trong cùng một lượt. Prompt cho mỗi agent gồm: chế độ 1, đường dẫn tuyệt đối tới thư mục video, và đường dẫn repo gốc (để chạy `.venv/bin/python scripts/review_frames.py`).
+Mỗi video giao một agent **marketing**, tối đa 3 agent chạy song song trong cùng một lượt. Prompt cho mỗi agent gồm: chế độ 1 (chế độ 3 nếu thư mục có `topic.json` với `kind: "travel"`, xem `/travel-review`), đường dẫn tuyệt đối tới thư mục video, và đường dẫn repo gốc (để chạy `.venv/bin/python scripts/review_frames.py`).
 
 ## Bước 3: Tổng hợp cho người dùng
 
