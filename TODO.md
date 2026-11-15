@@ -7,7 +7,7 @@
 >
 > Ký hiệu: ✅ xong · 🟡 đang làm / làm dở · ⬜ chưa làm · ⛔ bị chặn (chờ bên ngoài)
 >
-> Cập nhật lần cuối: 2026-11-12
+> Cập nhật lần cuối: 2026-11-15
 
 ---
 
@@ -136,6 +136,18 @@ Khung mọi chuỗi bài: **mở đầu** (gợi tò mò, nguồn gốc, dành c
 - [ ] Đăng video mở đầu Bát Đoạn Cẩm, rồi bài 1
 - [ ] Thái Cực Quyền 24 thức: soạn bước từng thức + mở đầu + tổng kết, người vận hành duyệt
 - [ ] (Sau) Chuỗi Tabata không dụng cụ theo cùng khung
+
+### M2d — Video du lịch Việt Nam tiếng Anh, không bán hàng (2026-11-15)
+Capability mới `travel-content`: mỗi video trả lời 1 câu hỏi thật của du khách (visa, đi lại, văn hoá, ẩm thực),
+giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thiết kế: DR-0002, `docs/specs/architecture/capabilities/travel-content.md`.
+- [x] Lập kế hoạch, người dùng chốt: kênh hiện tại · giọng Mỹ · hình Pixabay / nguồn có giấy phép · có phụ đề VI (2026-11-15)
+- [x] DR-0002 + spec L3
+- [x] Người dùng duyệt DR-0002 (merge PR #11, 2026-11-15)
+- [ ] P0: hồ sơ `content/travel/` (điểm đến `vn`, đối tượng `en-us`, chủ đề), tab `Travel` trên Sheet + 30 câu hỏi đầu
+- [x] Thiết kế mở rộng: thêm nước / chủ đề / đối tượng = thêm hồ sơ JSON, không sửa code (C-0002-5, 2026-11-15)
+- [ ] P1: `travel.py` (research → check nguồn → script EN/VI → Pixabay/Pexels/Wikimedia → edge-tts en-US → dựng), Studio nhận thư mục travel
+- [ ] P2: đăng 10–15 video, ghi % người xem US / CA / AU vào §4
+- [ ] P3 (DR riêng): tự tìm chủ đề xu hướng (YouTube Data API, Google Trends)
 
 ### M3 — Đăng & học từ dữ liệu
 - [ ] Đăng tay 10 video đầu, gắn sản phẩm, ghi kết quả vào §4
