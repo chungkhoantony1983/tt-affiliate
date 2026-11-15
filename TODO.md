@@ -143,7 +143,8 @@ giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thi�
 - [x] Lập kế hoạch, người dùng chốt: kênh hiện tại · giọng Mỹ · hình Pixabay / nguồn có giấy phép · có phụ đề VI (2026-11-15)
 - [x] DR-0002 + spec L3 (chờ duyệt)
 - [ ] Người dùng duyệt DR-0002
-- [ ] P0: `content/travel_sources.json`, tab `Travel` trên Sheet + 30 câu hỏi đầu
+- [ ] P0: hồ sơ `content/travel/` (điểm đến `vn`, đối tượng `en-us`, chủ đề), tab `Travel` trên Sheet + 30 câu hỏi đầu
+- [x] Thiết kế mở rộng: thêm nước / chủ đề / đối tượng = thêm hồ sơ JSON, không sửa code (C-0002-5, 2026-11-15)
 - [ ] P1: `travel.py` (research → check nguồn → script EN/VI → Pixabay/Pexels/Wikimedia → edge-tts en-US → dựng), Studio nhận thư mục travel
 - [ ] P2: đăng 10–15 video, ghi % người xem US / CA / AU vào §4
 - [ ] P3 (DR riêng): tự tìm chủ đề xu hướng (YouTube Data API, Google Trends)

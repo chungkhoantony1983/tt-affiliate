@@ -1,4 +1,4 @@
-# DR-0002: Video du lịch, văn hoá, ẩm thực Việt Nam bằng tiếng Anh (travel-content)
+# DR-0002: Video du lịch, văn hoá, ẩm thực theo hồ sơ điểm đến / chủ đề / đối tượng; bản đầu: Việt Nam, tiếng Anh (travel-content)
 
 | Trạng thái | Ngày | Đề xuất | Duyệt |
 |-----------|------|---------|-------|
@@ -28,6 +28,7 @@ Vai trò: **BA** viết DR + tài liệu · **Dev** code · **Reviewer** soát d
 | U-2 | Giọng | **Giọng Mỹ** |
 | U-3 | Hình ảnh | **Pixabay hoặc nguồn trên Internet**, hiểu là nguồn có giấy phép cho dùng lại (Pixabay, Pexels, Wikimedia Commons CC/PD), ghi nguồn và giấy phép từng clip/ảnh |
 | U-4 | Phụ đề tiếng Việt | **Có** |
+| U-5 | Mở rộng | Capability phải mở rộng được: **thêm nước khác, thêm chủ đề, thêm đối tượng** người xem (yêu cầu 2026-11-15) |
 
 **Ràng buộc hiện có**: chi phí $0 (P02); Gemini TTS 10 lượt/ngày mỗi model, đã chia cho video sản phẩm và bài tập; C-0001-1 (một bộ giọng/video); C-0001-2 (xử lý video chỉ ở script Python, Studio chỉ chạy subprocess); C-0001-4 (không đổi `app.html`); không có test suite.
 
@@ -38,6 +39,18 @@ Kế hoạch tổng thể (trụ cột nội dung, lộ trình P0–P3): doc "K�
 ## Quyết định
 
 > **Thêm module `travel.py` (gọi qua `demo.py --travel`), theo khuôn `exercise.py`. Chủ đề lấy từ tab `Travel` trên Google Sheet. Với mỗi chủ đề, code tải các trang nguồn trong danh sách cho phép, Groq trích dữ kiện kèm trích dẫn nguyên văn, code kiểm trích dẫn có thật trong trang, Groq viết lời đọc tiếng Anh + phụ đề tiếng Việt chỉ từ các dữ kiện đó, code kiểm lại mọi con số. Hình là clip Pixabay / Pexels và ảnh Wikimedia Commons có giấy phép. Giọng Mỹ bằng edge-tts. Duyệt trên Studio như video sản phẩm.**
+>
+> **Code không biết gì về Việt Nam, tiếng Anh hay người Mỹ. Mọi thứ riêng của một nước, một chủ đề, một nhóm người xem nằm trong 3 loại hồ sơ JSON: điểm đến (`destinations/`), chủ đề (`pillars.json`), đối tượng (`audiences/`). Thêm nước, chủ đề hay đối tượng = thêm hồ sơ, không sửa code (C-0002-5). Bản đầu tiên chỉ có 1 điểm đến `vn` và 1 đối tượng `en-us`.**
+
+### Ba trục mở rộng
+
+| Trục | Hồ sơ | Chứa gì | Ví dụ mở rộng sau này |
+|------|-------|---------|------------------------|
+| Điểm đến | `content/travel/destinations/<mã>.json` | Tên nước (theo từng ngôn ngữ), danh sách nguồn cho phép + tier, cách đọc tên riêng theo ngôn ngữ giọng, từ khoá tìm clip (`vietnam`, tên thành phố), câu "trang chính thức" | `th` (Thái Lan), `jp` (Nhật) |
+| Chủ đề | `content/travel/pillars.json` | Mã chủ đề, tên, mặc định `volatile`, tier tối thiểu, số đoạn `answer`, gợi ý hashtag | `nightlife`, `budget`, `family-travel`, `digital-nomad` |
+| Đối tượng | `content/travel/audiences/<mã>.json` | Ngôn ngữ lời đọc + giọng TTS, ngôn ngữ phụ đề (0–n), ngôn ngữ caption, thị trường mục tiêu (để đo P2), hashtag gốc, giọng văn (vd "friendly, plain American English") | `vi` (người Việt đi du lịch: giọng Việt, không phụ đề), `en-au`, `ko` |
+
+Mỗi hàng trong tab `Travel` chọn `destination` + `audience` + `pillar`; để trống thì lấy mặc định `TRAVEL_DESTINATION=vn`, `TRAVEL_AUDIENCE=en-us`. Một câu hỏi có thể làm cho nhiều đối tượng: dùng chung `facts.json` (dữ kiện không đổi theo người xem), chỉ viết lại lời và dựng lại.
 
 ---
 
@@ -60,42 +73,43 @@ Kế hoạch tổng thể (trụ cột nội dung, lộ trình P0–P3): doc "K�
 
 | Đối tượng | Nội dung |
 |-----------|----------|
-| Google Sheet, tab `Travel` (mới) | Cột: `question` (câu hỏi tiếng Anh, làm hook), `pillar` (`prep` / `getting-around` / `culture` / `food` / `places`), `source_urls` (mỗi dòng 1 URL, phải thuộc danh sách cho phép), `notes`, `facts_manual` (tuỳ chọn), `status`. `TRAVEL_SHEET_COLUMNS` trong `product_sources.py` |
-| `content/travel_sources.json` (mới) | Danh sách nguồn cho phép: `domain`, `name`, `tier` (1 = cơ quan nhà nước / tổ chức quốc tế, 2 = báo chính thống, cẩm nang uy tín), `pillars`. Danh sách đầu tiên ở spec |
-| `content/travel_pronunciations.json` (mới) | Cách đọc tên Việt cho giọng Mỹ, vd `"Phở": "fuh"`, `"Hội An": "hoy an"`. Chỉ đổi chữ gửi cho TTS, chữ trên màn hình giữ nguyên dấu |
-| Thư mục video `storage/videos/<ngày>_travel_<slug>/` | Như video sản phẩm, **thay** `product.json` bằng `topic.json`; thêm `facts.json`, `credits.txt`, `clip_N.mp4` / `img_N.<ext>` |
-| `topic.json` | `question`, `pillar`, `source_urls`, `notes`, `kind: "travel"` |
+| Google Sheet, tab `Travel` (mới) | Cột: `question` (câu hỏi bằng ngôn ngữ của đối tượng, làm hook), `destination` (mặc định `vn`), `audience` (mặc định `en-us`), `pillar` (mã trong `pillars.json`), `source_urls` (mỗi dòng 1 URL, phải thuộc nguồn cho phép của điểm đến), `notes`, `facts_manual` (tuỳ chọn), `status`. `TRAVEL_SHEET_COLUMNS` trong `product_sources.py` |
+| `content/travel/destinations/vn.json` (mới) | Hồ sơ điểm đến Việt Nam: `name` theo ngôn ngữ, `sources[]` (`domain`, `name`, `tier` 1 = cơ quan nhà nước / tổ chức quốc tế, 2 = báo chính thống, cẩm nang uy tín, `pillars`), `pronunciations` theo ngôn ngữ giọng (vd `en`: `"Phở": "fuh"`, `"Hội An": "hoy an"`; chỉ đổi chữ gửi TTS), `media_keywords`, `official_check_line` |
+| `content/travel/pillars.json` (mới) | `prep`, `getting-around`, `culture`, `food`, `places`: tên, `volatile` mặc định, `min_tier`, số đoạn `answer`, hashtag gợi ý |
+| `content/travel/audiences/en-us.json` (mới) | `voice_lang: "en-US"`, `voices` (edge-tts / Gemini, nam / nữ), `subtitle_langs: ["vi"]`, `caption_lang: "en"`, `markets: ["US", "CA", "AU"]`, `base_hashtags`, `tone`, `labels` (chữ cố định trên màn hình: "Info as of", "Source", "Follow for more … tips") |
+| Thư mục video `storage/videos/<ngày>_travel_<điểm đến>_<đối tượng>_<slug>/` | Như video sản phẩm, **thay** `product.json` bằng `topic.json`; thêm `facts.json`, `credits.txt`, `clip_N.mp4` / `img_N.<ext>` |
+| `topic.json` | `question`, `destination`, `audience`, `pillar`, `source_urls`, `notes`, `kind: "travel"`. Lưu bản sao hồ sơ đã dùng (`profile_snapshot`) để dựng lại vẫn ra đúng như cũ khi hồ sơ đổi |
 | `facts.json` | `[{id, claim, quote, url, source_name, tier, checked_on, volatile}]`. `quote` là đoạn nguyên văn có trong trang lúc tải; `volatile=true` cho visa, phí, giá, luật, giờ mở cửa |
-| `script.json` | `lang: "en"`, `kind: "travel"`, `tts_provider`, `voice`, `hook`, `caption`, `hashtags`, `segments[]`: `kind` (`hook` / `answer` / `outro`), `line` (lời đọc EN), `line_vi` (phụ đề VI), `text` (chữ lớn EN, ≤ 6 từ), `fact_ids[]`, `media` (chỉ số trong `credits`), `audio_line`, `duration` |
+| `script.json` | `lang` (ngôn ngữ lời đọc, vd `en`), `kind: "travel"`, `tts_provider`, `voice`, `hook`, `caption`, `hashtags`, `segments[]`: `kind` (`hook` / `answer` / `outro`), `line` (lời đọc), `subs` (phụ đề theo ngôn ngữ, vd `{"vi": "…"}`; Studio gọi là "phụ đề VI"), `text` (chữ lớn, ≤ 6 từ), `fact_ids[]`, `media` (chỉ số trong `credits`), `audio_line`, `duration` |
 | `credits.txt` + `script.json → media[]` | Mỗi clip/ảnh: `provider` (`pixabay` / `pexels` / `wikimedia`), `id`, `page` (URL trang), `author`, `license` (vd `Pixabay Content License`, `CC BY-SA 4.0`) |
 | `status` (tab `Travel`) | Như tab sản phẩm: trống = cần làm; `review`, `done`, `skip`; thêm `needs_sources` (không trích được dữ kiện hợp lệ nào) |
-| `.env` | `PEXELS_API_KEY` (tuỳ chọn), `PIXABAY_API_KEY` (đã có), `TRAVEL_TTS_PROVIDER` (`edge` mặc định), `TRAVEL_VOICE` (`en_us_male` mặc định / `en_us_female`), `TRAVEL_TAB` (`Travel`) |
+| `.env` | `PEXELS_API_KEY` (tuỳ chọn), `PIXABAY_API_KEY` (đã có), `TRAVEL_TTS_PROVIDER` (`edge` mặc định), `TRAVEL_DESTINATION` (`vn`), `TRAVEL_AUDIENCE` (`en-us`), `TRAVEL_TAB` (`Travel`). Giọng cụ thể nằm trong hồ sơ đối tượng, không ở `.env` |
 
 ### Luồng hệ thống
 
 ```
-demo.py --travel [--sheet] [--tab Travel]
+demo.py --travel [--sheet] [--tab Travel] [--destination vn] [--audience en-us]
   → hàng đầu tiên status trống
-  → research    tải từng source_url (chỉ domain trong travel_sources.json)
+  → research    tải từng source_url (chỉ domain trong nguồn cho phép của hồ sơ điểm đến)
                 → Groq trích fact {claim, quote} → code giữ fact có quote nằm nguyên văn trong trang
                 → 0 fact hợp lệ: status=needs_sources, dừng (chưa tốn lượt TTS)
-  → write       Groq viết segments EN + line_vi chỉ từ facts (id)
+  → write       Groq viết segments (ngôn ngữ + giọng văn của hồ sơ đối tượng) + phụ đề subs chỉ từ facts (id)
   → check       C-0002-1: mỗi segment answer có fact_ids hợp lệ; mọi con số trong line/text có trong quote
                 của fact được trích; sai → gọi lại Groq 1 lần với danh sách lỗi → vẫn sai: dừng, status=needs_sources
   → media       mỗi segment: tìm clip Pixabay (bỏ hit gắn tag AI) → Pexels → ảnh Wikimedia Commons
                 (chỉ giấy phép trong danh sách cho phép, C-0002-3); ghi credits
-  → voice       edge-tts giọng Mỹ (hoặc Gemini nếu bật), chữ gửi TTS đã qua travel_pronunciations
-  → render      1080×1920: clip phủ khung, chữ lớn EN phía trên, phụ đề EN + VI phía dưới (trong vùng an toàn),
-                outro: "Info as of <tháng năm> · Source: <tên nguồn>" + "Check the official site before you go"
+  → voice       giọng theo hồ sơ đối tượng (en-US: edge-tts giọng Mỹ, hoặc Gemini nếu bật), chữ gửi TTS đã qua pronunciations của điểm đến
+  → render      1080×1920: clip phủ khung, chữ lớn phía trên, phụ đề lời đọc + phụ đề subs (VI) phía dưới (trong vùng an toàn),
+                outro: labels của hồ sơ đối tượng ("Info as of <tháng năm> · Source: <tên nguồn>") + official_check_line
   → status=review, giữ thư mục → Studio
-  → demo.py --approve DIR   → post.txt (caption EN + nguồn + credits) → Drive video_output/travel/<slug>/ → status=done
+  → demo.py --approve DIR   → post.txt (caption EN + nguồn + credits) → Drive video_output/travel/<điểm đến>/<slug>/ → status=done
 ```
 
 `demo.py --travel --render-only DIR` và `--approve DIR` tự nhận thư mục travel nhờ `topic.json`.
 
 ### Studio (DR-0001)
 
-- `api/studio.py`: thư mục có `topic.json` được nhận là **travel**, không phải "Chỉ xem". Cho sửa `caption`, `hashtags`, `text`, `line`, `line_vi` từng cảnh; cho chạy `render` và `approve` (gọi `demo.py --render-only` / `--approve` như cũ).
+- `api/studio.py`: thư mục có `topic.json` được nhận là **travel**, không phải "Chỉ xem". Cho sửa `caption`, `hashtags`, `text`, `line`, `subs` từng cảnh; cho chạy `render` và `approve` (gọi `demo.py --render-only` / `--approve` như cũ).
 - Trang Studio hiện thêm: danh sách dữ kiện (claim + nguồn, có link), ô phụ đề VI từng cảnh, credits. Đây là bước người vận hành **duyệt dữ kiện** ở P1 (gộp với duyệt video).
 - Sửa `line` (EN) trên Studio: code chạy lại kiểm số (C-0002-1). Số mới không có trong quote → Studio báo lỗi, không dựng.
 
@@ -114,7 +128,8 @@ demo.py --travel [--sheet] [--tab Travel]
 
 | # | Việc | Vai trò | Output | Vị trí |
 |---|------|---------|--------|--------|
-| 1 | Danh sách nguồn + cách đọc tên Việt + 30 câu hỏi đầu (từ FAQ vietnam.travel, Google Trends US/CA/AU) | BA | JSON + tab Sheet | `content/`, Sheet |
+| 1 | Hồ sơ `vn.json` (nguồn, cách đọc tên Việt), `pillars.json`, `en-us.json` + 30 câu hỏi đầu (từ FAQ vietnam.travel, Google Trends US/CA/AU) | BA | JSON + tab Sheet | `content/travel/`, Sheet |
+| 1b | Nạp + kiểm hồ sơ (`load_profiles`): thiếu trường, mã lạ, ngôn ngữ phụ đề không có font → lỗi rõ ràng trước khi gọi AI | Dev | Code | `travel.py` |
 | 2 | Đọc tab `Travel`, `research` (tải trang, trích fact, kiểm quote), `write`, `check` | Dev | Code | `travel.py`, `product_sources.py` |
 | 3 | `media`: Pixabay (dùng lại `exercise._pixabay_search` pattern), Pexels, Wikimedia Commons API; credits | Dev | Code | `travel.py` |
 | 4 | Giọng Mỹ edge-tts + pronunciations; render clip + phụ đề EN/VI + outro nguồn | Dev | Code | `travel.py` (dùng `exercise._clip_input`, `_pingpong`, `demo._font`…) |
@@ -137,7 +152,7 @@ demo.py --travel [--sheet] [--tab Travel]
 | R-3 | Rủi ro | Dữ kiện đúng lúc dựng nhưng đổi sau khi đăng (visa) | Màn hình cuối ghi tháng năm; `--approve` từ chối nếu fact `volatile` có `checked_on` quá 30 ngày (C-0002-2) |
 | R-4 | Rủi ro | Clip Pixabay không đúng địa danh (vd "Ha Long" ra cảnh Thái Lan) | Tìm theo từ khoá có tên địa danh + bắt buộc tag chứa "vietnam" hoặc tên địa danh; không có thì dùng ảnh Wikimedia Commons của đúng địa danh. MKTG soát ở bước duyệt |
 | R-5 | Rủi ro | Kênh hiện tại có người xem Việt, thuật toán ít đẩy cho US/CA/AU | Chấp nhận theo U-1. Đo % quốc gia ở P2 (TikTok Analytics), ghi `TODO.md` |
-| R-6 | Rủi ro | Phụ đề VI do Groq dịch sai chính tả | Model `qwen/qwen3.8-27b` (đã chọn vì đúng chính tả); người vận hành sửa `line_vi` trên Studio |
+| R-6 | Rủi ro | Phụ đề VI do Groq dịch sai chính tả | Model `qwen/qwen3.8-27b` (đã chọn vì đúng chính tả); người vận hành sửa phụ đề VI trên Studio |
 | R-7 | Rủi ro | Wikimedia Commons: giấy phép BY-SA yêu cầu ghi công đúng cách | Ghi tác giả + giấy phép + link trong `credits.txt` và caption; chữ nhỏ trên khung khi dùng ảnh BY/BY-SA |
 | A-1 | Giả định | edge-tts có giọng `en-US-*Neural` chạy được từ máy nhà | Dev kiểm ở việc 4 |
 | A-2 | Giả định | Pexels API miễn phí với API key | Không có key thì bỏ qua Pexels |
@@ -151,7 +166,8 @@ demo.py --travel [--sheet] [--tab Travel]
 | C-0002-1 | Mỗi segment `answer` có ≥ 1 `fact_id` hợp lệ. Mọi con số (tiền, ngày, %, số lượng) trong `line` / `text` phải xuất hiện trong `quote` của fact được trích. Code kiểm trước khi gọi TTS và trước khi dựng lại | Không có câu nào thiếu nguồn | `travel.py` | — |
 | C-0002-2 | Fact `volatile` chỉ dùng khi `checked_on` ≤ 30 ngày; `--approve` từ chối (exit 4) nếu quá hạn. Màn hình cuối và caption ghi nguồn + tháng năm | Visa, phí, luật đổi thường xuyên | `travel.py` | — |
 | C-0002-3 | Chỉ dùng clip/ảnh có giấy phép cho dùng lại, lấy qua API của Pixabay, Pexels, Wikimedia Commons (giấy phép: Pixabay/Pexels License, CC0, PD, CC BY, CC BY-SA). Mỗi media phải có `provider`, `page`, `license`; thiếu thì không dựng. Không lấy ảnh từ Google, Instagram, TikTok, blog | Bản quyền (U-3) | `travel.py` | — |
-| C-0002-4 | Nguồn dữ kiện chỉ thuộc `content/travel_sources.json`. Dữ kiện visa / y tế / an toàn / luật phải có nguồn `tier=1`. Video loại này kết thúc bằng "Check the official site before you go" | Không tư vấn thay cơ quan chức năng | `travel.py` | — |
+| C-0002-4 | Nguồn dữ kiện chỉ thuộc danh sách `sources` của hồ sơ điểm đến. Dữ kiện visa / y tế / an toàn / luật phải có nguồn `tier=1`. Video loại này kết thúc bằng "Check the official site before you go" | Không tư vấn thay cơ quan chức năng | `travel.py` | — |
+| C-0002-5 | `travel.py`, prompt và trang Studio không chứa chữ riêng của một nước, một ngôn ngữ hay một nhóm người xem (tên nước, "Vietnam", "en-US", hashtag, câu outro). Mọi thứ đó đọc từ hồ sơ. Thêm điểm đến / chủ đề / đối tượng chỉ cần thêm hoặc sửa file trong `content/travel/` | Mở rộng sang nước, chủ đề, đối tượng khác mà không sửa code (U-5) | `travel.py`, `studio.html` | — |
 
 supersedes: —
 
@@ -171,7 +187,7 @@ supersedes: —
 
 ## File code thay đổi (dự kiến)
 
-- `travel.py` (mới), `content/travel_sources.json` (mới), `content/travel_pronunciations.json` (mới)
+- `travel.py` (mới), `content/travel/destinations/vn.json`, `content/travel/pillars.json`, `content/travel/audiences/en-us.json` (mới)
 - `demo.py`: `--travel`, nhận thư mục travel ở `--render-only` / `--approve`
 - `product_sources.py`: `TRAVEL_SHEET_COLUMNS`, đọc tab theo cột riêng
 - `backend/app/api/studio.py`, `backend/app/web/studio.html`: thư mục travel
@@ -194,10 +210,12 @@ supersedes: —
 | D-7 | Media thiếu `license` hoặc giấy phép ngoài danh sách | Không dựng | Hàm kiểm |
 | D-8 | Hit Pixabay có tag "ai generated" | Bị bỏ | Hàm kiểm |
 | D-9 | Dựng đủ | `video.mp4` 1080×1920, có phụ đề EN + VI, màn hình cuối có nguồn + tháng năm; `credits.txt` đủ dòng | Chạy thật (edge) + khung hình `scripts/review_frames.py` |
-| D-10 | Tên Việt có trong `travel_pronunciations.json` | Chữ gửi TTS đã đổi, chữ trên màn hình còn dấu | Đọc `script.json` + log |
+| D-10 | Tên Việt có trong `pronunciations.en` của `vn.json` | Chữ gửi TTS đã đổi, chữ trên màn hình còn dấu | Đọc `script.json` + log |
 | D-11 | `--approve` với fact volatile `checked_on` 31 ngày trước | exit 4, thông báo tiếng Việt | Sửa ngày trên bản sao |
-| D-12 | Studio: thư mục travel | Hiện facts, phụ đề VI, credits; sửa `line_vi` → Dựng lại → video mới; sửa `line` thêm số không có nguồn → lỗi, không dựng | TestClient + chạy thật |
+| D-12 | Studio: thư mục travel | Hiện facts, phụ đề VI, credits; sửa phụ đề VI → Dựng lại → video mới; sửa `line` thêm số không có nguồn → lỗi, không dựng | TestClient + chạy thật |
 | D-13 | Hồi quy: video sản phẩm (`--csv`, `--sheet`), `--exercise`, Studio thư mục sản phẩm / bài tập, `/api/creator` | Như cũ | Đọc diff + chạy `--style simple` trên CSV mẫu |
+| D-14 | Thêm hồ sơ thử `destinations/xx.json` + `audiences/xx.json` (tạm, trên bản sao) với ngôn ngữ khác, không sửa code | Chạy được tới bước `check` với JSON Groq giả lập; chữ outro, hashtag, giọng lấy từ hồ sơ mới; `grep` không thấy `Vietnam`/`en-US` cứng trong `travel.py` | Chạy thật + grep |
+| D-15 | Hồ sơ thiếu trường bắt buộc / `pillar` không có trong `pillars.json` | Dừng trước khi gọi AI, thông báo tiếng Việt nêu file + trường | Hàm kiểm |
 
 ### Bảng quyết định: tài liệu
 
@@ -232,6 +250,7 @@ supersedes: —
 - Tự tìm URL nguồn cho câu hỏi (P3). P1 người vận hành dán URL.
 - Nhắc kiểm lại video cũ khi luật đổi.
 - Kiếm tiền từ video travel.
+- Hồ sơ thứ hai (nước khác, đối tượng `vi`…): thiết kế đã sẵn, nhưng chỉ thêm khi P2 cho thấy `vn` + `en-us` có người xem. Thêm khi đó không cần DR mới nếu không đổi code.
 
 ---
 
