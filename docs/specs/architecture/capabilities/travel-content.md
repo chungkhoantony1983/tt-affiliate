@@ -5,7 +5,7 @@
 > chủ đề hay đối tượng mới không cần sửa code (C-0002-5). Bản đầu: điểm đến `vn`, đối tượng `en-us`
 > (tiếng Anh giọng Mỹ, phụ đề tiếng Việt).
 >
-> Quyết định và lý do: `docs/decision-records/DR-0002-travel-content.md`. Trạng thái: **thiết kế (chờ duyệt)**,
+> Quyết định và lý do: `docs/decision-records/DR-0002-travel-content.md`. Trạng thái: **thiết kế đã duyệt**,
 > chưa có code.
 
 ---

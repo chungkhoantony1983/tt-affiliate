@@ -2,7 +2,7 @@
 
 | Trạng thái | Ngày | Đề xuất | Duyệt |
 |-----------|------|---------|-------|
-| 📝 Chờ duyệt | 2026-11-15 | Claude (BA) | chungkhoantony1983 (đã chốt kênh, giọng, hình ảnh, phụ đề ngày 2026-11-15; chờ duyệt DR) |
+| ✅ Đã duyệt | 2026-11-15 | Claude (BA) | chungkhoantony1983 (chốt kênh, giọng, hình ảnh, phụ đề, mở rộng theo hồ sơ; yêu cầu merge PR #11 ngày 2026-11-15) |
 
 Capability: `travel-content` (mới) · Nhánh: `claude/project-thread-keb356` · Spec: `docs/specs/architecture/capabilities/travel-content.md`
 
