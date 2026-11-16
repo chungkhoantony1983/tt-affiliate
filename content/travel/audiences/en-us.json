@@ -1,0 +1,43 @@
+{
+  "_doc": "Hồ sơ đối tượng người xem: nói tiếng Anh ở Mỹ, Canada, Úc; người Việt xem phụ đề (DR-0002, C-0002-5). Giọng, ngôn ngữ phụ đề, caption, giọng văn, chữ cố định trên màn hình đều đọc từ đây. Khoá bắt đầu bằng '_' là ghi chú. Trong 'labels', {month_year}, {source}, {destination}, {author}, {license} là chỗ code điền vào; {destination} lấy từ destinations/<mã>.json → name[caption_lang].",
+  "code": "en-us",
+  "script_lang": "en",
+  "voice_lang": "en-US",
+  "caption_lang": "en",
+  "subtitle_langs": ["vi"],
+  "markets": ["US", "CA", "AU"],
+
+  "_voices_doc": "Mặc định edge-tts (miễn phí, không ăn lượt Gemini). Tên giọng edge đã kiểm bằng 'edge-tts --list-voices' ngày 2026-11-16 (có en-US-AndrewNeural, en-US-AvaNeural). Gemini chỉ dùng khi TRAVEL_TTS_PROVIDER=gemini, model TRAVEL_GEMINI_TTS_MODEL; Puck / Kore là tên giọng dựng sẵn đang dùng trong demo.py. profile / notes là phần AUDIO PROFILE / DIRECTOR'S NOTES của prompt Gemini, viết bằng ngôn ngữ lời đọc.",
+  "voices": {
+    "default": "male",
+    "edge": {
+      "male": {"voice": "en-US-AndrewNeural", "rate": "+0%", "pitch": "+0Hz"},
+      "female": {"voice": "en-US-AvaNeural", "rate": "+0%", "pitch": "+0Hz"}
+    },
+    "gemini": {
+      "male": {"voice": "Puck", "profile": "A friendly American man in his early 30s who has travelled a lot, talking to a friend on TikTok."},
+      "female": {"voice": "Kore", "profile": "A friendly American woman in her early 30s who has travelled a lot, talking to a friend on TikTok."},
+      "notes": "Natural, warm, conversational General American accent, not a news anchor. Clear and unhurried. Read the TRANSCRIPT exactly once, word for word, without adding or skipping words, and never read these notes aloud."
+    }
+  },
+
+  "_subtitle_font_doc": "Chuỗi thử font cho từng ngôn ngữ phụ đề: travel.py kiểm font demo._font có đủ mọi ký tự này, thiếu thì dừng trước khi gọi AI (D-15).",
+  "subtitle_font_check": {
+    "vi": "ĂăÂâĐđÊêÔôƠơƯưÀàẢảÃãÁáẠạẰằẲẳẴẵẮắẶặẦầẨẩẪẫẤấẬậÈèẺẻẼẽÉéẸẹỀềỂểỄễẾếỆệÌìỈỉĨĩÍíỊịÒòỎỏÕõÓóỌọỒồỔổỖỗỐốỘộỜờỞởỠỡỚớỢợÙùỦủŨũÚúỤụỪừỬửỮữỨứỰựỲỳỶỷỸỹÝýỴỵ"
+  },
+
+  "tone": "Friendly, plain American English, like a well-travelled friend answering a question. Short sentences (under 15 words). Use digits for numbers, dollars as $ (for example $25). No slang that needs explaining, no hype words (insane, must-see, hidden gem), no personal stories or 'I tried', no advice beyond what the facts say.",
+  "subtitle_tone": {
+    "vi": "Tiếng Việt tự nhiên, đúng chính tả, câu ngắn, dịch sát nghĩa lời đọc; giữ nguyên mọi con số và đơn vị như lời đọc; tên riêng Việt Nam viết có dấu."
+  },
+  "base_hashtags": ["#traveltips"],
+
+  "labels": {
+    "info_as_of": "Info as of {month_year}",
+    "source": "Source: {source}",
+    "follow": "Follow for more {destination} tips",
+    "photo_credit": "Photo: {author}, {license}",
+    "illustration": "Illustrative footage"
+  },
+  "month_names": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+}

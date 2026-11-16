@@ -143,7 +143,10 @@ giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thi�
 - [x] Lập kế hoạch, người dùng chốt: kênh hiện tại · giọng Mỹ · hình Pixabay / nguồn có giấy phép · có phụ đề VI (2026-11-15)
 - [x] DR-0002 + spec L3
 - [x] Người dùng duyệt DR-0002 (merge PR #11, 2026-11-15)
-- [ ] P0: hồ sơ `content/travel/` (điểm đến `vn`, đối tượng `en-us`, chủ đề), tab `Travel` trên Sheet + 30 câu hỏi đầu
+- [x] P0: hồ sơ `content/travel/` (điểm đến `vn`, đối tượng `en-us`, `pillars.json`) + 30 câu hỏi đầu ở `content/travel/seed-questions.csv` (2026-11-16, nhánh `feat/travel-p1`). Chi tiết thực thi: spec `travel-content.md` § Chi tiết thực thi P1
+- [ ] **[Bạn]** Tạo tab `Travel` trên Google Sheet: Tệp → Nhập → tải `content/travel/seed-questions.csv` lên. 2 hàng `skip` (hộ chiếu, tàu Bắc Nam) chờ chốt nguồn vì hai trang vietnam.travel ghi khác nhau
+- [ ] Nợ kỹ thuật (Tech Lead 2026-11-16): tách phần dựng clip dùng chung của `exercise.py` / `travel.py` ra `clipkit.py`. `_pingpong` (filter `reverse`) giữ mọi khung hình trong RAM: đo được 688 MB cho clip 720×1280 10 s
+- [ ] **[Bạn]** Video visa người Mỹ (V-1): travel.state.gov chặn tải tự động, cần mở trang bằng trình duyệt và chép câu về visa vào cột `facts_manual`
 - [x] Thiết kế mở rộng: thêm nước / chủ đề / đối tượng = thêm hồ sơ JSON, không sửa code (C-0002-5, 2026-11-15)
 - [ ] P1: `travel.py` (research → check nguồn → script EN/VI → Pixabay/Pexels/Wikimedia → edge-tts en-US → dựng), Studio nhận thư mục travel
 - [ ] P2: đăng 10–15 video, ghi % người xem US / CA / AU vào §4
