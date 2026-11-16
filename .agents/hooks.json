@@ -1,0 +1,12 @@
+{
+  "branch-observer": {
+    "enabled": true,
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "python3 ./scripts/session_observer.py",
+        "timeout": 15
+      }
+    ]
+  }
+}
