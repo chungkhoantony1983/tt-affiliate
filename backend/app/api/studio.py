@@ -17,12 +17,13 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from app.api import studio_travel
 from app.core.config import settings
 
 router = APIRouter(prefix="/api/studio", tags=["studio"])
@@ -36,8 +37,8 @@ MAX_PRODUCT_IMAGES = 3  # demo.render_video uses the first 3
 SERVED_FILE = re.compile(r"^(canh_\d+|anh_sp_\d+|img_\d+)\.(png|jpg|jpeg|webp)$")
 LOCAL_HOSTS = {"127.0.0.1", "localhost"}
 
-# demo.py exit codes (EXIT_REVOICE_FAILED, EXIT_NOT_READY)
-ERROR_KINDS = {3: "revoice", 4: "not_ready"}
+# demo.py exit codes (EXIT_REVOICE_FAILED, EXIT_NOT_READY; travel: 5 wrong number, 6 stale facts)
+ERROR_KINDS = {3: "revoice", 4: "not_ready", 5: "fact_check", 6: "facts_stale", 7: "drive_failed"}
 
 
 # ---------------------------------------------------------------------------
@@ -85,13 +86,17 @@ def _write_json(path: Path, data: dict) -> None:
 def _editable(folder: Path) -> bool:
     """Folders made by demo.py. Exercise videos made outside the repo (no product.json) are view-only."""
     script = _read_json(folder / "script.json")
-    return (folder / "product.json").is_file() and bool(script.get("segments"))
+    return ((folder / "product.json").is_file() or studio_travel.is_travel(folder)) and bool(script.get("segments"))
 
 
 def _title(folder: Path, product: dict, script: dict) -> str:
     """Product name; for view-only folders the first caption line, else the folder name without its timestamp."""
     if product.get("name"):
         return product["name"]
+    if studio_travel.is_travel(folder):
+        question = str(_read_json(folder / "topic.json").get("question") or "").strip()
+        if question:
+            return question[:80]
     caption = (script.get("caption") or "").strip().splitlines()
     if caption:
         return caption[0][:60]
@@ -235,7 +240,9 @@ def job_status():
         drive = next((line.split("Drive:", 1)[1].strip() for line in lines if "Drive:" in line), None)
         return {**status, "state": "done", "drive_link": drive,
                 "folder_kept": (_videos_root() / _job["folder"]).is_dir()}
-    return {**status, "state": "error", "error_kind": ERROR_KINDS.get(code, "failed")}
+    notices = [l.strip() for l in lines if l.strip().startswith(("[FACT_CHECK] ", "[FACTS_STALE] ", "[DRIVE_FAILED] "))]
+    return {**status, "state": "error", "error_kind": ERROR_KINDS.get(code, "failed"),
+            "notices": notices[-8:], "repo_root": str(REPO_ROOT)}
 
 
 # ---------------------------------------------------------------------------
@@ -290,7 +297,7 @@ def video_detail(folder: str):
             "image_url": _file_url(path, image) if image else None,
             "image_prompt": prompts.get(i + 1, ""),
         })
-    return {
+    result = {
         **detail,
         "hook": script.get("hook", ""),
         "price": int(product.get("price") or 0),
@@ -301,6 +308,9 @@ def video_detail(folder: str):
         "voice_engine_known": known,
         "needs_render": bool(script.get("needs_render")),
     }
+    if studio_travel.is_travel(path):
+        result.update(studio_travel.travel_detail(path, script))
+    return result
 
 
 @router.get("/videos/{folder}/video")
@@ -324,6 +334,7 @@ def folder_file(folder: str, name: str):
 class SegmentEdit(BaseModel):
     line: str
     text: str = ""
+    subs: Optional[Dict[str, str]] = None  # travel only: {language code: subtitle}
 
 
 class VideoEdit(BaseModel):
@@ -350,22 +361,28 @@ def save_video(folder: str, edit: VideoEdit):
     _no_job_or_409()
     script = _read_json(path / "script.json")
     product = _read_json(path / "product.json")
+    travel = studio_travel.is_travel(path)
     needs_render = False
 
+    if travel and edit.caption is not None:
+        studio_travel.check_chars(edit.caption, "Lời giới thiệu")
     if edit.caption is not None:
         script["caption"] = edit.caption.strip()
     if edit.hashtags is not None:
         script["hashtags"] = _clean_hashtags(edit.hashtags)
-    if edit.hook is not None and edit.hook.strip() != (script.get("hook") or ""):
+    if edit.hook is not None and not travel and edit.hook.strip() != (script.get("hook") or ""):
         script["hook"] = edit.hook.strip()
         needs_render = True
-    if edit.price is not None:
+    if edit.price is not None and not travel:
         if edit.price < 0:
             raise HTTPException(status_code=400, detail="Giá không được âm")
         if edit.price != int(product.get("price") or 0):
             product["price"] = edit.price
             needs_render = True
-    if edit.segments is not None:
+    if edit.segments is not None and travel:
+        if studio_travel.apply_travel_edit(script, _read_json(path / "topic.json"), edit.segments):
+            needs_render = True
+    elif edit.segments is not None:
         segments = script["segments"]
         if len(edit.segments) != len(segments):
             raise HTTPException(status_code=400, detail="Số cảnh không khớp, hãy tải lại trang")
@@ -384,7 +401,8 @@ def save_video(folder: str, edit: VideoEdit):
     if needs_render:
         script["needs_render"] = True
     _write_json(path / "script.json", script)
-    _write_json(path / "product.json", product)
+    if not travel:
+        _write_json(path / "product.json", product)
     return video_detail(folder)
 
 
@@ -415,6 +433,8 @@ async def upload_image(folder: str, target: str, index: int, request: Request):
     target=product: index = product image slot 0-2, saved as anh_sp_{index+1} and set in product.json."""
     path = _folder_or_404(folder)
     _editable_or_409(path)
+    if studio_travel.is_travel(path):
+        raise HTTPException(status_code=400, detail="Video du lịch dùng clip tự động, không tải ảnh lên được")
     _no_job_or_409()
     if int(request.headers.get("content-length") or 0) > MAX_UPLOAD:
         raise HTTPException(status_code=413, detail="Ảnh quá lớn (tối đa 15 MB)")
