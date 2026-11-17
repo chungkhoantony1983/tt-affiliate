@@ -31,6 +31,28 @@
     "vi": "Tiếng Việt tự nhiên, đúng chính tả, câu ngắn, dịch sát nghĩa lời đọc; giữ nguyên mọi con số và đơn vị như lời đọc; tên riêng Việt Nam viết có dấu."
   },
   "base_hashtags": ["#traveltips"],
+  "_number_words_doc": "Số viết bằng chữ bị coi là lỗi (T-4): Groq phải viết bằng chữ số để code kiểm được. Dev thêm ở P1.",
+  "_number_words_doc2": "Theo từng ngôn ngữ (lời đọc, chữ lớn, phụ đề, hook, caption đều được kiểm). Tiếng Việt chỉ liệt kê cụm nhiều từ để khỏi báo nhầm ('năm' vừa là số 5 vừa là năm).",
+  "number_words": {
+    "en": ["two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+           "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
+           "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand",
+           "million", "dozen"],
+    "vi": ["mười lăm", "hai mươi", "ba mươi", "bốn mươi", "năm mươi", "sáu mươi", "bảy mươi", "tám mươi",
+           "chín mươi", "một trăm", "hai trăm", "một nghìn", "một triệu", "hai tuần", "ba tháng", "ba ngày",
+           "bảy ngày", "mười ngày", "mười bốn ngày"]
+  },
+  "_number_units_doc": "Lớp đơn vị đứng sau con số (T-4): '90 days' không được khớp với '90 USD'. Khoá = lớp, giá trị = các từ (mọi ngôn ngữ của lời đọc / phụ đề) thuộc lớp đó. Con số có đơn vị không nằm trong danh sách có lớp rỗng, khớp với mọi lớp (giới hạn đã biết).",
+  "number_units": {
+    "day": ["day", "days", "ngày"], "night": ["night", "nights", "đêm"], "week": ["week", "weeks", "tuần"],
+    "month": ["month", "months", "tháng"], "year": ["year", "years", "năm"], "hour": ["hour", "hours", "giờ"],
+    "minute": ["minute", "minutes", "min", "mins", "phút"], "km": ["km", "kilometer", "kilometers", "kilometre", "kilometres"],
+    "mile": ["mile", "miles", "dặm"], "person": ["people", "person", "persons", "visitors", "travelers", "travellers", "tourists", "người", "khách"]
+  },
+  "number_multipliers": {"thousand": 1000, "nghìn": 1000, "ngàn": 1000, "million": 1000000, "triệu": 1000000,
+                         "billion": 1000000000, "tỷ": 1000000000},
+  "_accept_language_doc": "Giá trị header Accept-Language khi tải trang nguồn (B-1); thiếu thì dùng script_lang.",
+  "accept_language": "en-US,en;q=0.9",
 
   "labels": {
     "info_as_of": "Info as of {month_year}",

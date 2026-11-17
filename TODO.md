@@ -144,11 +144,28 @@ giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thi�
 - [x] DR-0002 + spec L3
 - [x] Người dùng duyệt DR-0002 (merge PR #11, 2026-11-15)
 - [x] P0: hồ sơ `content/travel/` (điểm đến `vn`, đối tượng `en-us`, `pillars.json`) + 30 câu hỏi đầu ở `content/travel/seed-questions.csv` (2026-11-16, nhánh `feat/travel-p1`). Chi tiết thực thi: spec `travel-content.md` § Chi tiết thực thi P1
-- [ ] **[Bạn]** Tạo tab `Travel` trên Google Sheet: Tệp → Nhập → tải `content/travel/seed-questions.csv` lên. 2 hàng `skip` (hộ chiếu, tàu Bắc Nam) chờ chốt nguồn vì hai trang vietnam.travel ghi khác nhau
+- [x] DR-0008 (supersedes C-0002-1, C-0002-2, D-11; số 0008 vì 0002–0007 thuộc nhánh khác): fact quá hạn chặn `--approve` bằng exit 6 (`demo.py --travel --refresh-facts DIR` để làm mới), kiểm số cả `subs`/`hook`/`caption`; P1 chỉ edge-tts; không upload `clip_*`/`img_*` lên Drive. Người dùng duyệt 2026-11-16
+- [x] 2 hàng `skip` đã chốt nguồn (2026-11-16): hộ chiếu chỉ dùng trang visa-requirements, tàu Bắc-Nam chỉ dùng FAQ; hết `skip` trong `seed-questions.csv`
+- [ ] **[Bạn]** Tạo tab `Travel` trên Google Sheet: Tệp → Nhập → tải `content/travel/seed-questions.csv` lên
+- [ ] **[Bạn]** Nghe video phở (V-2) khi có, ghi từ đọc sai (tên món, địa danh Việt) để sửa `pronunciations` trong `content/travel/destinations/vn.json`
+- [ ] Bug [#15](https://github.com/chungkhoantony1983/tt-affiliate/issues/15): `--keep-local` bị bỏ qua khi chạy với `--exercise`. Chưa sửa, Dev xử lý qua `/bug`
 - [ ] Nợ kỹ thuật (Tech Lead 2026-11-16): tách phần dựng clip dùng chung của `exercise.py` / `travel.py` ra `clipkit.py`. `_pingpong` (filter `reverse`) giữ mọi khung hình trong RAM: đo được 688 MB cho clip 720×1280 10 s
-- [ ] **[Bạn]** Video visa người Mỹ (V-1): travel.state.gov chặn tải tự động, cần mở trang bằng trình duyệt và chép câu về visa vào cột `facts_manual`
+- [ ] **[Bạn]** Video visa người Mỹ (V-1): travel.state.gov chặn tải tự động, cần mở trang bằng trình duyệt và chép câu về visa vào cột `facts_manual` (dạng `claim | quote | url`)
+- [ ] Nợ kỹ thuật travel (kiểm cuối 2026-11-17, không chặn merge):
+  - UX Studio: sau khi Drive lỗi, danh sách vẫn gắn nhãn "Đã duyệt" vì `_label()` chỉ dựa vào `post.txt` (ghi trước khi upload). Đề xuất: ghi dấu riêng (vd `drive.ok`) sau upload thành công, hoặc đọc kết quả job gần nhất; banner và nút Duyệt lại vẫn đúng
+  - Reviewer gợi ý: hook dài cắt bằng "…" có thể kết thúc giữa cụm ("…from the…"); Studio báo "N dữ kiện bị ẩn" khi snapshot thiếu danh sách nguồn dù dữ kiện vẫn hiện (không link); tiền tố `refresh.` bỏ qua khi upload Drive hiện chỉ khớp `refresh.log`
+  - Đo lại RAM dựng trên máy thật (ffmpeg đỉnh 509 MB với clip 4K trong môi trường kiểm; chưa đo trên máy nhà)
+- [ ] Nợ kỹ thuật travel (BA ghi 2026-11-16):
+  - Tách `travel.py` (khoảng 2000 dòng) thành `travel_render.py` / `travel_media.py` khi thêm TTS thứ hai hoặc nguồn media thứ 4
+  - Module helper dùng chung cho `demo.py` / `exercise.py` / `travel.py` (hiện `travel.py` gọi hàm riêng tư `demo._font`, `_slug`, `_text_block`, `_wrap_px`, `_extract_json`, `_ffmpeg_bin`, `exercise._clip_info`, `_speech_bounds`)
+  - Studio: nút **Làm mới nguồn** (hoặc file bấm đúp `.command`) thay cho dán lệnh vào Terminal khi gặp exit 6
+  - Kiểm DNS-rebinding / IP riêng khi tải trang nguồn: chấp nhận, rủi ro thấp (chỉ tải host trong danh sách cho phép, https, không cổng lạ)
+  - Ghim phiên bản các gói còn lại trong `requirements-demo.txt`: `pillow`, `mutagen`, `groq`, `gspread` (mới ghim `edge-tts==7.3.1`)
+- [ ] Bug [#16](https://github.com/chungkhoantony1983/tt-affiliate/issues/16): luồng **sản phẩm** trong `demo.py`, tải lên Drive lỗi mà Sheet vẫn bị đặt `status=done`. Luồng travel đã đúng (Drive lỗi → exit 7 `[DRIVE_FAILED]`, không `done`, thư mục còn). Chưa sửa
 - [x] Thiết kế mở rộng: thêm nước / chủ đề / đối tượng = thêm hồ sơ JSON, không sửa code (C-0002-5, 2026-11-15)
-- [ ] P1: `travel.py` (research → check nguồn → script EN/VI → Pixabay/Pexels/Wikimedia → edge-tts en-US → dựng), Studio nhận thư mục travel
+- [x] P1 (code): `travel.py` (research → check nguồn → script EN/VI → Pixabay/Pexels/Wikimedia → edge-tts en-US → dựng), Studio nhận thư mục travel, `--refresh-facts [--confirm]`, mã thoát 5/6/7. Reviewer cuối 0 Chặn / 0 Nên sửa, Tester cuối toàn PASS (2026-11-17), kết quả chi tiết ở DR-0008 § Kết quả. P1 chưa đóng hẳn: còn chờ bạn chạy dữ liệu thật (dòng **[Bạn]** bên dưới)
+- [ ] Merge: thứ tự `feat/studio-create-video` → `feat/gemini-quota` → `feat/travel-p1` (rebase sau cùng). Nhánh gemini-quota phải tự đổi số file `DR-0002-…` (trùng DR-0002 travel). Commit nhánh này dùng `git add -A`. Việc kiểm sau merge: DR-0008 § Kết quả
+- [ ] **[Bạn]** Việc còn lại để P1 xong: dán `seed-questions.csv` vào tab `Travel`; đặt `PEXELS_API_KEY` trong `.env` nếu muốn (tuỳ chọn); nghe phát âm trên video phở; dán `facts_manual` cho video visa người Mỹ; chạy video thật đầu tiên (`demo.py --travel --sheet`)
 - [ ] P2: đăng 10–15 video, ghi % người xem US / CA / AU vào §4
 - [ ] P3 (DR riêng): tự tìm chủ đề xu hướng (YouTube Data API, Google Trends)
 
