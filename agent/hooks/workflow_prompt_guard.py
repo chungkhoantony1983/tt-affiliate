@@ -45,50 +45,23 @@ except (AttributeError, ValueError):
     pass
 
 # スキル名 → ドメインマッピング
-# ステップコントローラー統合済みスキルのみ。
-# 新スキル追加時にここに追加する。
-_SKILL_DOMAIN_MAP: dict[str, str] = {
-    # 統合済み（IMP-071）
-    "task": "fix",
-    "fix": "fix",
-    "spec-update": "spec",
-    "push": "ops",
-    "comment": "ops",
-    "cleanup": "ops",
-    "merge": "ops",
-    # 統合済み（IMP-071 Phase 2）
-    "review": "code-review",
-    "re-review": "code-review",
-    "survey": "research",
-    "test-error": "research",
-    "export": "pm-export",
-    "issues": "project-mgmt",
-    "change-impact": "project-mgmt",
-    "pm-planning": "pm-planning",
-    "pj-init": "project-mgmt",
-}
+# 17 SSoT skills have been removed in this project; project uses agent/commands/ (/feature, /bug, /merge-pr, /video-review, etc.)
+_SKILL_DOMAIN_MAP: dict[str, str] = {}
 
-# IMP-074: Flow B-only スキル（context-lock 免除 but work-log 必須）
-# これらのスキルは workflow_step.py init 不要だが、work-log 作成は強制する
-_FLOW_B_ONLY_SKILLS: dict[str, str] = {
-    "ai-task": "task",         # ドメインルーター
-    "ai-learn": "learning",    # SSoT 直接編集
-    "ai-slides": "slides",     # スライド生成
-    "ai-review": "code-review",
-    "ai-fix": "fix",
-    "ai-spec-update": "spec",
-    "ai-survey": "research",
-    "ai-change-impact": "project-mgmt",
-    "ai-pm-planning": "pm-planning",
-}
+# IMP-074: Flow B-only スキル（disabled in this project）
+_FLOW_B_ONLY_SKILLS: dict[str, str] = {}
 
 # /skill パターン（行頭 or 空白後の /skill_name）
-_SKILL_PATTERN = re.compile(
-    r"(?:^|(?<=\s))/"
-    r"("
-    + "|".join(re.escape(s) for s in sorted(_SKILL_DOMAIN_MAP.keys(), key=len, reverse=True))
-    + r")"
-    r"(?:\s|$)",
+_SKILL_PATTERN = (
+    re.compile(
+        r"(?:^|(?<=\s))/"
+        r"("
+        + "|".join(re.escape(s) for s in sorted(_SKILL_DOMAIN_MAP.keys(), key=len, reverse=True))
+        + r")"
+        r"(?:\s|$)",
+    )
+    if _SKILL_DOMAIN_MAP
+    else None
 )
 
 
@@ -261,7 +234,7 @@ def main():
 
     # --- スキル呼び出し検出 ---
     # Tier 1 スキル（フルワークフロー）
-    m = _SKILL_PATTERN.search(prompt)
+    m = _SKILL_PATTERN.search(prompt) if _SKILL_PATTERN else None
     if m:
         skill_name = m.group(1)
         domain = _SKILL_DOMAIN_MAP.get(skill_name, "")
@@ -275,11 +248,15 @@ def main():
             sys.exit(0)
 
     # IMP-074: Flow B-only スキル（/ai-* 系）
-    flow_b_match = re.search(
-        r"(?:^|(?<=\s))/("
-        + "|".join(re.escape(s) for s in sorted(_FLOW_B_ONLY_SKILLS.keys(), key=len, reverse=True))
-        + r")(?:\s|$)",
-        prompt,
+    flow_b_match = (
+        re.search(
+            r"(?:^|(?<=\s))/("
+            + "|".join(re.escape(s) for s in sorted(_FLOW_B_ONLY_SKILLS.keys(), key=len, reverse=True))
+            + r")(?:\s|$)",
+            prompt,
+        )
+        if _FLOW_B_ONLY_SKILLS
+        else None
     )
     if flow_b_match:
         skill_name = flow_b_match.group(1)

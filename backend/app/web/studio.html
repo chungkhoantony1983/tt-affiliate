@@ -127,6 +127,15 @@ dialog h3 { margin-top: 0; }
 dialog .acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
 .copy-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.fact { border-top: 1px solid var(--line); padding: 10px 0; font-size: var(--fs-small); }
+.fact:first-of-type { border-top: 0; }
+.fact q { display: block; color: var(--muted); font-size: var(--fs-note); margin: 4px 0; quotes: none; }
+.credit { font-size: var(--fs-note); color: var(--muted); padding: 4px 0; }
+.fact.hl { background: var(--info-bg); border-radius: 8px; padding-left: 8px; }
+button.chip { border: 0; cursor: pointer; }
+.cmd { user-select: all; white-space: pre-wrap; word-break: break-all; min-width: 0; max-width: 100%; }
+.banner { min-width: 0; overflow-wrap: anywhere; }
+.chip.stale { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
 .detail > * { min-width: 0; }
 @media (max-width: 900px) {
   .detail { grid-template-columns: minmax(0, 1fr); }
@@ -173,6 +182,139 @@ dialog .acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 
 </dialog>
 <div class="sr" aria-live="polite" id="live"></div>
 
+<script>
+"use strict";
+// Travel folders (DR-0002). All strings from the folder go through esc(); links need https:// (T-17).
+const TRAVEL_KINDS = { hook: "Mở đầu", answer: "Trả lời", outro: "Kết" };
+
+function safeLink(url, label) {
+  const u = String(url || "");
+  if (!u.startsWith("https://")) return esc(label || u);
+  return `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(label || u)}</a>`;
+}
+
+function langName(code) {
+  try {
+    const n = new Intl.DisplayNames(["vi"], { type: "language" }).of(code);
+    if (n && n.toLowerCase() !== String(code).toLowerCase()) return n.charAt(0).toLowerCase() + n.slice(1);
+  } catch { /* fall through */ }
+  return String(code).toUpperCase();
+}
+
+const shq = (s) => "'" + String(s).replace(/'/g, "'\\''") + "'";
+
+// Ready-to-paste Terminal command, with cd to the project root (the Terminal may be anywhere)
+function refreshCmd(root, folder, confirmIds) {
+  const base = `cd ${shq(root)} && .venv/bin/python demo.py --travel --refresh-facts ${shq("storage/videos/" + folder)}`;
+  return confirmIds && confirmIds.length ? `${base} --confirm ${confirmIds.map(shq).join(",")}` : base;
+}
+
+function cmdBlock(root, folder, confirmIds) {
+  let html = `<div class="hint">Chép lệnh này, dán vào Terminal rồi nhấn Enter:</div><pre class="cmd">${esc(refreshCmd(root, folder, []))}</pre>`;
+  if (confirmIds && confirmIds.length) {
+    html += `<div class="hint">Dữ kiện nhập tay (${esc(confirmIds.join(", "))}) cần bạn xác nhận đã kiểm lại trang nguồn. Sau khi kiểm, dùng lệnh này:</div>`
+      + `<pre class="cmd">${esc(refreshCmd(root, folder, confirmIds))}</pre>`;
+  }
+  return html + "<div>Chạy xong, quay lại đây bấm Duyệt lần nữa.</div>";
+}
+
+function travelStaleBanner(v) {
+  const ids = v.stale_ids || [];
+  if (!ids.length) return "";
+  const labels = v.stale_labels || {};
+  const list = ids.map((id) => labels[id] ? `${id} (${labels[id]})` : id).join("; ");
+  return `<div class="banner warn">Có dữ kiện quá 30 ngày: ${esc(list)}. Bạn sẽ không duyệt được cho đến khi làm mới nguồn (mất khoảng 1 phút, miễn phí).`
+    + cmdBlock(v.repo_root, v.folder, v.confirm_ids) + "</div>";
+}
+
+function travelSubsOf(s) {
+  const out = {};
+  for (const lang of current.subtitle_langs) {
+    const el = $(`[data-sub="${s.index}"][data-lang="${lang}"]`);
+    if (el) out[lang] = el.value;
+  }
+  return out;
+}
+
+function travelSubsChanged(s, subs) {
+  return Object.keys(subs || {}).some((lang) => norm(subs[lang]) !== norm((s.subs || {})[lang]));
+}
+
+function travelEditNote() {
+  const n = current.segments.filter((s) =>
+    norm($(`[data-line="${s.index}"]`).value) !== norm(s.line)
+    || ($(`[data-text="${s.index}"]`).value || "").trim() !== (s.text || "")
+    || travelSubsChanged(s, travelSubsOf(s))).length;
+  return n ? `<div class="banner info">Bạn đã sửa ${n} cảnh, bấm <b>Dựng lại video</b> để đưa vào video.</div>` : "";
+}
+
+function creditLine(c) {
+  return `${safeLink(c.page, c.provider || "Nguồn")} · ${esc(c.author || "không rõ tác giả")} · ${esc(c.license || "không rõ giấy phép")}`;
+}
+
+function travelSceneMarkup(s) {
+  const subs = current.subtitle_langs.map((lang) => `
+    <label class="f" for="sub-${s.index}-${esc(lang)}">Phụ đề ${esc(langName(lang))}</label>
+    <textarea id="sub-${s.index}-${esc(lang)}" rows="2" data-sub="${s.index}" data-lang="${esc(lang)}">${esc((s.subs || {})[lang] || "")}</textarea>`).join("");
+  const hint = current.subtitle_langs.length ? '<div class="hint">Sửa số thì phải trùng số trong Dữ kiện.</div>' : "";
+  const ids = (s.fact_ids || []).map((id) => `<button type="button" class="chip" data-factref="${esc(id)}" title="Xem dữ kiện này">Dữ kiện: ${esc(id)}</button>`).join("");
+  const clips = current.credits.filter((c) => (c.scenes || []).includes(s.index + 1))
+    .map((c) => `<div class="hint">Hình cảnh này: ${creditLine(c)}</div>`).join("");
+  return `<div class="scene" data-scene="${s.index}">
+    <div class="scene-head"><b>Cảnh ${s.index + 1}</b><span class="chip">${esc(TRAVEL_KINDS[s.kind] || "Cảnh")}</span>${ids}
+      <span class="chip re" data-re hidden>Sẽ đọc lại</span></div>
+    <label class="f" for="line-${s.index}">Lời đọc</label>
+    <textarea id="line-${s.index}" rows="3" data-line="${s.index}">${esc(s.line)}</textarea>
+    <label class="f" for="text-${s.index}">Chữ trên màn hình (ngắn, tối đa ${s.kind === "hook" ? 10 : 6} từ)</label>
+    <input type="text" id="text-${s.index}" data-text="${s.index}" value="${esc(s.text)}">
+    ${subs}${hint}${clips}</div>`;
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-factref]");
+  if (!b) return;
+  const el = [...document.querySelectorAll("[data-fact]")].find((x) => x.dataset.fact === b.dataset.factref);
+  if (!el) return;
+  document.querySelectorAll(".fact.hl").forEach((x) => x.classList.remove("hl"));
+  el.classList.add("hl");
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+function travelCards(v) {
+  const facts = (v.facts || []).map((f) => `<div class="fact" data-fact="${esc(f.id)}">
+      <div><b>${esc(f.claim)}</b> ${f.manual ? '<span class="chip">nhập tay</span>' : ""} ${f.stale ? '<span class="chip stale">Quá 30 ngày</span>' : ""}</div>
+      <q>“${esc(f.quote)}”</q>
+      <div>${f.url ? safeLink(f.url, f.source_name || f.url) : "link nguồn không có"}${f.checked_on ? ` · kiểm ngày ${esc(f.checked_on)}` : ""}${f.id ? ` · ${esc(f.id)}` : ""}</div>
+    </div>`).join("");
+  const dropped = v.facts_dropped
+    ? `<div class="banner warn">Có ${esc(v.facts_dropped)} dữ kiện không hiện vì link nguồn không hợp lệ hoặc không thuộc nguồn cho phép. `
+      + "Nhờ người phụ trách kỹ thuật kiểm tra, hoặc xoá trạng thái trong tab Travel và tạo lại video. Đừng duyệt khi chưa kiểm lại nguồn.</div>" : "";
+  const credits = (v.credits || []).map((c) => `<div class="credit">${c.scenes && c.scenes.length ? "Cảnh " + esc(c.scenes.join(", ")) + ": " : ""}${creditLine(c)}</div>`).join("");
+  return `<div class="card"><h3>Dữ kiện và nguồn</h3>
+      <p class="sub">Kiểm từng dữ kiện với trang nguồn trước khi duyệt. Lời đọc chỉ được dùng các con số có ở đây.</p>
+      ${dropped}${facts || '<div class="hint">Chưa có dữ kiện nào.</div>'}</div>
+    <div class="card"><h3>Hình và bản quyền</h3>
+      <p class="sub">Nguồn clip và ảnh trong video. Muốn thay clip sai thì ghi lại số cảnh ở đây.</p>
+      ${credits || '<div class="hint">Chưa có thông tin nguồn hình.</div>'}
+      <div class="hint">Ảnh giấy phép CC BY / CC BY-SA đã có tên tác giả hiện trên video.</div></div>`;
+}
+
+function travelErrorHtml(job) {
+  const stale = job.error_kind === "facts_stale";
+  const lines = (job.notices || []).filter((l) => l.startsWith(stale ? "[FACTS_STALE] " : "[FACT_CHECK] "));
+  const shown = lines.map((l) => l.replace(/^\[[A-Z_]+\]\s*/, "")).slice(0, 6);
+  const pre = shown.length ? `<pre>${esc(shown.join("\n"))}</pre>` : "";
+  if (stale) {
+    const m = /--confirm[ =]([\w,-]+)/.exec(lines.join(" "));
+    const confirmIds = m ? m[1].split(",").filter(Boolean) : (current && current.confirm_ids) || [];
+    return "Chưa duyệt được: có dữ kiện dễ đổi (visa, phí, giá…) đã kiểm quá 30 ngày." + pre
+      + cmdBlock(job.repo_root || "", job.folder, confirmIds);
+  }
+  return (shown.length ? "Con số trong video chưa khớp nguồn, nên chưa dựng lại:" + pre
+      : "Có con số trong lời đọc hoặc phụ đề không có trong nguồn, nên chưa dựng lại. ")
+    + "Video và giọng cũ vẫn giữ nguyên. Sửa rồi bấm Lưu, rồi Dựng lại video.";
+}
+</script>
 <script>
 "use strict";
 const API = "/api/studio";
@@ -749,7 +891,7 @@ function render() {
   const head = `
     <button class="btn small back" id="back">← Danh sách</button>
     <div class="title-row"><h2>${esc(v.title)}</h2><span class="badge b-${v.label}">${LABELS[v.label]}</span></div>
-    <div id="banner">${banner ? bannerMarkup() : ""}</div>`;
+    <div id="banner">${banner ? bannerMarkup() : ""}</div>${v.kind === "travel" ? travelStaleBanner(v) : ""}`;
   const player = `<div class="player"><video id="vid" controls playsinline preload="metadata" src="${esc(v.video_url)}#t=0.1"></video></div>`;
 
   if (v.label === "view_only") {
@@ -780,22 +922,22 @@ function render() {
     <div class="card">
       <h3>Chữ trên video</h3>
       <p class="sub">Sửa phần này xong cần bấm <b>Dựng lại video</b>.</p>
-      <label class="f" for="hook">Câu mở đầu (chữ lớn ở cảnh 1)</label>
-      <input type="text" id="hook" value="${esc(v.hook)}">
-      <label class="f" for="price">Giá hiện trên video (đồng)</label>
+      ${v.kind === "travel" ? "" : `<label class="f" for="hook">Câu mở đầu (chữ lớn ở cảnh 1)</label>
+      <input type="text" id="hook" value="${esc(v.hook)}">`}
+      ${v.kind === "travel" ? "" : `<label class="f" for="price">Giá hiện trên video (đồng)</label>
       <input type="text" id="price" inputmode="numeric" value="${esc(initialPriceStr)}">
-      <div id="price-preview">${pricePreviewMarkup(initialPriceStr, { allowEmpty: false, oldPrice: v.price })}</div>
+      <div id="price-preview">${pricePreviewMarkup(initialPriceStr, { allowEmpty: false, oldPrice: v.price })}</div>`}
     </div>
     <div class="card">
       <h3>Từng cảnh</h3>
       <p class="sub">Lời đọc là câu giọng nói sẽ đọc. Câu nào sửa thì chỉ câu đó được đọc lại.</p>
       ${v.segments.map(sceneMarkup).join("")}
     </div>
-    <div class="card">
+    ${v.kind === "travel" ? travelCards(v) : `<div class="card">
       <h3>Ảnh sản phẩm</h3>
       <p class="sub">Video dùng tối đa 3 ảnh. Ảnh đầu tiên dùng cho cảnh mở đầu và cảnh kêu gọi mua.</p>
       <div class="pimgs">${productImagesMarkup()}</div>
-    </div>
+    </div>`}
   </div></div>`;
   bindCommon();
   main.querySelectorAll("input, textarea").forEach((el) => el.addEventListener("input", () => {
@@ -809,6 +951,7 @@ function render() {
 }
 
 function sceneMarkup(s) {
+  if (current.kind === "travel") return travelSceneMarkup(s);
   const first = s.index === 0;
   const tag = first ? "Mở đầu" : KINDS[s.kind] || "Cảnh";
   const showText = s.kind === "product" && !first;
@@ -875,16 +1018,17 @@ async function copy(text, btn) {
 }
 
 function formValues() {
-  const p = parsePriceRaw($("#price").value);
+  const p = $("#price") ? parsePriceRaw($("#price").value) : { empty: false, value: null, invalid: false };
   return {
     caption: $("#caption").value,
     hashtags: $("#hashtags").value,
-    hook: $("#hook").value,
-    price: p.empty ? 0 : p.value,
+    hook: $("#hook") ? $("#hook").value : current.hook,
+    price: $("#price") ? (p.empty ? 0 : p.value) : current.price,
     priceInvalid: p.invalid,
     segments: current.segments.map((s) => ({
       line: $(`[data-line="${s.index}"]`).value,
       text: $(`[data-text="${s.index}"]`)?.value ?? s.text,
+      ...(current.kind === "travel" ? { subs: travelSubsOf(s) } : {}),
     })),
   };
 }
@@ -896,7 +1040,8 @@ function changedLines() {
 function formNeedsRender() {
   const f = formValues(), v = current;
   if (norm(f.hook) !== norm(v.hook) || f.price !== v.price) return true;
-  return v.segments.some((s, i) => norm(f.segments[i].line) !== norm(s.line) || f.segments[i].text.trim() !== (s.text || ""));
+  return v.segments.some((s, i) => norm(f.segments[i].line) !== norm(s.line) || f.segments[i].text.trim() !== (s.text || "")
+    || (v.kind === "travel" && travelSubsChanged(s, f.segments[i].subs)));
 }
 
 function jobBusy() { return !!polling; }
@@ -917,6 +1062,7 @@ function updateBar() {
       ? `<div class="banner ${changed.length > GEMINI_PER_DAY ? "bad" : "info"}">Bạn sửa ${changed.length} lời đọc. Dựng lại sẽ dùng <b>${changed.length} lượt</b> giọng Gemini, mỗi ngày tối đa ${GEMINI_PER_DAY} lượt cho mọi video.${guess}</div>`
       : `<div class="banner info">Bạn sửa ${changed.length} lời đọc. Video dùng giọng miễn phí, không giới hạn lượt.${guess}</div>`;
   }
+  if (v.kind === "travel") note += travelEditNote();
   $("#voicenote").innerHTML = note;
 
   const busy = jobBusy();
@@ -931,12 +1077,14 @@ function updateBar() {
   else if (v.label === "needs_images") why = "Còn cảnh chưa có ảnh nhân vật. Tải ảnh lên rồi dựng lại.";
   else if (v.label === "approved") why = "Video này đã duyệt trước đó.";
   else why = "Xem hết video. Đạt thì bấm Duyệt & lưu.";
-  const canApprove = !busy && !dirty && !priceInvalid && !v.needs_render && v.label !== "needs_images";
+  const stale = v.kind === "travel" && (v.stale_ids || []).length > 0;
+  if (stale && !busy && !dirty && !v.needs_render) why = "Cần làm mới nguồn trước khi duyệt (xem khung vàng ở đầu trang).";
+  const canApprove = !busy && !dirty && !priceInvalid && !v.needs_render && v.label !== "needs_images" && !stale;
   bar.hidden = false;
   bar.innerHTML = `<span class="why">${esc(why)}</span>
     <button class="btn" id="b-save" ${!dirty || busy || priceInvalid ? "disabled" : ""}>Lưu thay đổi</button>
     <button class="btn ${needsRender && !busy && !priceInvalid ? "primary" : ""}" id="b-render" ${busy || priceInvalid ? "disabled" : ""}>Dựng lại video</button>
-    <button class="btn ${canApprove ? "primary" : ""}" id="b-approve" ${canApprove ? "" : "disabled"}>Duyệt & lưu</button>`;
+    <button class="btn ${canApprove ? "primary" : ""}" id="b-approve" ${canApprove ? "" : "disabled"}>${stale ? "Cần làm mới nguồn trước" : "Duyệt &amp; lưu"}</button>`;
   $("#b-save").onclick = () => save().then(() => { showBanner("ok", "Đã lưu."); render(); }).catch((e) => showBanner("bad", e.message));
   $("#b-render").onclick = () => startRender();
   $("#b-approve").onclick = () => askApprove();
@@ -1069,10 +1217,21 @@ async function jobFinished(job) {
       paintBanner();
       updateCreateBar();
     }
+  } else if (job.error_kind === "revoice" && current && current.kind === "travel") {
+    banner = { kind: "bad", html: "Không đọc lại được câu đã sửa bằng giọng miễn phí, thường do mạng chập chờn hoặc dịch vụ giọng đang bận. Video và giọng cũ vẫn giữ nguyên. Kiểm tra mạng rồi bấm Dựng lại video thử lần nữa." + log };
+    await openVideo(job.folder, true);
   } else if (job.error_kind === "revoice") {
     banner = { kind: "bad", html: "Không đọc lại được câu đã sửa bằng giọng Gemini, thường do hết 10 lượt miễn phí trong ngày. Video và giọng cũ vẫn giữ nguyên."
       + `<div class="acts"><button class="btn small" data-act="revoice">Đọc lại toàn bộ bằng giọng miễn phí</button></div>`
       + `<div class="hint">Hoặc để mai thử lại. Cả video phải dùng chung một giọng, nên không đổi riêng được câu đã sửa.</div>` + log };
+    await openVideo(job.folder, true);
+  } else if (job.error_kind === "drive_failed") {
+    const n = (job.notices || []).filter((l) => l.startsWith("[DRIVE_FAILED] ")).map((l) => l.replace(/^\[DRIVE_FAILED\]\s*/, ""));
+    banner = { kind: "bad", html: "Duyệt xong nhưng chưa tải lên Drive được. Video vẫn còn trên máy; kiểm mạng / đăng nhập Drive rồi bấm Duyệt lại."
+      + (n.length ? `<pre>${esc(n.slice(-3).join("\n"))}</pre>` : "") + log };
+    await openVideo(job.folder, true);
+  } else if (job.error_kind === "fact_check" || job.error_kind === "facts_stale") {
+    banner = { kind: "bad", html: travelErrorHtml(job) + log };
     await openVideo(job.folder, true);
   } else if (job.error_kind === "not_ready") {
     banner = { kind: "bad", html: "Chưa duyệt được: video cần dựng lại, hoặc còn cảnh thiếu ảnh nhân vật." + log };

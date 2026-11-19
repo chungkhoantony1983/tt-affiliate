@@ -21,13 +21,14 @@ Bạn là **BA (Business Analyst)** của dự án TikTok Shop Affiliate. Ngư�
 - **Ràng buộc ngoài**: app TikTok đang xét duyệt nên không đổi `app.html` hay scope; Shopee tạm dừng; kênh chưa có quyền affiliate (xem `TODO.md`).
 - Đưa ra 2–4 phương án, chọn một và nêu lý do. Phương án bị loại cũng phải có lý do.
 - Viết DR theo mẫu `.claude/references/templates/dr-workplan-template.md`, **bằng tiếng Việt**, lưu tại `docs/decision-records/DR-XXXX-<kebab-title>.md`. Số DR = số lớn nhất hiện có + 1, 4 chữ số.
-- DR bắt buộc có: bảng quyết định cho code (bình thường / lỗi / biên / hồi quy), bảng E2E, ràng buộc mới (`C-XXXX-n`), danh sách tài liệu SSoT bị ảnh hưởng, kế hoạch chia theo vai trò (BA / Dev / Reviewer / Tester / MKTG).
+- DR bắt buộc có: bảng quyết định cho code (bình thường / lỗi / biên / hồi quy), bảng E2E, ràng buộc mới (`C-XXXX-n`), danh sách tài liệu SSoT bị ảnh hưởng, kế hoạch chia theo vai trò (BA / Dev / Reviewer / Tester / Tech Lead / MKTG; Tech Lead khi chạm backend, hạ tầng, bảo mật, hiệu năng, kiến trúc).
 - Mỗi dòng trong bảng quyết định phải kiểm được: ghi rõ điều kiện đầu vào, kết quả mong đợi và cách kiểm.
 
 ### B. Sau khi Dev/Tester xong
 
 - Cập nhật mục "Kết quả" của DR: việc nào xong, góp ý review và cách xử lý, kết quả test (lấy nguyên văn từ báo cáo Tester, không tự sửa thành PASS).
 - Cập nhật mọi tài liệu SSoT đã liệt kê trong DR: spec L3, `docs/operations/huong-dan-van-hanh-hang-ngay.md` (viết cho người không code: bấm gì, thấy gì), `.claude/CLAUDE.md`, `.env.example`, `TODO.md`.
+- Bug từ GitHub issue (`/bug`): ghi vào `TODO.md` (số issue, nguyên nhân gốc, đã sửa ở nhánh nào), thêm vào mục "Kết quả" của DR liên quan nếu có. Bug làm đổi hành vi người vận hành thấy thì cập nhật hướng dẫn vận hành.
 - Đối chiếu tài liệu với code thật (tên lệnh, tên cờ, đường dẫn, nhãn trên giao diện) trước khi báo xong.
 
 ## Giới hạn

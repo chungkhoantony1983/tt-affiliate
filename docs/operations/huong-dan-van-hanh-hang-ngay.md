@@ -296,6 +296,86 @@ Clip bài tập đã làm được giữ trong `storage/clips/`, không bị xo�
 
 ---
 
+## 4c. Video du lịch (tiếng Anh)
+
+Mỗi video trả lời **một câu hỏi thật của du khách** về Việt Nam (visa, đi lại, văn hoá, ẩm thực). Giọng Mỹ, phụ đề tiếng Việt, mọi câu đều có nguồn chính thức. **Không bán hàng**, không gắn sản phẩm.
+
+### Chuẩn bị (làm một lần)
+
+1. Mở Google Sheet, chọn **Tệp → Nhập → Tải lên**, chọn file `content/travel/seed-questions.csv` (30 câu hỏi đầu).
+2. Ở bước nhập, chọn **"Chèn các hàng mới vào trang tính hiện tại"** nếu đang đứng ở tab `Travel` trống. Nếu chưa có tab, chọn **"Chèn trang tính mới"** rồi đổi tên tab thành `Travel`.
+3. Tên tab phải là `Travel`. Muốn đặt tên khác thì nhờ người phụ trách kỹ thuật đặt `TRAVEL_TAB` trong `.env`.
+4. Cột `notes` là ghi chú nội bộ cho mình, không lên video. Đọc kỹ trước khi làm hàng đó.
+
+### Tạo video
+
+Chạy lệnh trong cửa sổ Terminal thứ hai (mục 4, bước 3), vẫn đang ở thư mục dự án. Mỗi lần chạy ra **một video**:
+```bash
+.venv/bin/python demo.py --travel --sheet
+```
+Muốn chọn điểm đến hoặc đối tượng khác với mặc định (hiện là `vn` và `en-us`):
+```bash
+.venv/bin/python demo.py --travel --sheet --destination vn --audience en-us
+```
+Máy lấy hàng đầu tiên có `status` trống, tải trang nguồn, kiểm câu trích, viết kịch bản, tìm clip (chỉ Pixabay, Pexels, Wikimedia), đọc giọng miễn phí (edge-tts, không tốn lượt Gemini), dựng video rồi dừng ở trạng thái **review**. Mở Studio để duyệt (mục 4, bước 5).
+
+### Cột `status` của tab Travel
+
+| Giá trị | Nghĩa | Việc cần làm |
+|---|---|---|
+| trống | Cần làm | Chạy lệnh trên |
+| `review` | Video đã dựng, chờ duyệt | Duyệt trên Studio |
+| `needs_sources` | Không đủ nguồn để trả lời có căn cứ | Xem bên dưới |
+| `done` | Đã duyệt và tải lên Drive | Không làm gì |
+| `skip` | Bỏ qua | Không làm gì |
+
+**Khi `needs_sources`:** đọc Terminal xem thiếu gì. Thêm một trang nguồn chính thức vào cột `source_urls` (mỗi link một dòng) hoặc điền cột `facts_manual` (xem dưới), rồi **xoá chữ `needs_sources`** trong cột `status` và chạy lại.
+
+### Cột `facts_manual`: dán tay khi trang chặn tải tự động
+
+Một số trang chính thức (ví dụ `travel.state.gov`) chặn máy tải. Bạn mở trang bằng trình duyệt, chép câu cần dùng. Mỗi dòng một dữ kiện, ba phần ngăn bằng dấu `|`:
+
+```
+claim | quote | url
+```
+
+Ví dụ một ô có hai dòng (bấm Alt+Enter, hoặc Ctrl+Enter trên Mac, để xuống dòng trong ô):
+
+```
+US citizens need a visa to enter Vietnam | U.S. citizens need a visa to enter Vietnam for any purpose. | https://travel.state.gov/content/travel/en/international-travel/International-Travel-Country-Information-Pages/Vietnam.html
+E-visa is valid for up to 90 days | The e-visa is valid for up to 90 days. | https://travel.state.gov/content/travel/en/international-travel/International-Travel-Country-Information-Pages/Vietnam.html
+```
+
+- `claim`: ý ngắn bằng tiếng Anh.
+- `quote`: **phải là nguyên văn một câu có trên trang**, chép từng chữ, không rút gọn, không dịch. Máy so với trang khi có thể; câu bịa hoặc sửa là sai nguồn.
+- `url`: link `https` của trang chính thức, thuộc nguồn cho phép của điểm đến.
+- Dòng thiếu phần hoặc `quote` quá ngắn sẽ bị bỏ, Terminal có báo.
+
+**Video visa người Mỹ (hàng đầu tiên của `seed-questions.csv`):** hai trang vietnam.travel không có câu nào nói thẳng "người Mỹ cần visa". Làm như sau: mở trang Vietnam trên `travel.state.gov` bằng Chrome, tìm câu về visa, chép **nguyên văn** vào `facts_manual` theo dạng trên, rồi chạy lệnh tạo video. Thiếu bước này thì kết quả đúng là `needs_sources`.
+
+### Checklist trên Studio trước khi bấm Duyệt
+
+Video du lịch **chưa kiểm hết thì chưa Duyệt**. Trên Studio xem mục **Dữ kiện và nguồn** và **Hình và bản quyền**.
+
+- [ ] **(a) Nguồn:** bấm từng link nguồn, so câu trích với trang thật. Đặc biệt kỹ với **visa, phí, sức khoẻ, luật**.
+- [ ] **(b) Ngày kiểm:** "kiểm ngày" không quá 30 ngày, không có nhãn **"Quá 30 ngày"**.
+- [ ] **(c) Con số:** mọi con số trong lời đọc, phụ đề và caption đều có trong mục Dữ kiện.
+- [ ] **(d) Hình và bản quyền:** credits đủ tác giả và giấy phép; **xem video** để chắc clip đúng địa điểm (không phải thành phố khác).
+- [ ] **(e) Nghe tên Việt:** Phở, Hội An, Huế… giọng Mỹ có đọc sai không. Nếu sai, gửi người phụ trách kỹ thuật tên từ và tên video. Người đó sẽ thêm cách đọc đúng vào `content/travel/destinations/vn.json`, mục `pronunciations`.
+- [ ] **(f) Caption:** không có hashtag bán hàng, không kêu gọi mua.
+- [ ] **(g) Màn hình cuối:** có tên nguồn và dòng **"Info as of <tháng năm>"**. Video về visa, sức khoẻ, luật phải có dòng **"Check the official site before you go"**.
+
+Nếu Studio hiện khung cảnh báo có dữ kiện bị ẩn: **Nhờ người phụ trách kỹ thuật kiểm tra, hoặc xoá trạng thái trong tab Travel và tạo lại video.** Đừng duyệt khi chưa kiểm lại nguồn.
+
+Sửa chữ hoặc số thì bấm **Lưu**, rồi **Dựng lại video**, rồi mới **Duyệt & lưu**. Sau khi duyệt, đăng như mục 4 (bước 6, 7) nhưng **không gắn giỏ hàng** và vẫn bật nhãn "Nội dung do AI tạo". Nếu video có ảnh CC BY / CC BY-SA, dán phần credits trong `post.txt` vào bình luận ghim.
+
+### Giới hạn
+
+- Dữ kiện dễ đổi (visa, phí, giá, luật) chỉ dùng được **30 ngày** kể từ ngày kiểm. Quá hạn thì Studio không cho Duyệt (xem mục 6).
+- Chỉ dùng giọng edge-tts miễn phí, không tốn lượt Gemini. Chi phí thêm: $0.
+
+---
+
 ## 5. Lịch gợi ý
 
 | Khi nào | Việc |
@@ -322,6 +402,12 @@ Clip bài tập đã làm được giữ trong `storage/clips/`, không bị xo�
 | Nút **Duyệt & lưu** bị mờ | Đọc dòng chữ cạnh nút: có thay đổi chưa lưu, video chưa dựng lại, hoặc còn thiếu ảnh nhân vật |
 | Studio báo *Không đọc lại được câu đã sửa bằng giọng Gemini* | Hết 10 lượt Gemini trong ngày. Bấm **Đọc lại toàn bộ bằng giọng miễn phí**, hoặc để mai |
 | Studio báo *Dựng lại video bị lỗi* | Bấm **Xem chi tiết kỹ thuật**, chụp màn hình gửi người phụ trách kỹ thuật. Thư mục video không mất gì |
+| Video du lịch: Studio báo *Con số trong video chưa khớp nguồn, nên chưa dựng lại* (kèm tên cảnh) | Con số trong lời đọc, phụ đề, chữ trên màn hình hoặc caption không có trong mục **Dữ kiện**. Sửa đúng con số ở cảnh và ô được nêu cho khớp Dữ kiện, bấm **Lưu**, rồi **Dựng lại video**. Không cần Terminal. Video và giọng cũ vẫn giữ nguyên |
+| Video du lịch: Studio báo *Chưa duyệt được: có dữ kiện dễ đổi … đã kiểm quá 30 ngày* | Mở Terminal, **chép nguyên lệnh trong khung** (đã có sẵn `cd` vào thư mục dự án), dán vào, nhấn Enter, đợi khoảng 1 phút. Sau đó quay lại Studio bấm **Duyệt** lần nữa. Dữ kiện dán tay (`facts_manual`) hoặc từ trang chặn tải không tự làm mới được: mở trang chính thức, kiểm lại bằng mắt, rồi dùng lệnh thứ hai trong khung, có thêm `--confirm <mã dữ kiện>`. Dữ kiện nào có câu trích đã biến mất khỏi trang sẽ bị bỏ, video có thể chuyển sang `needs_sources` |
+| Video du lịch: Studio báo lỗi đọc lại giọng (mã 3) | Mạng hoặc giọng edge-tts tạm lỗi. Đợi một lúc, bấm **Dựng lại video** lần nữa. Audio cũ không bị đổi |
+| Video du lịch: Studio báo *Chưa duyệt được: kiểm tra dữ kiện không đạt* | Có câu hoặc con số không khớp Dữ kiện (Studio nêu cảnh và con số). Sửa câu hoặc số được nêu, bấm **Lưu**, **Dựng lại video**, rồi bấm **Duyệt** lại |
+| Video du lịch: Duyệt xong mà Studio báo lỗi tải lên Drive (mã 7, có dòng `[DRIVE_FAILED]`) | Video vẫn còn trên máy và Sheet **chưa** chuyển sang `done`. Kiểm tra mạng và đăng nhập Drive (mục 2), rồi bấm **Duyệt** lại. Tải lại cùng tên thì Drive thay file cũ, không tạo bản trùng |
+| Video du lịch: hàng Sheet ra `needs_sources` | Xem mục 4c, "Khi `needs_sources`" |
 | Bấm Send báo *Connect your TikTok account first* | Đăng nhập lại (bước 6.3) |
 | Báo lỗi có chữ `spam_risk_too_many_pending_share` | Đã có 5 video chờ đăng: đăng hết trên điện thoại, hoặc chờ sang ngày hôm sau |
 | Terminal báo `TikTok returned no product data` | TikTok tạm chặn việc đọc tự động. Chờ một lúc rồi chạy lại, hoặc tự điền các ô còn trống |
@@ -341,3 +427,7 @@ Clip bài tập đã làm được giữ trong `storage/clips/`, không bị xo�
 - Không nói sản phẩm chữa bệnh, hay hứa kết quả không có thật.
 - Không chia sẻ file `.env`, Client secret, mật khẩu TikTok.
 - Không gửi quá 5 video chờ đăng trong 24 giờ.
+- Video du lịch: không sửa con số cho khớp trí nhớ. Con số chỉ đúng khi có trong mục **Dữ kiện** và trên trang nguồn.
+- Video du lịch: không sửa ngày `checked_on` trong `facts.json` để tắt thông báo "Quá 30 ngày". Phải làm mới hoặc `--confirm` sau khi đã kiểm lại trang chính thức.
+- Video du lịch: không dùng clip ngoài Pixabay, Pexels, Wikimedia.
+- Video du lịch: không gắn giỏ hàng / sản phẩm.
