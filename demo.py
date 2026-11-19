@@ -2060,4 +2060,7 @@ def print_summary(results: list) -> None:
 
 
 if __name__ == "__main__":
+    # exercise.py / travel.py do `import demo`: without this alias they would load a second copy of this
+    # file, whose globals (KEEP_LOCAL, the TTS quota state) are not the ones main() sets (issue #15).
+    sys.modules.setdefault("demo", sys.modules[__name__])
     main()
