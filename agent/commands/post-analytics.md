@@ -3,6 +3,8 @@ description: Marketing phân tích hiệu quả bài đăng TikTok và mức ti�
 argument-hint: <file số liệu (CSV xuất từ TikTok Studio hoặc bảng dán tay)> | (bỏ trống = dùng nhật ký § 4 trong TODO.md)
 ---
 
+Mã nạp: post-analytics/1
+
 Skill này là **sổ tay của agent `marketing`** (chế độ 4: Phân tích hiệu quả). Gọi bằng lệnh thì bạn là người điều phối: giao **marketing** đầu vào dưới đây, trình kết quả cho người dùng, rồi giao **ba** ghi phần đã chốt vào `TODO.md`.
 
 Đầu vào: $ARGUMENTS

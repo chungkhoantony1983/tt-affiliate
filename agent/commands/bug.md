@@ -1,6 +1,6 @@
 ---
 description: Ghi bug thành GitHub issue (giao Dev sửa, BA + Tester cùng theo dõi), rồi sửa theo đội vai trò Dev → Reviewer + Tester (+ Tech Lead) → BA
-argument-hint: <mô tả bug> | #<số issue> | (bỏ trống = ghi các phát hiện Bug trong phiên này)
+argument-hint: "<mô tả bug> | #<số issue> | (bỏ trống = ghi các phát hiện Bug trong phiên này)"
 ---
 
 Bạn là **người điều phối**. Bạn không tự sửa code hay tự đánh PASS. Bạn ghi issue, giao việc cho subagent (`dev`, `reviewer`, `tester`, `techlead`, `ba`) và lo phần git.
