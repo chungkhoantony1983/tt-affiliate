@@ -7,7 +7,7 @@
 >
 > Ký hiệu: ✅ xong · 🟡 đang làm / làm dở · ⬜ chưa làm · ⛔ bị chặn (chờ bên ngoài)
 >
-> Cập nhật lần cuối: 2026-11-15
+> Cập nhật lần cuối: 2026-11-19
 
 ---
 
@@ -118,7 +118,8 @@ Việc cần làm:
 - [x] Giọng dự phòng: Gemini chính → `GEMINI_TTS_FALLBACK_MODELS` (2 model Gemini khác, 10 lượt/ngày mỗi model)
       → edge-tts. Cả video dùng một model; Studio đọc lại câu sửa bằng đúng model đó
 - [ ] Gemini TTS đôi khi đọc bịa thêm câu (trà ô long: "mình mới mua… 120 ngàn"): cân nhắc tự kiểm bằng
-      Whisper (Groq) sau khi đọc giọng
+      Whisper (Groq) sau khi đọc giọng. DR-0004 thêm cách kiểm tay cho agent (`/audio-check`, `scripts/transcript_check.py`);
+      tự chạy trong pipeline/Studio cần DR riêng (DR-0004 Q-5, mặc định: để sau)
 
 ### M2c — Video bài tập hằng ngày, không bán hàng (2026-11-12)
 Khung mọi chuỗi bài: **mở đầu** (gợi tò mò, nguồn gốc, dành cho ai, 1–2 điểm nổi bật có nguồn, tập khi nào) → **mỗi ngày 1 động tác** → **tổng kết** ≤ 3 phút.
@@ -167,7 +168,7 @@ giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thi�
 - [ ] Bug [#16](https://github.com/chungkhoantony1983/tt-affiliate/issues/16): luồng **sản phẩm** trong `demo.py`, tải lên Drive lỗi mà Sheet vẫn bị đặt `status=done`. Luồng travel đã đúng (Drive lỗi → exit 7 `[DRIVE_FAILED]`, không `done`, thư mục còn). Chưa sửa
 - [x] Thiết kế mở rộng: thêm nước / chủ đề / đối tượng = thêm hồ sơ JSON, không sửa code (C-0002-5, 2026-11-15)
 - [x] P1 (code): `travel.py` (research → check nguồn → script EN/VI → Pixabay/Pexels/Wikimedia → edge-tts en-US → dựng), Studio nhận thư mục travel, `--refresh-facts [--confirm]`, mã thoát 5/6/7. Reviewer cuối 0 Chặn / 0 Nên sửa, Tester cuối toàn PASS (2026-11-17), kết quả chi tiết ở DR-0008 § Kết quả. P1 chưa đóng hẳn: còn chờ bạn chạy dữ liệu thật (dòng **[Bạn]** bên dưới)
-- [ ] Merge: thứ tự `feat/studio-create-video` → `feat/gemini-quota` → `feat/travel-p1` (rebase sau cùng). Nhánh gemini-quota phải tự đổi số file `DR-0002-…` (trùng DR-0002 travel). Commit nhánh này dùng `git add -A`. Việc kiểm sau merge: DR-0008 § Kết quả
+- [x] Merge `feat/travel-p1` (PR #17) và `feat/gemini-quota` (PR #24) vào `main`. Hai DR trùng số 0002 đã đổi số: clip-trim → DR-0009, gemini-quota → DR-0012 (kiểm 2026-11-19). `feat/studio-create-video` (DR-0007) đã merge (PR #26). Việc kiểm sau merge: DR-0008 § Kết quả
 - [ ] **[Bạn]** Việc còn lại để P1 xong: dán `seed-questions.csv` vào tab `Travel`; đặt `PEXELS_API_KEY` trong `.env` nếu muốn (tuỳ chọn); nghe phát âm trên video phở; dán `facts_manual` cho video visa người Mỹ; chạy video thật đầu tiên (`demo.py --travel --sheet`)
 - [ ] P2: đăng 10–15 video, ghi % người xem US / CA / AU vào §4
 - [ ] P3 (DR riêng): tự tìm chủ đề xu hướng (YouTube Data API, Google Trends)
@@ -228,4 +229,10 @@ giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thi�
 - **Studio duyệt & sửa video (DR-0001, 2026-11-12) + Tạo video sản phẩm mới trên Studio (DR-0007, 2026-11-14):** trang riêng `/studio` do service `creator_main` phục vụ, không đụng `app.html` (đang xét duyệt). Hỗ trợ tạo video mới từ link TikTok Shop hoặc dòng trên Google Sheet (`>= 2`), xem trước thông tin (`og_info` fallback khi bị chặn), tải tối đa 3 ảnh sản phẩm đầu vào, nhập/sửa giá có đọc số thành chữ tiếng Việt (ghi đè lên Sheet và kịch bản AI). Mọi xử lý video vẫn ở `demo.py` (`--create-json`, `--sheet-row`, `--render-only`, `--approve`, `--revoice-all edge`). Sửa lời đọc chỉ đọc lại câu đã sửa, bằng đúng bộ giọng của video; Gemini lỗi thì không đổi audio nào. Mỗi câu sửa trên video Gemini tốn 1 lượt, tạo video mới tốn ~4 lượt (10/ngày).
 - **Đội vai trò AI (2026-11-12):** subagent `ba`, `dev`, `reviewer`, `tester`, `marketing` trong `agent/agents/`. Lệnh `/feature` (làm tính năng theo vai trò, có cổng duyệt DR) và `/video-review` (marketing review video trước khi duyệt). Đặt ở `agents/` và `commands/` vì `/sync` xoá mọi skill lạ trong `agent/skills/`. Các skill SSoT `/task`, `/fix` bị kẹt vì `workflow_step.py` thiếu module `automation_engine`. Lần chạy thử marketing trên video Bột mè đen phát hiện khung CTA "BẤM GIỎ HÀNG VÀNG" rộng gần hết màn hình, lấn sang cột nút bên phải của TikTok (đề xuất cho Dev, chưa sửa).
 - **Duyệt trước khi dựng (DR-0011, đã duyệt 2026-11-19):** cổng duyệt kịch bản / ảnh nhân vật / hình từng cảnh trên Studio TRƯỚC khi đọc giọng và dựng, cho video sản phẩm, bài tập, du lịch. Làm theo thứ tự du lịch → sản phẩm → bài tập, hạ tầng chỉ sau khi PR #17 merge. `--skip-approval` vẫn dừng ở cổng kịch bản (bỏ hết cần `--no-gates`). Chi tiết: `docs/decision-records/DR-0011-duyet-truoc-khi-dung.md`.
+- **Skill cho agent vai trò (DR-0004, nhánh `feat/agent-skills`, chưa merge):** 4 skill mới trong `agent/commands/` (`sandbox-render`, `audio-check`, `voice-rules`, `dr-draft`) + 3 script `scripts/sandbox_render.py`, `scripts/audio_seams.py`, `scripts/transcript_check.py`. Chi phí $0, 0 lượt Gemini (Groq Whisper miễn phí). **Trạng thái 2026-11-19: đã sửa vòng 1 và vòng 2, reviewer + tester kiểm lại đạt (7/7 ca), chờ V-1 và PR.** Quyết định vòng 1: `sandbox-render` chưa nhận thư mục travel (báo rõ), `transcript_check` từ chối thư mục travel, kết quả đo bản sao tách khỏi video thật, `post_txt_created` thay `post_txt_in_copy`, sửa frontmatter `travel-review.md` để nạp được skill. Chưa kiểm V-1 (nạp sẵn thực tế). Đồng bộ `.agents/` (Antigravity) để issue riêng [#27](https://github.com/chungkhoantony1983/tt-affiliate/issues/27). Số DR trống tiếp theo (quét 2026-11-19): **0013**.
+  - [ ] Nợ kỹ thuật: `sandbox-render` hỗ trợ thư mục travel (chạy `demo.py --render-only` bằng subprocess với cùng `SAFE_ENV`; cần soát trước `travel.main_existing` không ghi Sheet/Drive). Ước lượng của người điều phối: khoảng 1–2 giờ
+  - [ ] Nợ kỹ thuật: `scripts/review_frames.py` dùng cùng `output_dir()` như `audio_seams.py` (bản sao ghi vào `<thư mục>__sandbox/`); hiện khung hình của bản sao ghi đè khung hình của video thật cùng tên
+  - [ ] Nợ kỹ thuật: renderer ghi `scene_start` / `scene_dur` vào `script.json` để `audio_seams.py` khỏi tự dựng lại mốc cảnh; gộp các hàm `parse_scenes` đang trùng
+  - [ ] Nợ kỹ thuật: `transcript_check.py` hỗ trợ tiếng Anh cho video travel
+  - [ ] Bug cần ghi issue riêng qua `/bug` (chưa tạo): (1) edge-tts không có timeout cho từng lần thử (vòng thử trong `demo.py`, dòng 806–815 sau khi rebase lên 4e348dc), mạng treo thì lệnh treo; (2) `--revoice-all edge` hỏng giữa chừng để lại thư mục trộn giọng cũ và mới, trái C-0001-1
 - `.env.example` vẫn liệt kê `OPENAI_API_KEY`, `ELEVENLABS_API_KEY` (phương án C). Giai đoạn này chỉ cần Groq.

@@ -3,6 +3,8 @@ description: Tech Lead audit một vùng code (hạ tầng, backend, bộ nhớ/
 argument-hint: <vùng cần audit, ví dụ "backend/app/api/studio.py" | "luồng render" | "bảo mật service local"> | (bỏ trống = toàn hệ thống đang chạy)
 ---
 
+Mã nạp: tech-audit/1
+
 Skill này là **sổ tay của agent `techlead`**. Gọi bằng lệnh thì bạn là người điều phối: giao **techlead** (chế độ 2: Audit) với vùng dưới đây, rồi xử lý kết quả theo mục "Sau khi có báo cáo". Nếu bạn chính là techlead thì làm theo checklist bên dưới.
 
 Vùng cần audit:

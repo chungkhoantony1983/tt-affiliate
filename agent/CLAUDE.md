@@ -148,12 +148,14 @@ Subagent trong `agent/agents/` (gọi bằng Agent tool, `subagent_type` = tên)
 
 | Agent | Vai trò | Sửa được gì |
 |-------|---------|-------------|
-| `ba` | Phân tích yêu cầu, chi phí, viết DR (bảng quyết định, DoD), cập nhật tài liệu SSoT sau khi xong | DR, docs, `TODO.md` |
-| `dev` | **Dev full stack**: pipeline `demo.py` + FFmpeg/Pillow, backend FastAPI, Studio HTML/JS, script, Docker. Code theo DR đã duyệt, sửa lỗi do reviewer/tester/techlead báo hoặc từ GitHub issue. Làm trong worktree. Skill: `dev-selfcheck` | Code |
-| `reviewer` | Soát diff so với DR: lỗi, bảo mật service local, hồi quy, ràng buộc `C-XXXX` | Chỉ đọc |
-| `techlead` | Review và đề xuất tối ưu: hạ tầng, backend, bộ nhớ/hiệu năng, bảo mật, kiến trúc. Review DR/diff hoặc audit một vùng code; phân loại Bug / Tối ưu / Nợ kỹ thuật. Skill: `tech-audit` | Chỉ đọc |
-| `tester` | Test theo bảng quyết định trên **bản sao** video, edge-tts, không Gemini/Drive/Sheet/TikTok thật | Chỉ thư mục tạm |
-| `marketing` | (1) Review video trước khi đăng: hook 3s, không bịa, ràng buộc ngành hàng, CTA, vùng an toàn, caption → `marketing-review.md` + đề xuất sửa cho Studio. (2) Review độ dễ dùng giao diện/tài liệu cho người vận hành. (3) Review video du lịch Việt Nam tiếng Anh: dữ kiện có nguồn, bản quyền clip, tiếng Anh, phụ đề Việt (skill `travel-review`). (4) Phân tích hiệu quả bài đăng, tiếp cận người xem (skill `post-analytics`) | `marketing-review.md`, `storage/analytics/` |
+| `ba` | Phân tích yêu cầu, chi phí, viết DR (bảng quyết định, DoD), cập nhật tài liệu SSoT sau khi xong. Skill: `dr-draft` | DR, docs, `TODO.md` |
+| `dev` | **Dev full stack**: pipeline `demo.py` + FFmpeg/Pillow, backend FastAPI, Studio HTML/JS, script, Docker. Code theo DR đã duyệt, sửa lỗi do reviewer/tester/techlead báo hoặc từ GitHub issue. Làm trong worktree. Skill: `dev-selfcheck`, `sandbox-render`, `audio-check`, `voice-rules` | Code |
+| `reviewer` | Soát diff so với DR: lỗi, bảo mật service local, hồi quy, ràng buộc `C-XXXX`. Skill: `voice-rules` | Chỉ đọc |
+| `techlead` | Review và đề xuất tối ưu: hạ tầng, backend, bộ nhớ/hiệu năng, bảo mật, kiến trúc. Review DR/diff hoặc audit một vùng code; phân loại Bug / Tối ưu / Nợ kỹ thuật. Skill: `tech-audit`, `voice-rules` | Chỉ đọc |
+| `tester` | Test theo bảng quyết định trên **bản sao** video, edge-tts, không Gemini/Drive/Sheet/TikTok thật. Skill: `sandbox-render`, `audio-check`, `voice-rules` | Chỉ thư mục tạm |
+| `marketing` | (1) Review video trước khi đăng: hook 3s, không bịa, ràng buộc ngành hàng, CTA, vùng an toàn, caption → `marketing-review.md` + đề xuất sửa cho Studio. (2) Review độ dễ dùng giao diện/tài liệu cho người vận hành. (3) Review video du lịch Việt Nam tiếng Anh: dữ kiện có nguồn, bản quyền clip, tiếng Anh, phụ đề Việt (skill `travel-review`). (4) Phân tích hiệu quả bài đăng, tiếp cận người xem (skill `post-analytics`). Chế độ (1) dùng thêm skill `audio-check` (đo tiếng nổ, chép lời bằng Groq Whisper qua `scripts/transcript_check.py`) | `marketing-review.md`, `storage/analytics/` |
+
+Model của từng agent khai báo ở trường `model:` / `effort:` trong frontmatter: `ba`, `techlead`, `reviewer` (phân tích, đề xuất, review) dùng `opus` + `effort: medium`; `dev`, `tester`, `marketing` (làm theo DR/checklist) dùng `sonnet` để tiết kiệm token. Alias `opus`/`sonnet` tự trỏ tới bản mới nhất. Đổi model = sửa frontmatter, không cần sửa lệnh.
 
 Quy trình chung (`/feature`, `/bug`): **1 issue GitHub = 1 nhánh = 1 PR** (`Fixes #N`). Nhánh `feat/issue-N-<slug>`, `fix/issue-N-<slug>`, `chore/<slug>`. Issue tạo trước (mẫu `.github/ISSUE_TEMPLATE/feature.md` hoặc `bug.md`). Chỉ `/feature` và `/bug` tạo worktree; làm video không bao giờ tạo worktree. Hook vẫn chặn `git checkout`/`switch` ở repo gốc, merge bằng `/merge-pr`.
 
@@ -176,7 +178,9 @@ Lệnh trong `agent/commands/`:
 - `/travel-review [thư mục…] | studio`: **marketing** review video du lịch (T1–T12) hoặc chức năng travel trên Studio.
 - `/post-analytics [file số liệu]`: **marketing** phân tích số liệu TikTok Studio (người vận hành nhập, API không đọc được) → `storage/analytics/` → **ba** ghi điều rút ra vào `TODO.md`.
 - `/dev-selfcheck`: sổ tay tự kiểm theo lớp của **dev** (agent tự dùng).
-- Skill của agent khai báo ở trường `skills:` trong frontmatter, trỏ tới lệnh trong `agent/commands/` (không đặt ở `agent/skills/` vì `/sync` xoá). Các skill SSoT (`review`, `survey`, `fix`…) không gán cho agent vì cần `workflow_step.py` đang hỏng.
+- `/sandbox-render <storage/videos/<thư mục>> [--revoice-all-edge] [--keep]`: dựng lại một video trên **bản sao** trong thư mục tạm (`scripts/sandbox_render.py`): không gọi Gemini, không duyệt, không Drive/Sheet, không ghi giáo trình bài tập; in JSON có `original_unchanged`. Dùng chung cho dev, tester, và người điều phối khi chuẩn bị bản sao cho marketing.
+- `/audio-check <storage/videos/<thư mục>> [--scenes 1,2]`: khung hình + đo tiếng nổ ở chỗ nối (`scripts/audio_seams.py`, $0) + chép lời bằng Groq Whisper (`scripts/transcript_check.py`, 1 lượt Groq/cảnh) → `storage/review-frames/<thư mục>/`. Chỉ là tín hiệu: câu bị gắn cờ → "Cần người kiểm" (C-0004-3).
+- Skill của agent khai báo ở trường `skills:` trong frontmatter, trỏ tới lệnh trong `agent/commands/` (không đặt ở `agent/skills/` vì `/sync` xoá). Ngoài các lệnh trên còn 2 skill chỉ để agent nạp: `voice-rules` (quy tắc giọng đọc, chỗ có thể gọi Gemini) và `dr-draft` (giữ số DR khi nhiều phiên song song, khung DR). Mỗi skill có dòng `Mã nạp: <tên>/<phiên bản>` ngay sau frontmatter để kiểm nạp sẵn; không đặt `disable-model-invocation: true`; agent luôn có câu "đọc `.claude/commands/<tên>.md` nếu chưa có trong ngữ cảnh" (C-0004-1). Các skill SSoT (`review`, `survey`, `fix`…) không gán cho agent vì cần `workflow_step.py` đang hỏng.
 - Khung hình cho review: `.venv/bin/python scripts/review_frames.py storage/videos/<thư mục>` → `storage/review-frames/<thư mục>/` (gitignored).
 
 ---

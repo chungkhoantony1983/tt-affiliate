@@ -16,14 +16,14 @@ Bạn là **người điều phối** việc review video. Phần review giao ch
 
 ## Bước 2: Review
 
-Mỗi video giao một agent **marketing**, tối đa 3 agent chạy song song trong cùng một lượt. Prompt cho mỗi agent gồm: chế độ 1 (chế độ 3 nếu thư mục có `topic.json` với `kind: "travel"`, xem `/travel-review`), đường dẫn tuyệt đối tới thư mục video, và đường dẫn repo gốc (để chạy `.venv/bin/python scripts/review_frames.py`).
+Mỗi video giao một agent **marketing**, tối đa 3 agent chạy song song trong cùng một lượt. Prompt cho mỗi agent gồm: chế độ 1 (chế độ 3 nếu thư mục có `topic.json` với `kind: "travel"`, xem `/travel-review`), đường dẫn tuyệt đối tới thư mục video, và đường dẫn repo gốc (để chạy `.venv/bin/python scripts/review_frames.py`). Chỉ chế độ 1 (video sản phẩm, lời tiếng Việt) mới thêm các bước của skill `audio-check`: `scripts/audio_seams.py`, `scripts/transcript_check.py`; chép lời tốn 1 lượt Groq (miễn phí) cho mỗi cảnh. Video du lịch (chế độ 3) bỏ bước chép lời: `transcript_check.py` không nhận thư mục có `topic.json` (lời tiếng Anh).
 
 ## Bước 3: Tổng hợp cho người dùng
 
-| Video | Kết luận | Vấn đề chính | Lượt Gemini nếu sửa hết |
-|-------|----------|--------------|-------------------------|
+| Video | Kết luận | Vấn đề chính | Lượt Gemini nếu sửa hết | Lượt Groq |
+|-------|----------|--------------|-------------------------|-----------|
 
-Kèm link tới từng `marketing-review.md`. Nhắc lại những việc **cần người kiểm** (nghe giọng…).
+Kèm link tới từng `marketing-review.md`. Nhắc lại những việc **cần người kiểm**: câu bị Whisper gắn cờ đọc bịa/đọc thiếu, chỗ nối nghi tiếng nổ (kèm cảnh và thời điểm), và nghe giọng. Cột "Lượt Groq" = số lượt chép lời marketing đã dùng.
 
 ## Bước 4: Áp dụng đề xuất (chỉ khi người dùng đồng ý)
 

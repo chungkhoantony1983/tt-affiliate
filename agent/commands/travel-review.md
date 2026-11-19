@@ -1,7 +1,9 @@
 ---
 description: Marketing review video du lịch / văn hoá / ẩm thực Việt Nam tiếng Anh (DR-0002) và chức năng travel trên Studio, kiểm dữ kiện có nguồn, bản quyền clip, tiếng Anh, phụ đề Việt
-argument-hint: [storage/videos/<ngày>_travel_<slug> …] | studio (review chức năng travel trên Studio)
+argument-hint: "[storage/videos/<ngày>_travel_<slug> …] | studio (review chức năng travel trên Studio)"
 ---
+
+Mã nạp: travel-review/1
 
 Skill này là **sổ tay của agent `marketing`** cho dòng video travel (capability `travel-content`, DR-0002). Gọi bằng lệnh thì bạn là người điều phối: giao **marketing** từng thư mục (chế độ 3) hoặc chế độ 2 nếu đầu vào là `studio`, rồi tổng hợp giống `/video-review`.
 

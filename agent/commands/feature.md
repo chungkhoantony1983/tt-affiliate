@@ -41,7 +41,7 @@ $ARGUMENTS
 
 BA, và MKTG nếu người vận hành hoặc người xem nhìn thấy kết quả. Cấp M: DR ngắn (bảng quyết định, bảng E2E, ràng buộc, chi phí), chỉ gọi marketing/techlead theo điều kiện ở bảng cấp.
 
-- Giao **ba**: yêu cầu nguyên văn + worktree. BA viết DR trong `docs/decision-records/` của worktree.
+- Giao **ba**: yêu cầu nguyên văn + worktree. BA giữ số DR theo skill `dr-draft` (quét mọi ref và mọi worktree, tạo file DR ngay) rồi viết DR trong `docs/decision-records/` của worktree. BA báo DR trùng số ở nhánh khác thì chuyển cho người dùng, không tự đổi.
 - Nếu thay đổi chạm tới thứ người vận hành dùng (Studio, tài liệu, lệnh) hoặc thứ người xem thấy (video, caption), giao thêm **marketing** (chế độ 2) đọc DR và góp ý từ góc người dùng. Chuyển góp ý cho BA cập nhật DR.
 - Nếu DR chạm tới backend, service local, subprocess/FFmpeg, Docker, dữ liệu nhạy cảm hoặc đổi cấu trúc module, giao thêm **techlead** (chế độ 1) đọc DR. Chuyển phát hiện Chặn/Nên sửa cho BA cập nhật DR trước cổng duyệt.
 
@@ -60,9 +60,9 @@ Giao **dev**: worktree + đường dẫn DR (cấp S: kế hoạch 2 dòng) + s�
 
 Cấp S: chỉ **tester**. Cấp M: **reviewer** + **tester** (+ marketing/techlead theo điều kiện). Cấp L: tất cả vai trò liên quan. Gửi trong **cùng một lượt**:
 - **reviewer** (M, L): worktree + DR.
-- **tester**: worktree + DR + thư mục video mẫu trong `storage/videos/` của repo gốc (tester tự copy ra thư mục tạm).
+- **tester**: worktree + DR + thư mục video mẫu trong `storage/videos/` của repo gốc (tester dựng bản sao bằng `sandbox-render`, hoặc khối biến môi trường trong `tester.md` cho API/UI và video du lịch).
 - **techlead** nếu thay đổi thuộc hạ tầng, backend, bộ nhớ/hiệu năng, bảo mật hoặc kiến trúc (cùng điều kiện như Phase 1).
-- **marketing** chế độ 2 nếu có giao diện hoặc tài liệu cho người vận hành; chế độ 1 trên **bản sao** video nếu thay đổi ảnh hưởng nội dung video.
+- **marketing** chế độ 2 nếu có giao diện hoặc tài liệu cho người vận hành; chế độ 1 trên **bản sao** video nếu thay đổi ảnh hưởng nội dung video. Marketing không chạy `demo.py`, nên trước đó bạn tự chuẩn bị bản sao bằng `/sandbox-render <repo gốc>/storage/videos/<thư mục> --keep` (dùng code của worktree: chạy `scripts/sandbox_render.py` của worktree), rồi giao đường dẫn video trong `sandbox_dir`. Báo marketing: kết quả `audio-check` của bản sao nằm ở `storage/review-frames/<tên>__sandbox/`, riêng khung hình vẫn ở `storage/review-frames/<tên>/`. Dọn thư mục tạm khi marketing xong.
 
 Gom kết quả:
 - Có phát hiện **Chặn**, test **FAIL** hoặc MKTG mức **Chặn** → giao lại **dev** đúng danh sách đó → chạy lại **chỉ** những agent đã báo lỗi.
@@ -73,6 +73,7 @@ Gom kết quả:
 ## Phase 5: Tài liệu (BA)
 
 Cấp S: người điều phối chỉ ghi dòng vào `TODO.md` khi cần, không gọi BA. Cấp M, L: giao **ba**: cập nhật mục "Kết quả" trong DR (dán nguyên bảng của tester và reviewer) và mọi tài liệu SSoT DR đã liệt kê, gồm `TODO.md`, `.claude/CLAUDE.md`, spec L3 và hướng dẫn vận hành.
+- BA chạy lại bước quét số DR của `dr-draft` trước khi merge (nhánh khác có thể đã lấy cùng số trong lúc làm). Trùng số thì báo người dùng, không tự đổi.
 
 ## Phase 6: Báo cáo
 
