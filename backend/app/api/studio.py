@@ -670,7 +670,7 @@ class CreateVideoRequest(BaseModel):
     name: Optional[str] = None
     price: Optional[int] = None
     images: Optional[List[str]] = None
-    style: str = "story"
+    style: str = "simple"
     category: Optional[str] = None
     selling_points: Optional[str] = None
     notes: Optional[str] = None

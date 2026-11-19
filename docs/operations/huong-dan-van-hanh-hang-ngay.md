@@ -154,9 +154,10 @@ Nếu muốn máy chạy tự động lần lượt mọi dòng đang để tr�
 # Tạo video cho 1 dòng cụ thể trên Google Sheet (từ dòng 2 trở đi)
 .venv/bin/python demo.py --sheet-row 2 --style simple
 
-# Chạy hàng loạt mọi dòng có status trống (kiểu đơn giản hoặc kiểu tiểu phẩm)
-.venv/bin/python demo.py --sheet --style simple
+# Chạy hàng loạt mọi dòng có status trống. Mặc định là kiểu đơn giản (tự động hoàn toàn, không cần ảnh nhân vật)
 .venv/bin/python demo.py --sheet
+# Kiểu tiểu phẩm (có nhân vật, cần ảnh nhân vật): thêm --style story, hoặc ghi "story" vào cột style của dòng đó
+.venv/bin/python demo.py --sheet --style story
 ```
 
 Giọng đọc được chọn tự động theo **Danh mục** (`category`) và tên sản phẩm:
