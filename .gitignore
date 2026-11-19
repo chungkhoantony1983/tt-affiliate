@@ -11,6 +11,8 @@ storage/pixabay_cache/
 storage/travel_cache/
 storage/studio-logs/
 storage/review-frames/
+storage/gemini-tts-usage.json
+storage/gemini-tts-usage.lock
 storage/analytics/
 .worktrees/
 *.mp4
