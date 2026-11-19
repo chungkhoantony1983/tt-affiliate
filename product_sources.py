@@ -101,3 +101,59 @@ def fetch_tiktok_product(url: str) -> dict:
         "specs": [f"{s['name']}: {s['value']}" for s in info.get("specifications", [])
                   if s.get("name") and s.get("value")],
     }
+
+
+# ---------------------------------------------------------------------------
+# Travel tab (DR-0002): one question per row. Kept apart from ProductSheet on purpose (T-15).
+# ---------------------------------------------------------------------------
+
+TRAVEL_SHEET_COLUMNS = ["question", "destination", "audience", "pillar", "source_urls", "notes",
+                        "facts_manual", "status"]
+
+
+class TravelSheet:
+    def __init__(self, sheet_ref: str, tab: str, credentials: str = "google-credentials.json"):
+        import gspread
+
+        book = gspread.service_account(filename=credentials).open_by_key(sheet_id_from(sheet_ref))
+        self.ws = book.worksheet(tab)
+        values = self.ws.get_all_values()
+        self.header = [h.strip() for h in values[0]] if values else []
+        missing = [c for c in TRAVEL_SHEET_COLUMNS if c not in self.header]
+        if missing:
+            raise ValueError(f"Sheet '{tab}' row 1 is missing columns: {', '.join(missing)}")
+        width = len(self.header)
+        self.rows = [
+            {"_row": i + 2, **dict(zip(self.header, (r + [""] * width)[:width]))}
+            for i, r in enumerate(values[1:])
+        ]
+
+    def pending(self) -> list:
+        """Rows with a question and an empty status (done, skip, review, needs_sources are left alone)."""
+        return [r for r in self.rows if r["question"].strip() and not r["status"].strip()]
+
+    def find(self, question: str, destination: str = "", audience: str = ""):
+        """Row matching the key stored in topic.json. A row with the exact destination / audience wins over a row
+        whose cell is empty (empty cells match any); a different non-empty value never matches."""
+        q = (question or "").strip()
+        best, best_score = None, -1
+        for r in self.rows:
+            if r["question"].strip() != q:
+                continue
+            score = 0
+            for want, cell in ((destination, r["destination"].strip()), (audience, r["audience"].strip())):
+                if want and cell not in ("", want):
+                    score = -1
+                    break
+                score += 1 if want and cell == want else 0
+            if score > best_score:
+                best, best_score = r, score
+        return best if best_score >= 0 else None
+
+    def update(self, row: dict, values: dict) -> None:
+        from gspread import Cell
+
+        cells = [Cell(row["_row"], self.header.index(k) + 1, v) for k, v in values.items()]
+        if cells:
+            self.ws.update_cells(cells)
+            row.update(values)
