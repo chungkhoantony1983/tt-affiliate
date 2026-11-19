@@ -1,0 +1,58 @@
+{
+  "_doc": "Danh sách chủ đề (trụ cột) cho video travel (DR-0002). Dùng chung cho mọi điểm đến, nên KHÔNG ghi tên nước, tên thành phố hay hashtag riêng của một nước ở đây (hashtag nước nằm trong destinations/<mã>.json). Thêm chủ đề = thêm một mục vào 'pillars'. Chữ hiển thị ghi theo mã ngôn ngữ. Khoá bắt đầu bằng '_' là ghi chú.",
+
+  "_categories_doc": "Mỗi fact trong facts.json có 'category' (Groq chọn trong fact_categories; giá trị lạ hoặc trống → coi như 'general'). C-0002-4: fact thuộc tier1_categories, hoặc claim/quote chứa một từ trong tier1_keywords[ngôn ngữ trang nguồn], phải có nguồn tier 1. C-0002-2: fact là volatile khi pillar.volatile=true, hoặc category thuộc volatile_categories.",
+  "fact_categories": ["visa", "entry", "health", "safety", "law", "fee", "price", "hours", "transport", "weather",
+                      "culture", "food", "place", "general"],
+  "tier1_categories": ["visa", "entry", "health", "safety", "law"],
+  "volatile_categories": ["visa", "entry", "law", "fee", "price", "hours"],
+  "tier1_keywords": {
+    "en": ["visa", "e-visa", "evisa", "visa-free", "passport", "immigration", "border", "vaccine", "vaccination",
+           "malaria", "dengue", "rabies", "hepatitis", "illegal", "law", "fine", "fines", "penalty", "arrest",
+           "drugs", "police", "driving licence", "driver's license", "driving permit"]
+  },
+
+  "_pillars_doc": "volatile: mặc định mọi fact của chủ đề này là volatile (≤ 30 ngày). min_tier: tier tệ nhất được chấp nhận cho chủ đề (1 = chỉ cơ quan nhà nước / tổ chức quốc tế). answer_segments: số đoạn 'answer' Groq phải viết (min..max), cộng với 1 hook + 1 outro. hashtags: gợi ý theo ngôn ngữ caption, chưa đo hiệu quả (đo ở P2).",
+  "pillars": {
+    "prep": {
+      "name": {"en": "Before you go", "vi": "Chuẩn bị trước chuyến đi"},
+      "examples": "visa, e-visa, hộ chiếu, vaccine, thời điểm đẹp, tiền mặt hay thẻ",
+      "volatile": true,
+      "min_tier": 1,
+      "answer_segments": {"min": 2, "max": 3},
+      "hashtags": {"en": ["#traveltips", "#travelprep"], "vi": ["#kinhnghiemdulich"]}
+    },
+    "getting-around": {
+      "name": {"en": "Getting around", "vi": "Đi lại"},
+      "examples": "taxi / xe công nghệ, tàu, máy bay nội địa, xe máy, lừa đảo thường gặp",
+      "volatile": false,
+      "min_tier": 2,
+      "answer_segments": {"min": 2, "max": 3},
+      "hashtags": {"en": ["#traveltips", "#transport"], "vi": ["#kinhnghiemdulich"]}
+    },
+    "culture": {
+      "name": {"en": "Culture & etiquette", "vi": "Văn hoá & phép lịch sự"},
+      "examples": "trang phục vào chùa, tiền tip, Tết, cách chào, cử chỉ nên tránh",
+      "volatile": false,
+      "min_tier": 2,
+      "answer_segments": {"min": 2, "max": 4},
+      "hashtags": {"en": ["#culture", "#traveletiquette"], "vi": ["#vanhoa"]}
+    },
+    "food": {
+      "name": {"en": "Food & drink", "vi": "Ẩm thực"},
+      "examples": "món nổi tiếng, khác biệt vùng miền, ăn chay, giá món, vệ sinh ăn uống",
+      "volatile": false,
+      "min_tier": 2,
+      "answer_segments": {"min": 2, "max": 4},
+      "hashtags": {"en": ["#foodie", "#streetfood"], "vi": ["#amthuc"]}
+    },
+    "places": {
+      "name": {"en": "Places to go", "vi": "Điểm đến"},
+      "examples": "địa danh, thời điểm đẹp của từng nơi, việc nên làm, lịch trình",
+      "volatile": false,
+      "min_tier": 2,
+      "answer_segments": {"min": 2, "max": 4},
+      "hashtags": {"en": ["#travel", "#bucketlist"], "vi": ["#dulich"]}
+    }
+  }
+}

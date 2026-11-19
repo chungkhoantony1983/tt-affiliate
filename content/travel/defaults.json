@@ -1,0 +1,5 @@
+{
+  "_doc": "Điểm đến và đối tượng mặc định khi hàng Sheet để trống và không có --destination / --audience / biến TRAVEL_DESTINATION / TRAVEL_AUDIENCE. Để code không chứa mã cụ thể nào (C-0002-5).",
+  "destination": "vn",
+  "audience": "en-us"
+}

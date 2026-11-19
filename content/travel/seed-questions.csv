@@ -1,0 +1,47 @@
+question,destination,audience,pillar,source_urls,notes,facts_manual,status
+"Do Americans need a visa for Vietnam?",vn,en-us,prep,"https://vietnam.travel/plan-your-trip/visa-requirements/
+https://vietnam.travel/faqs/","Video mẫu V-1. Hai trang vietnam.travel chỉ nói e-visa cấp cho mọi quốc tịch và liệt kê nước được miễn visa (không có Mỹ); không có câu nào nói thẳng 'người Mỹ cần visa'. travel.state.gov chặn tải tự động (403 ngày 2026-11-16): mở trang Vietnam trên travel.state.gov bằng trình duyệt, chép câu về visa vào cột facts_manual. Không dùng trang 'An official guide to e-Visas' (số cửa khẩu cũ, mâu thuẫn trang visa-requirements).",,
+"Do Canadians need a visa for Vietnam?",vn,en-us,prep,"https://travel.gc.ca/destinations/vietnam
+https://vietnam.travel/plan-your-trip/visa-requirements/","Trang Chính phủ Canada có câu nói thẳng: người mang hộ chiếu Canada phải có visa; e-visa tối đa 90 ngày.",,
+"How much does a Vietnam e-visa cost?",vn,en-us,prep,"https://vietnam.travel/plan-your-trip/visa-requirements/
+https://vietnam.travel/faqs/","Hai trang cùng ghi 25 USD một lần nhập cảnh, 50 USD nhiều lần (kiểm 2026-11-16). Dữ kiện volatile: duyệt trong 30 ngày.",,
+"How long does a Vietnam e-visa take to process?",vn,en-us,prep,"https://vietnam.travel/plan-your-trip/visa-requirements/
+https://vietnam.travel/faqs/","Hai trang cùng ghi 3 đến 5 ngày làm việc (kiểm 2026-11-16).",,
+"Do I need a visa to visit Phu Quoc Island?",vn,en-us,prep,"https://vietnam.travel/faqs/
+https://vietnam.travel/plan-your-trip/visa-requirements/","Miễn visa 30 ngày khi Phú Quốc là điểm đến cuối; rời đảo đi nơi khác thì cần visa (trang visa-requirements).",,
+"How long must my passport be valid to enter Vietnam?",vn,en-us,prep,"https://vietnam.travel/plan-your-trip/visa-requirements/","Chỉ dùng trang visa-requirements (người dùng chốt 2026-11-16, DR-0008). Trang ghi 'valid for at least 6 months from the date of arrival' và 'at least 6 months upon entry' (kiểm 2026-11-16). KHÔNG thêm URL FAQ: FAQ ghi '6 months beyond your planned stay', mâu thuẫn.",,
+"Which vaccines should I get before traveling to Vietnam?",vn,en-us,prep,"https://wwwnc.cdc.gov/travel/destinations/traveler/none/vietnam","Chủ đề y tế: chỉ nguồn tier 1 (CDC). Lời đọc chỉ nêu vaccine trang ghi 'Recommended', kết bằng câu khuyên kiểm trang chính thức / hỏi bác sĩ theo đúng trang.",,
+"When is the best time to visit Vietnam?",vn,en-us,prep,"https://vietnam.travel/things-to-do/weather-and-climate-vietnam/","Trang ghi tháng 3 đến tháng 5 thời tiết đẹp nhất cả nước, nhưng nơi nào cũng có mùa đẹp riêng.",,
+"Should I bring cash or use a card in Vietnam?",vn,en-us,prep,"https://vietnam.travel/things-to-do/currency-and-payments-vietnam/","Tiền mặt cho hàng rong, thẻ dùng được ở khách sạn, nhà hàng; mẹo tờ 20.000 và 500.000 cùng màu xanh. Tỷ giá trên trang thay đổi: không đưa tỷ giá vào lời đọc.",,
+"How much is a taxi from the airport in Hanoi or Saigon?",vn,en-us,getting-around,"https://vietnam.travel/faqs/","Giá có trên FAQ (Tân Sơn Nhất 150.000 đến 250.000 VND, Nội Bài 330.000 đến 400.000 VND). Giá là dữ kiện volatile: duyệt trong 30 ngày.",,
+"Grab or taxi in Vietnam: which should I use?",vn,en-us,getting-around,"https://vietnam.travel/faqs/
+https://vietnam.travel/plan-your-trip/health-safety/","FAQ nêu hãng taxi và app gọi xe; trang Health and Safety nêu kiểu lừa đảo taxi. Không so sánh giá giữa các app (không có nguồn).",,
+"How long is the train from Hanoi to Ho Chi Minh City?",vn,en-us,getting-around,"https://vietnam.travel/faqs/","Chỉ dùng FAQ (người dùng chốt 2026-11-16, DR-0008). FAQ ghi 'approximately 32 to 36 hours' cho cả chặng Hà Nội - TP.HCM (kiểm 2026-11-16). KHÔNG thêm URL trang Transport: trang đó ghi vừa 'up to 30 hours' vừa '36-hour'.",,
+"Should I fly or take the train between cities in Vietnam?",vn,en-us,getting-around,"https://vietnam.travel/plan-your-trip/transport-within-vietnam/","Trang khuyên bay 1 đến 2 giờ thay vì tàu dài. Tránh nêu số giờ tàu (mâu thuẫn, xem hàng câu hỏi tàu Bắc Nam).",,
+"Can Canadians ride a motorbike in Vietnam?",vn,en-us,getting-around,"https://travel.gc.ca/destinations/vietnam","Luật lái xe: chỉ nguồn tier 1. Trang Canada ghi Việt Nam không công nhận bằng lái Canada và IDP cấp ở Canada; cần bằng Việt Nam cho xe từ 50cc. Lưu ý: FAQ vietnam.travel lại khuyên mang IDP, nên KHÔNG thêm URL FAQ vào hàng này.",,
+"What tourist scams should I watch out for in Vietnam?",vn,en-us,getting-around,"https://vietnam.travel/plan-your-trip/health-safety/
+https://travel.gc.ca/destinations/vietnam","Chủ đề an toàn: chỉ nguồn tier 1. Nêu đúng các kiểu trang ghi (taxi gian lận đồng hồ, giật đồ bằng xe máy, tour không uy tín), không thêm chuyện kể.",,
+"Is it safe to eat street food in Vietnam?",vn,en-us,food,"https://vietnam.travel/plan-your-trip/health-safety/
+https://vietnam.travel/faqs/","Có liên quan sức khoẻ: dùng 2 trang tier 1 này. Ý chính: chọn quán đông khách, đồ nấu chín tại chỗ, nước đóng chai.",,
+"What should I wear to temples in Vietnam?",vn,en-us,culture,"https://vietnam.travel/faqs/
+https://vietnam.travel/things-to-do/vietnamese-etiquette-travellers/","Che vai và đầu gối, bỏ mũ và giày khi được yêu cầu.",,
+"Do you tip in Vietnam?",vn,en-us,culture,"https://vietnam.travel/things-to-do/currency-and-payments-vietnam/
+https://vietnam.travel/things-to-do/vietnamese-etiquette-travellers/","Hai trang cùng ý: không bắt buộc, thường gặp hơn ở spa, hướng dẫn viên.",,
+"Which hand gesture is rude in Vietnam?",vn,en-us,culture,"https://vietnam.travel/things-to-do/vietnamese-etiquette-travellers/","Bắt chéo ngón tay (cầu may) bị coi là rất bất lịch sự; tránh chỉ tay, vỗ đầu; đưa đồ bằng tay phải hoặc hai tay.",,
+"How do you say hello and thank you in Vietnamese?",vn,en-us,culture,"https://vietnam.travel/faqs/
+https://vietnam.travel/plan-your-trip/vietnamese-phrases/","Trang ghi sẵn cách đọc cho người nói tiếng Anh (Xin chào = Sin chow, Cảm ơn = Kahm uhn), đã đưa vào pronunciations của vn.json. Chữ trên màn hình giữ tiếng Việt có dấu.",,
+"How do Vietnamese people say cheers?",vn,en-us,culture,"https://vietnam.travel/things-to-do/vietnamese-etiquette-travellers/","'Một, hai, ba, dô!' (dô đọc yo ở miền Nam, zo ở miền Bắc theo trang).",,
+"How do you call a waiter in Vietnam?",vn,en-us,culture,"https://vietnam.travel/things-to-do/vietnamese-etiquette-travellers/","Trang giải thích cách gọi em ơi / anh ơi / chị ơi theo tuổi, không nói 'excuse me'.",,
+"What is Tet, and should I travel during it?",vn,en-us,culture,"https://vietnam.travel/things-to-do/top-festivals-vietnam/
+https://vietnam.travel/faqs/","Tết thường rơi vào tháng 1 hoặc 2; nhiều cửa hàng, dịch vụ, nhà hàng nghỉ vài ngày (FAQ). Không nêu ngày Tết cụ thể của năm (trang không ghi).",,
+"What's the difference between Northern and Southern pho?",vn,en-us,food,"https://vietnam.travel/things-to-do/21-must-try-vietnamese-dishes/","Video mẫu V-2. Trang '21 must-try Vietnamese dishes' có đoạn so sánh phở Hà Nội (nước trong) và phở Nam (nhiều rau thơm). Trang 'Must-try noodles' KHÔNG có đoạn so sánh này.",,
+"What's inside a Vietnamese banh mi?",vn,en-us,food,"https://vietnam.travel/things-to-do/21-must-try-vietnamese-dishes/",,,
+"What is bun cha?",vn,en-us,food,"https://vietnam.travel/things-to-do/must-try-noodles-vietnam/
+https://vietnam.travel/things-to-do/21-must-try-vietnamese-dishes/",,,
+"Is it easy to find vegetarian food in Vietnam?",vn,en-us,food,"https://vietnam.travel/faqs/
+https://vietnam.travel/things-to-do/vegetarian-guide-vietnam/","Từ khoá 'chay' trên biển quán (FAQ).",,
+"When is the best time to visit Ha Long Bay?",vn,en-us,places,"https://vietnam.travel/things-to-do/weather-and-climate-vietnam/","Chỉ dùng 1 trang: FAQ ghi tháng 4-5 và 9-10, trang thời tiết ghi tháng 4-6 và 9-11, trang Hạ Long ghi 9-11. Ba khoảng lệch nhau, không gộp nguồn.",,
+"What can you do in Sa Pa besides trekking?",vn,en-us,places,"https://vietnam.travel/faqs/
+https://vietnam.travel/place-to-go/northern-midlands-mountains/sapa/","Cáp treo Fansipan, tắm lá thuốc người Dao đỏ, chợ phiên. Số liệu cáp treo (6 km, 3.143 m, 15 phút) chỉ có trên trang Sa Pa.",,
+"When should you avoid visiting Hoi An?",vn,en-us,places,"https://vietnam.travel/things-to-do/weather-and-climate-vietnam/
+https://vietnam.travel/faqs/","Tháng 9 đến 11 mưa nhiều, có lụt nhỏ (trang thời tiết); FAQ nêu bão lụt miền Trung cuối mùa mưa.",,

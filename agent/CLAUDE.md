@@ -40,6 +40,11 @@ cp .env.example .env                       # bắt buộc: GROQ_API_KEY
 .venv/bin/python demo.py --approve storage/videos/<thư mục>     # Studio: post.txt → Drive → status=done
 # Cờ khác: --skip-approval, --keep-local, --tab <tên tab>, --output-dir <dir>, --url, --notes
 
+# Video du lịch Việt Nam tiếng Anh (tab Travel, không bán hàng; DR-0002, DR-0008)
+.venv/bin/python demo.py --travel --sheet                       # 1 video/lần → status=review
+.venv/bin/python demo.py --travel --refresh-facts storage/videos/<thư mục> [--confirm id1,id2]  # làm mới dữ kiện quá 30 ngày; --confirm = đã kiểm tay trang chính thức
+# --approve / --render-only dùng chung lệnh trên, tự nhận thư mục travel qua topic.json
+
 # Service local: app.html (đăng nhập TikTok, gửi video vào inbox) + trang Studio /studio (duyệt, sửa video)
 .venv/bin/uvicorn --app-dir backend app.creator_main:app --host 127.0.0.1 --port 8000
 # hoặc bấm đúp scripts/mo-studio.command (bật service nếu chưa chạy, mở http://127.0.0.1:8000/studio)
@@ -88,6 +93,13 @@ input (Sheet / CSV / CLI)
 - Sửa lời đọc: chỉ đọc lại câu có `line != audio_line`, bằng `script.json → tts_provider` của video. Lỗi thì không đổi audio nào (exit 3), Studio đưa lựa chọn `--revoice-all edge`. Không trộn 2 bộ giọng (C-0001-1).
 - API ghi bắt buộc header `X-Studio: 1`, không mở qua CORS (C-0001-3). Thư mục không có `product.json` → "Chỉ xem".
 - Chi tiết: `docs/specs/architecture/capabilities/video-render.md` § Studio.
+
+### Du lịch (`travel.py`, capability `travel-content`)
+
+- Video trả lời 1 câu hỏi của du khách về Việt Nam (EN + phụ đề VI), mọi câu có nguồn trích dẫn. Thư mục output có `topic.json`, `facts.json`, `credits.txt` (không có `product.json`). Hồ sơ điểm đến / đối tượng / trụ cột ở `content/travel/` (thêm nước = thêm JSON, không sửa code); câu hỏi đầu vào: `content/travel/seed-questions.csv` → tab `Travel`.
+- Mã thoát: 3 đọc lại giọng lỗi · 4 chưa sẵn sàng · **5** số không khớp nguồn (`fact_check`) · **6** dữ kiện dễ đổi quá 30 ngày (`facts_stale`, chạy `--refresh-facts`) · **7** tải Drive lỗi (`drive_failed`, không `done`, thư mục còn).
+- Studio hiện thư mục travel (nguồn, ảnh/bản quyền, checklist); chỉ edge-tts (không tốn Gemini); không tải `clip_*` / `img_*` lên Drive.
+- Chi tiết: `docs/specs/architecture/capabilities/travel-content.md`, `DR-0002`, `DR-0008`.
 
 ### TikTok
 
