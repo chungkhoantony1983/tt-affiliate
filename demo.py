@@ -1812,8 +1812,10 @@ def move_to_drive(out_dir: Path, product_name: str) -> dict:
     try:
         link = upload_video_folder(out_dir, product_name)
     except Exception as e:
-        print(f"   ⚠️  Drive upload failed ({e}) — files kept in {out_dir}")
-        return {}
+        # Not "ready": the caller must not mark the row done, and the folder stays for a retry (issue #16)
+        print(f"[DRIVE_FAILED] Không tải lên được Drive ({' '.join(str(e).split())[:120]}): video chưa được đánh dấu done, "
+              f"thư mục và post.txt vẫn còn nguyên ở {out_dir}; kiểm tra mạng / đăng nhập Drive rồi duyệt lại.")
+        return {"status": "drive_failed"}
     print(f"☁️  Drive: {link}")
     if not KEEP_LOCAL:
         shutil.rmtree(out_dir)
@@ -1835,6 +1837,7 @@ def rerender(out_dir: Path, skip_approval: bool) -> dict:
 # Exit codes for --render-only / --approve, read by the Studio service (backend/app/api/studio.py)
 EXIT_REVOICE_FAILED = 3   # edited lines could not be re-voiced; audio unchanged
 EXIT_NOT_READY = 4        # --approve on a folder that still needs a render or story images
+EXIT_DRIVE_FAILED = 7      # --approve: Drive upload failed; nothing is marked done, the folder stays (same code as travel.py)
 
 
 def render_only(out_dir: Path, revoice_all: str = None) -> dict:
@@ -1970,6 +1973,8 @@ def main():
         else:
             r = approve(d)
         print(f"\n{r['status']:<24} {r.get('dir', '')}")
+        if r["status"] == "drive_failed":
+            sys.exit(EXIT_DRIVE_FAILED)   # no sheet update: the row must not become done
         set_sheet_status(product.get("product_url", ""), args.tab, r["status"], product.get("sheet_row"))
         return
     if args.rerender:
