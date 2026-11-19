@@ -41,7 +41,9 @@ $ARGUMENTS
 
 ## Phase 2: Sửa (Dev)
 
-1. Worktree + nhánh:
+**Chọn cấp như `/feature`** (báo một dòng, người dùng đổi được). Bug nhỏ (≈ ≤3 file, không đụng bảo mật) là cấp **S**: chỉ **dev + tester**, không reviewer/techlead, tối đa 1 vòng sửa. Bug đụng backend/bảo mật/nhiều mảng là cấp **M/L** (thêm reviewer, techlead; tối đa 1 vòng cho M, 2 vòng cho L). Quy tắc tiết kiệm token của `/feature` áp dụng y nguyên.
+
+1. Worktree + nhánh (dùng lại nếu issue đã có worktree, không tạo mới mỗi vòng; chỉ `/feature` và `/bug` tạo worktree, làm video thì không):
    ```bash
    git fetch -q && git worktree add .worktrees/issue-<số> -b fix/issue-<số>-<tên-ngắn> origin/main
    python3 scripts/branch_observer.py report --fetch
@@ -49,18 +51,18 @@ $ARGUMENTS
 2. `gh issue comment <số> --body "Dev: bắt đầu sửa trên nhánh fix/issue-<số>-<tên-ngắn>."`
 3. Giao **dev**: worktree + số issue + nội dung issue (dán nguyên phần tái hiện) + DR liên quan nếu có.
 
-## Phase 3: Kiểm (chạy song song trong cùng một lượt)
+## Phase 3: Kiểm (chạy song song trong cùng một lượt, đúng cấp)
 
 - **tester**: worktree + số issue. Việc chính: chạy đúng bước tái hiện trong issue, phải hết lỗi; thêm ca biên quanh lỗi; hồi quy các lệnh liên quan.
 - **reviewer**: worktree + issue (thay cho DR).
 - **techlead**: thêm khi bug thuộc hạ tầng, backend, bộ nhớ/hiệu năng, bảo mật hoặc kiến trúc.
 
-Còn Chặn/FAIL → giao lại **dev** → chạy lại chỉ agent đã báo lỗi. Tối đa 2 vòng; quá thì dừng, comment tình trạng vào issue và báo người dùng.
+Cấp S: chỉ **tester**; cấp M thêm **reviewer**; cấp L thêm **techlead** khi cần. Còn Chặn/FAIL → giao lại **dev** một lần, gom hết góp ý → chạy lại chỉ agent đã báo lỗi. Tối đa 1 vòng (S, M) hoặc 2 vòng (L); quá thì dừng, comment tình trạng vào issue và báo người dùng.
 Phát hiện mới không liên quan bug này → quay lại Phase 1 để ghi issue riêng, không nhét vào nhánh này.
 
 ## Phase 4: Tài liệu (BA)
 
-Giao **ba**: số issue + báo cáo dev/tester. BA ghi vào `TODO.md` (và mục "Kết quả" của DR liên quan nếu bug thuộc một DR), cập nhật tài liệu nếu hành vi người vận hành thấy có đổi.
+Cấp S: người điều phối ghi dòng vào `TODO.md`, không gọi BA. Cấp M, L: giao **ba**: số issue + đường dẫn báo cáo dev/tester (không dán dài). BA ghi vào `TODO.md` (và mục "Kết quả" của DR liên quan nếu bug thuộc một DR), cập nhật tài liệu nếu hành vi người vận hành thấy có đổi.
 
 Comment tổng kết vào issue: nguyên nhân gốc, file đã sửa, bảng kết quả của tester (dán nguyên văn), việc người dùng cần tự kiểm.
 

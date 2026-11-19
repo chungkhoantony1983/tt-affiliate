@@ -140,10 +140,22 @@ Subagent trong `agent/agents/` (gọi bằng Agent tool, `subagent_type` = tên)
 | `tester` | Test theo bảng quyết định trên **bản sao** video, edge-tts, không Gemini/Drive/Sheet/TikTok thật | Chỉ thư mục tạm |
 | `marketing` | (1) Review video trước khi đăng: hook 3s, không bịa, ràng buộc ngành hàng, CTA, vùng an toàn, caption → `marketing-review.md` + đề xuất sửa cho Studio. (2) Review độ dễ dùng giao diện/tài liệu cho người vận hành. (3) Review video du lịch Việt Nam tiếng Anh: dữ kiện có nguồn, bản quyền clip, tiếng Anh, phụ đề Việt (skill `travel-review`). (4) Phân tích hiệu quả bài đăng, tiếp cận người xem (skill `post-analytics`) | `marketing-review.md`, `storage/analytics/` |
 
+Quy trình chung (`/feature`, `/bug`): **1 issue GitHub = 1 nhánh = 1 PR** (`Fixes #N`). Nhánh `feat/issue-N-<slug>`, `fix/issue-N-<slug>`, `chore/<slug>`. Issue tạo trước (mẫu `.github/ISSUE_TEMPLATE/feature.md` hoặc `bug.md`). Chỉ `/feature` và `/bug` tạo worktree; làm video không bao giờ tạo worktree. Hook vẫn chặn `git checkout`/`switch` ở repo gốc, merge bằng `/merge-pr`.
+
+Người điều phối chọn **cấp** ở Phase 0, báo người dùng một dòng (người dùng đổi được) để không gọi thừa agent:
+
+| Cấp | Khi nào | Vai trò | DR / cổng duyệt | Vòng sửa tối đa |
+|-----|---------|---------|-----------------|-----------------|
+| S | ≈ ≤3 file, không hành vi mới, không bảo mật | dev + tester | Không DR; nêu kế hoạch 2 dòng rồi làm | 1 |
+| M | Hành vi mới trong một mảng | ba (DR ngắn) + dev + reviewer + tester; marketing chỉ khi có UI/video; techlead chỉ khi backend/hạ tầng/bảo mật | DR ngắn, dừng chờ duyệt | 1 |
+| L | Nhiều mảng, bảo mật, kiến trúc, nhiều nhánh mở | Toàn bộ quy trình bên dưới | DR đầy đủ, dừng chờ duyệt | 2 |
+
+Tiết kiệm token: một vòng Dev gom hết góp ý; chỉ chạy lại agent đã báo lỗi; dùng lại worktree/nhánh của issue; không gọi agent cho câu hỏi đọc file là trả lời được; giữa các agent chỉ chuyển đường dẫn (DR, spec), không dán tóm tắt dài; agent nền ghi kết quả ra file và trả tóm tắt ngắn.
+
 Lệnh trong `agent/commands/`:
 
-- `/feature <yêu cầu>`: worktree + nhánh → **ba** viết DR (thêm **marketing** nếu người dùng/người xem thấy kết quả) → **dừng chờ người dùng duyệt** → **dev** → **reviewer + tester + marketing** song song, thêm **techlead** khi chạm backend/hạ tầng/bảo mật/hiệu năng/kiến trúc (tối đa 2 vòng sửa; bug không sửa trong vòng → issue qua `/bug`) → **ba** cập nhật tài liệu → báo cáo, hỏi trước khi commit/PR.
-- `/bug <mô tả> | #<số>`: ghi bug thành **GitHub issue** (mẫu `.github/ISSUE_TEMPLATE/bug.md`, nhãn `bug` + `role:dev` + `role:tester` + `role:ba`, assignee là người dùng) → hỏi người dùng → **dev** sửa trong worktree `fix/issue-<số>-…` → **tester + reviewer** (+ **techlead**) → **ba** ghi `TODO.md` → comment kết quả vào issue → hỏi trước khi commit/PR (`Fixes #<số>`). Bug tìm thấy trong `/feature` mà không sửa trong vòng đó cũng đi đường này.
+- `/feature <yêu cầu>` (cấp L đầy đủ; S/M cắt bớt vai trò theo bảng trên): issue → worktree + nhánh → **ba** viết DR (thêm **marketing** nếu người dùng/người xem thấy kết quả) → **dừng chờ người dùng duyệt** → **dev** → **reviewer + tester + marketing** song song, thêm **techlead** khi chạm backend/hạ tầng/bảo mật/hiệu năng/kiến trúc (tối đa 2 vòng sửa; bug không sửa trong vòng → issue qua `/bug`) → **ba** cập nhật tài liệu → báo cáo, hỏi trước khi commit/PR.
+- `/bug <mô tả> | #<số>`: ghi bug thành **GitHub issue** (mẫu `.github/ISSUE_TEMPLATE/bug.md`, nhãn `bug` + `role:dev` + `role:tester` + `role:ba`, assignee là người dùng) → hỏi người dùng → **dev** sửa trong worktree `fix/issue-<số>-…` → **tester** (+ **reviewer**, **techlead** theo cấp) → **ba** ghi `TODO.md` → comment kết quả vào issue → hỏi trước khi commit/PR (`Fixes #<số>`). Bug tìm thấy trong `/feature` mà không sửa trong vòng đó cũng đi đường này.
 - `/video-review [thư mục…]`: **marketing** review từng video (bỏ trống = mọi video Chờ duyệt) → bảng tổng hợp → người dùng chọn đề xuất → áp dụng qua API Studio (`PUT` + `render`), **không** tự duyệt.
 - `/tech-audit <vùng>`: **techlead** audit hạ tầng, backend, bộ nhớ, bảo mật, kiến trúc → Bug thì ghi issue qua `/bug`, Nợ kỹ thuật thì **ba** ghi `TODO.md`.
 - `/travel-review [thư mục…] | studio`: **marketing** review video du lịch (T1–T12) hoặc chức năng travel trên Studio.
