@@ -22,6 +22,8 @@
         "#vandongnhe"
       ],
       "prepare": "Đứng thẳng, hai chân rộng bằng vai, gối hơi chùng, vai thả lỏng, thở đều bằng mũi.",
+      "prepare_screen": "Chân rộng bằng vai · gối hơi chùng · vai thả lỏng · thở đều",
+      "welcome": "Chào mừng các bạn quay lại với chuỗi bài tập Bát Đoạn Cẩm.",
       "moves": [
         {
           "n": 1,
@@ -53,16 +55,22 @@
             "Bước chân trái sang ngang, chùng gối vừa sức như ngồi ngựa, hai tay bắt chéo trước ngực.",
             "Tay trái dựng ngón trỏ, đẩy chậm sang trái; tay phải co lại kéo về ngang vai phải như kéo dây cung.",
             "Mắt nhìn theo ngón trỏ tay trái, giữ 1–2 giây.",
-            "Thu tay, đứng lên, làm sang bên phải."
+            "Thu tay, đứng lên. Rồi đổi bên: bước chân phải sang ngang, tay phải đẩy ngón trỏ, tay trái kéo dây cung."
+          ],
+          "screens": [
+            "Bước chân trái sang ngang, chùng gối vừa sức, hai tay bắt chéo trước ngực.",
+            "Tay trái dựng ngón trỏ, đẩy sang trái; tay phải kéo về vai phải như kéo cung.",
+            "",
+            "Thu tay, đứng lên. Đổi bên: tay phải đẩy ngón trỏ, tay trái kéo dây cung."
           ],
           "reps": "Mỗi bên 3 lần",
           "careful": "Gối không vượt quá mũi chân.",
           "done": false,
           "steps_en": [
-            "steps the left foot out to the side into a wide stance with knees bent as if riding a horse, crossing both wrists in front of the chest",
-            "slowly extends the left arm to the left with the index finger pointing up, while the right hand pulls back to the right shoulder as if drawing a bow string",
-            "holds the bow-drawing pose, eyes looking at the left index finger",
-            "releases the pose, straightens up, brings the feet together, then does the same bow-drawing motion to the right side"
+            "steps the left foot out to the side into a shallow, comfortable horse stance, knees only slightly bent and not past the toes, crossing both wrists in front of the chest",
+            "starts in a shallow horse stance with wrists crossed in front of the chest, then slowly extends the left arm to his left with the index finger pointing up, while the right hand pulls back to the right shoulder as if drawing a bow string",
+            "is already, from the first frame, in a shallow horse stance, left arm fully extended to his left with the index finger pointing up, right fist pulled back beside the right shoulder with the elbow out; he holds still and turns his head to look at the left index finger",
+            "starts standing upright, then steps the right foot out into a shallow horse stance, extends the right arm to his right with the index finger up while the left hand pulls back to the left shoulder"
           ],
           "cue": "Ngồi tấn, một tay đẩy ngón trỏ, một tay kéo dây cung.",
           "peak_step": 2,
