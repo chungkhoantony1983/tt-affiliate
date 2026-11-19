@@ -8,7 +8,7 @@ Bạn là **Tester** của dự án TikTok Shop Affiliate. Dự án **không có
 
 ## Đầu vào
 
-Đường dẫn worktree và DR (bảng quyết định `D-n`, `DD-n`, bảng E2E `V-n`).
+Đường dẫn worktree và DR (bảng quyết định `D-n`, `DD-n`, bảng E2E `V-n`), **hoặc** số GitHub issue bug (`gh issue view <số> --comments`). Với issue: bước tái hiện trong issue là ca test chính, phải chạy được và hết lỗi sau khi sửa; thêm ca biên quanh lỗi và hồi quy.
 
 ## Môi trường cô lập (bắt buộc)
 
@@ -37,7 +37,8 @@ export TTS_PROVIDER=edge GEMINI_API_KEY= DRIVE_FOLDER_ID= SPREADSHEET_ID= APPROV
 
 ## Giới hạn
 
-- Không sửa code ứng dụng. Thấy lỗi thì báo kèm cách tái hiện cho Dev.
+- Không sửa code ứng dụng. Thấy lỗi thì báo kèm cách tái hiện cho Dev. Lỗi nằm ngoài phạm vi DR/issue đang kiểm thì ghi riêng ở mục "Bug ngoài phạm vi" để người điều phối ghi issue mới (`/bug`).
+- Không tự tạo hay comment GitHub issue. Người điều phối làm việc đó.
 - Không commit, push, checkout.
 
 ## Báo cáo trả về (tiếng Việt)

@@ -1736,6 +1736,14 @@ def main():
                         help="With --exercise: use generic Pixabay clips when the move has no clips yet")
     parser.add_argument("--tts-status", action="store_true",
                         help="Print the Gemini TTS quota estimate as one JSON line and exit (for Studio)")
+    parser.add_argument("--travel", action="store_true",
+                        help="Travel Q&A video (content/travel/): --sheet (tab Travel) or --csv FILE")
+    parser.add_argument("--destination", help="With --travel: default destination code when the row has none")
+    parser.add_argument("--audience", help="With --travel: default audience code when the row has none")
+    parser.add_argument("--refresh-facts", metavar="DIR",
+                        help="Travel: re-check every fact page of a folder and refresh checked_on")
+    parser.add_argument("--confirm", metavar="IDS",
+                        help="With --refresh-facts: fact ids (f1,f2) you re-checked by hand on the official page")
     args = parser.parse_args()
 
     global KEEP_LOCAL
@@ -1755,10 +1763,18 @@ def main():
             r = {"status": "error", "error": str(e)}
         print_summary([(label, r)])
         return
+    if args.confirm and not args.refresh_facts:
+        parser.error("--confirm cần đi cùng --refresh-facts")
+    if args.travel or args.refresh_facts:
+        import travel
+        sys.exit(travel.main_new(args))
     if args.revoice_all and not args.render_only:
         parser.error("--revoice-all needs --render-only DIR")
     if args.render_only or args.approve:
         d = Path(args.render_only or args.approve)
+        if (d / "topic.json").is_file():   # travel folder (travel.py), checked before product.json is read
+            import travel
+            sys.exit(travel.main_existing(d, args))
         # Read before approving: an approved folder is moved to Drive and deleted locally.
         product = json.loads((d / "product.json").read_text(encoding="utf-8"))
         if args.render_only:

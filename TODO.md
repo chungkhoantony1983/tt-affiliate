@@ -7,7 +7,7 @@
 >
 > Ký hiệu: ✅ xong · 🟡 đang làm / làm dở · ⬜ chưa làm · ⛔ bị chặn (chờ bên ngoài)
 >
-> Cập nhật lần cuối: 2026-11-12
+> Cập nhật lần cuối: 2026-11-15
 
 ---
 
@@ -127,13 +127,48 @@ Khung mọi chuỗi bài: **mở đầu** (gợi tò mò, nguồn gốc, dành c
 - [x] Dựng: clip ngắn hơn lời đọc thì chạy tới-lui thay vì nhảy về đầu (hết giật); `angles` trong giáo trình
       (bài 2, 5, 6, 7, 8) thêm clip góc nghiêng/sau `NN_K_side|back.mp4`, hiện ở khung nhỏ cạnh clip chính
 - [x] Khung cảnh cố định cho mọi clip: mô tả địa điểm chi tiết trong `character_en`; mỗi prompt một chat mới
-- [ ] Video mở đầu làm lại: 6 clip riêng `intro_1…6` (đã có intro_1). Gemini Pro hết lượt 2026-11-13 → làm tiếp
-      intro_2…6, rồi `demo.py --exercise-rerender storage/videos/20261112_143304_baitap_bdc_00_gioithieu`
-      (giữ giọng Gemini cũ), duyệt
+- [x] Video mở đầu làm lại: đủ 6 clip đồng bộ `intro_1…6` trong `storage/clips/bdc/`, đã dựng `20261113_183051_baitap_bdc_00_gioithieu` (51.8s, 6 cảnh) và tải lên Google Drive (2026-11-13)
+- [x] Marketing review video mở đầu (`marketing-review.md`) → tinh chỉnh dựng bài tập: cắt khoảng lặng đầu/cuối audio
+      (chuyển cảnh 1,3s → 0,46s), hoà hình 0,3s giữa cảnh, xuất 24 fps theo clip Gemini, che dấu ✦ Gemini (delogo),
+      dòng "không phải phương pháp chữa bệnh" ở cảnh cuối video mở đầu, rút gọn chữ cảnh 3 và 5. Video còn 46,9s (2026-11-13)
+- [ ] Bản trên Google Drive là bản cũ 51,8s → thay bằng `video.mp4` mới trong thư mục local
 - [ ] Gemini app không nhận ảnh khung đầu (ảnh người thật → lỗi) nên chưa khoá được nền bằng ảnh tham chiếu
 - [ ] Đăng video mở đầu Bát Đoạn Cẩm, rồi bài 1
 - [ ] Thái Cực Quyền 24 thức: soạn bước từng thức + mở đầu + tổng kết, người vận hành duyệt
 - [ ] (Sau) Chuỗi Tabata không dụng cụ theo cùng khung
+
+### M2d — Video du lịch Việt Nam tiếng Anh, không bán hàng (2026-11-15)
+Capability mới `travel-content`: mỗi video trả lời 1 câu hỏi thật của du khách (visa, đi lại, văn hoá, ẩm thực),
+giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thiết kế: DR-0002, `docs/specs/architecture/capabilities/travel-content.md`.
+- [x] Lập kế hoạch, người dùng chốt: kênh hiện tại · giọng Mỹ · hình Pixabay / nguồn có giấy phép · có phụ đề VI (2026-11-15)
+- [x] DR-0002 + spec L3
+- [x] Người dùng duyệt DR-0002 (merge PR #11, 2026-11-15)
+- [x] P0: hồ sơ `content/travel/` (điểm đến `vn`, đối tượng `en-us`, `pillars.json`) + 30 câu hỏi đầu ở `content/travel/seed-questions.csv` (2026-11-16, nhánh `feat/travel-p1`). Chi tiết thực thi: spec `travel-content.md` § Chi tiết thực thi P1
+- [x] DR-0008 (supersedes C-0002-1, C-0002-2, D-11; số 0008 vì 0002–0007 thuộc nhánh khác): fact quá hạn chặn `--approve` bằng exit 6 (`demo.py --travel --refresh-facts DIR` để làm mới), kiểm số cả `subs`/`hook`/`caption`; P1 chỉ edge-tts; không upload `clip_*`/`img_*` lên Drive. Người dùng duyệt 2026-11-16
+- [x] 2 hàng `skip` đã chốt nguồn (2026-11-16): hộ chiếu chỉ dùng trang visa-requirements, tàu Bắc-Nam chỉ dùng FAQ; hết `skip` trong `seed-questions.csv`
+- [ ] **[Bạn]** Tạo tab `Travel` trên Google Sheet: Tệp → Nhập → tải `content/travel/seed-questions.csv` lên
+- [ ] **[Bạn]** Nghe video phở (V-2) khi có, ghi từ đọc sai (tên món, địa danh Việt) để sửa `pronunciations` trong `content/travel/destinations/vn.json`
+- [ ] Bug [#15](https://github.com/chungkhoantony1983/tt-affiliate/issues/15): `--keep-local` bị bỏ qua khi chạy với `--exercise`. Chưa sửa, Dev xử lý qua `/bug`
+- [ ] **v2 (DR-0010, đề xuất 2026-11-18, nhánh `feat/travel-story`)**: sau video phở đầu (hình lạc đề, ~15 s, giọng "mùi AI"): bản sửa lần 2 sau review Tech Lead + Marketing: phần 10a = video 4 nhịp 60–90 s, thư viện cảnh quay riêng + kiểm khớp hình (thiếu cảnh quay → dừng trước khi gọi AI, mã 8), dissolve frame-exact, edge-tts cải tiến, không Gemini. Gemini = DR-0010b sau khi `gemini-quota` merge. Chi phí chạy video $0; Veo/Flow không chọn. Bạn đã chốt (2026-11-18): làm 10a trước, Gemini để 10b (U1) · 3–4 video/tuần (U2) · phụ đề VI tắt mặc định, vẫn viết để xem trên Studio (U3) · video đầu không nêu tên quán (U4). **Chờ: bạn xác nhận duyệt DR + U5 (bạn tự quay ≥ 16 clip, 2 buổi) và U6 (thứ tự merge #17 → gemini-quota → studio-create-video → 10a → 10b); 2 mục này là giả định, chưa xác nhận**
+- [ ] Nợ kỹ thuật (Tech Lead 2026-11-16): tách phần dựng clip dùng chung của `exercise.py` / `travel.py` ra `clipkit.py`. `_pingpong` (filter `reverse`) giữ mọi khung hình trong RAM: đo được 688 MB cho clip 720×1280 10 s
+- [ ] **[Bạn]** Video visa người Mỹ (V-1): travel.state.gov chặn tải tự động, cần mở trang bằng trình duyệt và chép câu về visa vào cột `facts_manual` (dạng `claim | quote | url`)
+- [ ] Nợ kỹ thuật travel (kiểm cuối 2026-11-17, không chặn merge):
+  - UX Studio: sau khi Drive lỗi, danh sách vẫn gắn nhãn "Đã duyệt" vì `_label()` chỉ dựa vào `post.txt` (ghi trước khi upload). Đề xuất: ghi dấu riêng (vd `drive.ok`) sau upload thành công, hoặc đọc kết quả job gần nhất; banner và nút Duyệt lại vẫn đúng
+  - Reviewer gợi ý: hook dài cắt bằng "…" có thể kết thúc giữa cụm ("…from the…"); Studio báo "N dữ kiện bị ẩn" khi snapshot thiếu danh sách nguồn dù dữ kiện vẫn hiện (không link); tiền tố `refresh.` bỏ qua khi upload Drive hiện chỉ khớp `refresh.log`
+  - Đo lại RAM dựng trên máy thật (ffmpeg đỉnh 509 MB với clip 4K trong môi trường kiểm; chưa đo trên máy nhà)
+- [ ] Nợ kỹ thuật travel (BA ghi 2026-11-16):
+  - Tách `travel.py` (khoảng 2000 dòng) thành `travel_render.py` / `travel_media.py` khi thêm TTS thứ hai hoặc nguồn media thứ 4
+  - Module helper dùng chung cho `demo.py` / `exercise.py` / `travel.py` (hiện `travel.py` gọi hàm riêng tư `demo._font`, `_slug`, `_text_block`, `_wrap_px`, `_extract_json`, `_ffmpeg_bin`, `exercise._clip_info`, `_speech_bounds`)
+  - Studio: nút **Làm mới nguồn** (hoặc file bấm đúp `.command`) thay cho dán lệnh vào Terminal khi gặp exit 6
+  - Kiểm DNS-rebinding / IP riêng khi tải trang nguồn: chấp nhận, rủi ro thấp (chỉ tải host trong danh sách cho phép, https, không cổng lạ)
+  - Ghim phiên bản các gói còn lại trong `requirements-demo.txt`: `pillow`, `mutagen`, `groq`, `gspread` (mới ghim `edge-tts==7.3.1`)
+- [ ] Bug [#16](https://github.com/chungkhoantony1983/tt-affiliate/issues/16): luồng **sản phẩm** trong `demo.py`, tải lên Drive lỗi mà Sheet vẫn bị đặt `status=done`. Luồng travel đã đúng (Drive lỗi → exit 7 `[DRIVE_FAILED]`, không `done`, thư mục còn). Chưa sửa
+- [x] Thiết kế mở rộng: thêm nước / chủ đề / đối tượng = thêm hồ sơ JSON, không sửa code (C-0002-5, 2026-11-15)
+- [x] P1 (code): `travel.py` (research → check nguồn → script EN/VI → Pixabay/Pexels/Wikimedia → edge-tts en-US → dựng), Studio nhận thư mục travel, `--refresh-facts [--confirm]`, mã thoát 5/6/7. Reviewer cuối 0 Chặn / 0 Nên sửa, Tester cuối toàn PASS (2026-11-17), kết quả chi tiết ở DR-0008 § Kết quả. P1 chưa đóng hẳn: còn chờ bạn chạy dữ liệu thật (dòng **[Bạn]** bên dưới)
+- [ ] Merge: thứ tự `feat/studio-create-video` → `feat/gemini-quota` → `feat/travel-p1` (rebase sau cùng). Nhánh gemini-quota phải tự đổi số file `DR-0002-…` (trùng DR-0002 travel). Commit nhánh này dùng `git add -A`. Việc kiểm sau merge: DR-0008 § Kết quả
+- [ ] **[Bạn]** Việc còn lại để P1 xong: dán `seed-questions.csv` vào tab `Travel`; đặt `PEXELS_API_KEY` trong `.env` nếu muốn (tuỳ chọn); nghe phát âm trên video phở; dán `facts_manual` cho video visa người Mỹ; chạy video thật đầu tiên (`demo.py --travel --sheet`)
+- [ ] P2: đăng 10–15 video, ghi % người xem US / CA / AU vào §4
+- [ ] P3 (DR riêng): tự tìm chủ đề xu hướng (YouTube Data API, Google Trends)
 
 ### M3 — Đăng & học từ dữ liệu
 - [ ] Đăng tay 10 video đầu, gắn sản phẩm, ghi kết quả vào §4
@@ -190,4 +225,5 @@ Khung mọi chuỗi bài: **mở đầu** (gợi tò mò, nguồn gốc, dành c
 - **TikTok app review (từ session 2026-06-26):** quy trình mới ở `docs/operations/tiktok-demo-recording.md`. Chỉ xin 2 scope: `user.info.basic`, `video.upload`, không dùng `video.publish`. Ghi chú cũ lưu ở tag `archive/docs-sa-requirement-design`.
 - **Studio duyệt & sửa video (DR-0001, 2026-11-12):** trang riêng `/studio` do service `creator_main` phục vụ, không đụng `app.html` (đang xét duyệt). Mọi xử lý video vẫn ở `demo.py` (`--render-only`, `--approve`, `--revoice-all edge`). Sửa lời đọc chỉ đọc lại câu đã sửa, bằng đúng bộ giọng của video; Gemini lỗi thì không đổi audio nào. Mỗi câu sửa trên video Gemini tốn 1 lượt (10/ngày).
 - **Đội vai trò AI (2026-11-12):** subagent `ba`, `dev`, `reviewer`, `tester`, `marketing` trong `agent/agents/`. Lệnh `/feature` (làm tính năng theo vai trò, có cổng duyệt DR) và `/video-review` (marketing review video trước khi duyệt). Đặt ở `agents/` và `commands/` vì `/sync` xoá mọi skill lạ trong `agent/skills/`. Các skill SSoT `/task`, `/fix` bị kẹt vì `workflow_step.py` thiếu module `automation_engine`. Lần chạy thử marketing trên video Bột mè đen phát hiện khung CTA "BẤM GIỎ HÀNG VÀNG" rộng gần hết màn hình, lấn sang cột nút bên phải của TikTok (đề xuất cho Dev, chưa sửa).
+- **Duyệt trước khi dựng (DR-0011, đã duyệt 2026-11-19):** cổng duyệt kịch bản / ảnh nhân vật / hình từng cảnh trên Studio TRƯỚC khi đọc giọng và dựng, cho video sản phẩm, bài tập, du lịch. Làm theo thứ tự du lịch → sản phẩm → bài tập, hạ tầng chỉ sau khi PR #17 merge. `--skip-approval` vẫn dừng ở cổng kịch bản (bỏ hết cần `--no-gates`). Chi tiết: `docs/decision-records/DR-0011-duyet-truoc-khi-dung.md`.
 - `.env.example` vẫn liệt kê `OPENAI_API_KEY`, `ELEVENLABS_API_KEY` (phương án C). Giai đoạn này chỉ cần Groq.

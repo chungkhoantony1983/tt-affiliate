@@ -69,33 +69,57 @@ def _find_or_create_folder(s, name: str, parent: str) -> str:
                          json=meta)).json()["id"]
 
 
-def _upload_file(s, path: Path, parent: str) -> dict:
-    """Resumable upload (works for any size); returns {id, md5Checksum, size}."""
+def _find_file(s, name: str, parent: str):
+    """Id of a non-folder file called `name` directly inside `parent`, or None."""
+    safe = name.replace("\\", "\\\\").replace("'", "\\'")
+    q = f"name = '{safe}' and '{parent}' in parents and mimeType != '{FOLDER_MIME}' and trashed = false"
+    found = _check(s.get(f"{API}/files", params={"q": q, "fields": "files(id)", "pageSize": 1,
+                                                  "supportsAllDrives": "true",
+                                                  "includeItemsFromAllDrives": "true"})).json()["files"]
+    return found[0]["id"] if found else None
+
+
+def _upload_file(s, path: Path, parent: str, existing_id: str = None) -> dict:
+    """Resumable upload (works for any size); returns {id, md5Checksum, size}.
+    existing_id: replace the content of that Drive file instead of creating a second one."""
     mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-    start = _check(s.post(f"{UPLOAD_API}/files",
-                          params={"uploadType": "resumable", "supportsAllDrives": "true",
-                                  "fields": "id,md5Checksum,size"},
-                          json={"name": path.name, "parents": [parent]},
-                          headers={"X-Upload-Content-Type": mime}))
+    params = {"uploadType": "resumable", "supportsAllDrives": "true", "fields": "id,md5Checksum,size"}
+    if existing_id:
+        start = _check(s.patch(f"{UPLOAD_API}/files/{existing_id}", params=params, json={"name": path.name},
+                               headers={"X-Upload-Content-Type": mime}))
+    else:
+        start = _check(s.post(f"{UPLOAD_API}/files", params=params,
+                              json={"name": path.name, "parents": [parent]},
+                              headers={"X-Upload-Content-Type": mime}))
     with path.open("rb") as f:
         return _check(s.put(start.headers["Location"], data=f,
                             headers={"Content-Type": mime})).json()
 
 
-def upload_video_folder(out_dir: Path, product_name: str) -> str:
+def upload_video_folder(out_dir: Path, product_name: str, path=None, skip_prefixes=(),
+                        replace_existing: bool = False) -> str:
     """Upload every file in out_dir to <root>/<product>/<out_dir name>/ and verify checksums.
+    path: optional list of folder names (e.g. ["travel", "vn"]) used instead of [product_name].
+    skip_prefixes: extra file-name prefixes that are not uploaded (e.g. stock clips).
+    replace_existing: a file that is already in the Drive folder (same name) is updated in place, so approving
+    again after a partial upload does not leave duplicates. Default False = old behaviour (always create).
     Returns the Drive link of the run folder. Raises if any file does not match."""
     root = os.environ.get("DRIVE_FOLDER_ID", "").strip()
     if not root:
         raise RuntimeError("DRIVE_FOLDER_ID not set in .env")
     s = _session()
-    product_folder = _find_or_create_folder(s, product_name.strip() or "Khác", root)
-    run_folder = _find_or_create_folder(s, out_dir.name, product_folder)
+    parent = root
+    names = list(path) if path else [product_name.strip() or "Khác"]
+    for name in names:
+        parent = _find_or_create_folder(s, name, parent)
+    run_folder = _find_or_create_folder(s, out_dir.name, parent)
 
-    files = sorted(p for p in out_dir.iterdir() if p.is_file() and not p.name.startswith(SKIP_PREFIXES))
-    print(f"☁️  Uploading {len(files)} file(s) to Drive: {product_name}/{out_dir.name}")
+    skip = SKIP_PREFIXES + tuple(skip_prefixes)
+    files = sorted(p for p in out_dir.iterdir() if p.is_file() and not p.name.startswith(skip))
+    print(f"☁️  Uploading {len(files)} file(s) to Drive: {'/'.join(names)}/{out_dir.name}")
     for p in files:
-        info = _upload_file(s, p, run_folder)
+        existing = _find_file(s, p.name, run_folder) if replace_existing else None
+        info = _upload_file(s, p, run_folder, existing) if existing else _upload_file(s, p, run_folder)
         local_md5 = hashlib.md5(p.read_bytes()).hexdigest()
         if info.get("md5Checksum") != local_md5:
             raise RuntimeError(f"Checksum mismatch after uploading {p.name}")

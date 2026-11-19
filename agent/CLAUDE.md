@@ -40,6 +40,11 @@ cp .env.example .env                       # bắt buộc: GROQ_API_KEY
 .venv/bin/python demo.py --approve storage/videos/<thư mục>     # Studio: post.txt → Drive → status=done
 # Cờ khác: --skip-approval, --keep-local, --tab <tên tab>, --output-dir <dir>, --url, --notes
 
+# Video du lịch Việt Nam tiếng Anh (tab Travel, không bán hàng; DR-0002, DR-0008)
+.venv/bin/python demo.py --travel --sheet                       # 1 video/lần → status=review
+.venv/bin/python demo.py --travel --refresh-facts storage/videos/<thư mục> [--confirm id1,id2]  # làm mới dữ kiện quá 30 ngày; --confirm = đã kiểm tay trang chính thức
+# --approve / --render-only dùng chung lệnh trên, tự nhận thư mục travel qua topic.json
+
 # Service local: app.html (đăng nhập TikTok, gửi video vào inbox) + trang Studio /studio (duyệt, sửa video)
 .venv/bin/uvicorn --app-dir backend app.creator_main:app --host 127.0.0.1 --port 8000
 # hoặc bấm đúp scripts/mo-studio.command (bật service nếu chưa chạy, mở http://127.0.0.1:8000/studio)
@@ -89,6 +94,13 @@ input (Sheet / CSV / CLI)
 - API ghi bắt buộc header `X-Studio: 1`, không mở qua CORS (C-0001-3). Thư mục không có `product.json` → "Chỉ xem".
 - Chi tiết: `docs/specs/architecture/capabilities/video-render.md` § Studio.
 
+### Du lịch (`travel.py`, capability `travel-content`)
+
+- Video trả lời 1 câu hỏi của du khách về Việt Nam (EN + phụ đề VI), mọi câu có nguồn trích dẫn. Thư mục output có `topic.json`, `facts.json`, `credits.txt` (không có `product.json`). Hồ sơ điểm đến / đối tượng / trụ cột ở `content/travel/` (thêm nước = thêm JSON, không sửa code); câu hỏi đầu vào: `content/travel/seed-questions.csv` → tab `Travel`.
+- Mã thoát: 3 đọc lại giọng lỗi · 4 chưa sẵn sàng · **5** số không khớp nguồn (`fact_check`) · **6** dữ kiện dễ đổi quá 30 ngày (`facts_stale`, chạy `--refresh-facts`) · **7** tải Drive lỗi (`drive_failed`, không `done`, thư mục còn).
+- Studio hiện thư mục travel (nguồn, ảnh/bản quyền, checklist); chỉ edge-tts (không tốn Gemini); không tải `clip_*` / `img_*` lên Drive.
+- Chi tiết: `docs/specs/architecture/capabilities/travel-content.md`, `DR-0002`, `DR-0008`.
+
 ### TikTok
 
 - App chỉ xin `user.info.basic` + `video.upload`: video vào **inbox nháp** của creator, **không** dùng Direct Post (`video.publish`).
@@ -109,8 +121,19 @@ Hook trong `agent/settings.json` chặn các thao tác sau:
 
 - Push thẳng lên `main` → phải qua PR.
 - `git checkout` / `git switch` ở repo root → dùng worktree: `git worktree add .worktrees/<tên> -b <branch> origin/main`.
-- Sau khi gọi skill kiểu `/task`, `/fix`: phải chạy `workflow_step.py init` trước khi commit/push. **Hiện `workflow_step.py` không chạy được** (thiếu module `automation_engine`), nên các skill SSoT này bị kẹt ở bước commit. Với dự án này, dùng `/feature` (xem dưới).
+- Bộ 17 skill SSoT tiếng Nhật trong `agent/skills/` đã được xoá (và tắt bắt lệnh trong `workflow_prompt_guard.py`) để không kích hoạt `workflow_step.py init` gây kẹt ở bước commit. Với dự án này, dùng các lệnh trong `agent/commands/` (`/feature`, `/bug`, `/merge-pr`, `/video-review`… xem dưới).
 - `CLAUDE.md` ở repo root chỉ được chứa bảng PJ固有パス設定 (GL-006, `claude_md_guard.py`). Hướng dẫn cho dự án đặt ở file này.
+
+### Làm song song & merge (observer)
+
+Nhiều cửa sổ Claude (VS Code, terminal) hoặc nhiều người có thể làm cùng lúc, mỗi bên một worktree. `scripts/branch_observer.py` theo dõi mọi worktree, nhánh và PR:
+
+- **Hook tự chạy** (`agent/settings.local.json`): đầu phiên báo nếu có nhánh đụng cùng file, `main` ở máy có commit chưa lên GitHub, hoặc còn nhánh đã merge chưa xoá. Trước mỗi lần Write/Edit, cảnh báo (không chặn) nếu file đó cũng đang bị sửa ở worktree hoặc nhánh khác. Mỗi file chỉ cảnh báo một lần mỗi phiên. Gặp cảnh báo này thì báo người dùng.
+- `report --fetch`: nhánh nào đụng file nào, có xung đột thật không (`git merge-tree`), thứ tự merge gợi ý.
+- `prune [--yes]`: xoá worktree + nhánh local + nhánh GitHub đã merge (nhận ra cả squash merge qua PR), kéo `main` ở máy lên nếu chỉ bị chậm.
+- Merge PR bằng **`/merge-pr`** (quan sát → chọn thứ tự → merge → tự dọn nhánh). Không merge nhánh vào `main` ở máy: đó là nguyên nhân lệch nhánh ngày 2026-11-12.
+
+Hook và lệnh này nằm ngoài `skills/`, `scripts/`, `hooks/`, `settings.json` của `agent/` vì sync ghi đè các chỗ đó.
 
 `agent/scripts/sync.sh` (chạy từ SSoT bên ngoài) ghi đè `.claude/CLAUDE.md` và chạy `rsync --delete` trên `skills/`, `references/`. Nếu chạy `/sync`, kiểm tra lại nội dung file này. **Không đặt skill riêng của dự án trong `agent/skills/`** vì sẽ bị xoá. Agent và lệnh riêng của dự án nằm ở `agent/agents/` và `agent/commands/` (sync không đụng tới).
 
@@ -123,15 +146,34 @@ Subagent trong `agent/agents/` (gọi bằng Agent tool, `subagent_type` = tên)
 | Agent | Vai trò | Sửa được gì |
 |-------|---------|-------------|
 | `ba` | Phân tích yêu cầu, chi phí, viết DR (bảng quyết định, DoD), cập nhật tài liệu SSoT sau khi xong | DR, docs, `TODO.md` |
-| `dev` | Code theo DR đã duyệt, sửa lỗi do reviewer/tester báo. Làm trong worktree | Code |
+| `dev` | **Dev full stack**: pipeline `demo.py` + FFmpeg/Pillow, backend FastAPI, Studio HTML/JS, script, Docker. Code theo DR đã duyệt, sửa lỗi do reviewer/tester/techlead báo hoặc từ GitHub issue. Làm trong worktree. Skill: `dev-selfcheck` | Code |
 | `reviewer` | Soát diff so với DR: lỗi, bảo mật service local, hồi quy, ràng buộc `C-XXXX` | Chỉ đọc |
+| `techlead` | Review và đề xuất tối ưu: hạ tầng, backend, bộ nhớ/hiệu năng, bảo mật, kiến trúc. Review DR/diff hoặc audit một vùng code; phân loại Bug / Tối ưu / Nợ kỹ thuật. Skill: `tech-audit` | Chỉ đọc |
 | `tester` | Test theo bảng quyết định trên **bản sao** video, edge-tts, không Gemini/Drive/Sheet/TikTok thật | Chỉ thư mục tạm |
-| `marketing` | (1) Review video trước khi đăng: hook 3s, không bịa, ràng buộc ngành hàng, CTA, vùng an toàn, caption → `marketing-review.md` + đề xuất sửa cho Studio. (2) Review độ dễ dùng giao diện/tài liệu cho người vận hành | `marketing-review.md` |
+| `marketing` | (1) Review video trước khi đăng: hook 3s, không bịa, ràng buộc ngành hàng, CTA, vùng an toàn, caption → `marketing-review.md` + đề xuất sửa cho Studio. (2) Review độ dễ dùng giao diện/tài liệu cho người vận hành. (3) Review video du lịch Việt Nam tiếng Anh: dữ kiện có nguồn, bản quyền clip, tiếng Anh, phụ đề Việt (skill `travel-review`). (4) Phân tích hiệu quả bài đăng, tiếp cận người xem (skill `post-analytics`) | `marketing-review.md`, `storage/analytics/` |
+
+Quy trình chung (`/feature`, `/bug`): **1 issue GitHub = 1 nhánh = 1 PR** (`Fixes #N`). Nhánh `feat/issue-N-<slug>`, `fix/issue-N-<slug>`, `chore/<slug>`. Issue tạo trước (mẫu `.github/ISSUE_TEMPLATE/feature.md` hoặc `bug.md`). Chỉ `/feature` và `/bug` tạo worktree; làm video không bao giờ tạo worktree. Hook vẫn chặn `git checkout`/`switch` ở repo gốc, merge bằng `/merge-pr`.
+
+Người điều phối chọn **cấp** ở Phase 0, báo người dùng một dòng (người dùng đổi được) để không gọi thừa agent:
+
+| Cấp | Khi nào | Vai trò | DR / cổng duyệt | Vòng sửa tối đa |
+|-----|---------|---------|-----------------|-----------------|
+| S | ≈ ≤3 file, không hành vi mới, không bảo mật | dev + tester | Không DR; nêu kế hoạch 2 dòng rồi làm | 1 |
+| M | Hành vi mới trong một mảng | ba (DR ngắn) + dev + reviewer + tester; marketing chỉ khi có UI/video; techlead chỉ khi backend/hạ tầng/bảo mật | DR ngắn, dừng chờ duyệt | 1 |
+| L | Nhiều mảng, bảo mật, kiến trúc, nhiều nhánh mở | Toàn bộ quy trình bên dưới | DR đầy đủ, dừng chờ duyệt | 2 |
+
+Tiết kiệm token: một vòng Dev gom hết góp ý; chỉ chạy lại agent đã báo lỗi; dùng lại worktree/nhánh của issue; không gọi agent cho câu hỏi đọc file là trả lời được; giữa các agent chỉ chuyển đường dẫn (DR, spec), không dán tóm tắt dài; agent nền ghi kết quả ra file và trả tóm tắt ngắn.
 
 Lệnh trong `agent/commands/`:
 
-- `/feature <yêu cầu>`: worktree + nhánh → **ba** viết DR (thêm **marketing** nếu người dùng/người xem thấy kết quả) → **dừng chờ người dùng duyệt** → **dev** → **reviewer + tester + marketing** song song (tối đa 2 vòng sửa) → **ba** cập nhật tài liệu → báo cáo, hỏi trước khi commit/PR.
+- `/feature <yêu cầu>` (cấp L đầy đủ; S/M cắt bớt vai trò theo bảng trên): issue → worktree + nhánh → **ba** viết DR (thêm **marketing** nếu người dùng/người xem thấy kết quả) → **dừng chờ người dùng duyệt** → **dev** → **reviewer + tester + marketing** song song, thêm **techlead** khi chạm backend/hạ tầng/bảo mật/hiệu năng/kiến trúc (tối đa 2 vòng sửa; bug không sửa trong vòng → issue qua `/bug`) → **ba** cập nhật tài liệu → báo cáo, hỏi trước khi commit/PR.
+- `/bug <mô tả> | #<số>`: ghi bug thành **GitHub issue** (mẫu `.github/ISSUE_TEMPLATE/bug.md`, nhãn `bug` + `role:dev` + `role:tester` + `role:ba`, assignee là người dùng) → hỏi người dùng → **dev** sửa trong worktree `fix/issue-<số>-…` → **tester** (+ **reviewer**, **techlead** theo cấp) → **ba** ghi `TODO.md` → comment kết quả vào issue → hỏi trước khi commit/PR (`Fixes #<số>`). Bug tìm thấy trong `/feature` mà không sửa trong vòng đó cũng đi đường này.
 - `/video-review [thư mục…]`: **marketing** review từng video (bỏ trống = mọi video Chờ duyệt) → bảng tổng hợp → người dùng chọn đề xuất → áp dụng qua API Studio (`PUT` + `render`), **không** tự duyệt.
+- `/tech-audit <vùng>`: **techlead** audit hạ tầng, backend, bộ nhớ, bảo mật, kiến trúc → Bug thì ghi issue qua `/bug`, Nợ kỹ thuật thì **ba** ghi `TODO.md`.
+- `/travel-review [thư mục…] | studio`: **marketing** review video du lịch (T1–T12) hoặc chức năng travel trên Studio.
+- `/post-analytics [file số liệu]`: **marketing** phân tích số liệu TikTok Studio (người vận hành nhập, API không đọc được) → `storage/analytics/` → **ba** ghi điều rút ra vào `TODO.md`.
+- `/dev-selfcheck`: sổ tay tự kiểm theo lớp của **dev** (agent tự dùng).
+- Skill của agent khai báo ở trường `skills:` trong frontmatter, trỏ tới lệnh trong `agent/commands/` (không đặt ở `agent/skills/` vì `/sync` xoá). Các skill SSoT (`review`, `survey`, `fix`…) không gán cho agent vì cần `workflow_step.py` đang hỏng.
 - Khung hình cho review: `.venv/bin/python scripts/review_frames.py storage/videos/<thư mục>` → `storage/review-frames/<thư mục>/` (gitignored).
 
 ---

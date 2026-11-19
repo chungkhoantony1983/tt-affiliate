@@ -418,15 +418,17 @@ def _overlay(script: dict, i: int, angle_box: tuple = None):
     if script.get("stock", True):  # generic stock footage, not the move itself
         demo._text_block(draw, "Hình minh hoạ", 300, demo._font(30, bold=False), color="#DDDDDD", stroke=3)
 
+    disclaimer = "Bài vận động nhẹ, không phải phương pháp chữa bệnh"
     if seg["kind"] == "ex_end":
         y = demo._pill(draw, seg["text"], 1330, demo._font(60), fill="#FFE14D", color="black") + 30
         if script.get("careful"):
             y = demo._text_block(draw, script["careful"], y, demo._font(46), stroke=5, gap=10) + 20
-        demo._text_block(draw, "Bài vận động nhẹ, không phải phương pháp chữa bệnh",
-                         y, demo._font(34, bold=False), color="#DDDDDD", stroke=4)
+        demo._text_block(draw, disclaimer, y, demo._font(34, bold=False), color="#DDDDDD", stroke=4)
     else:
         y = demo._pill(draw, seg["text"], 1310, demo._font(52), fill="#FFE14D", color="black") + 26
-        demo._text_block(draw, seg.get("screen", seg["line"]), y, demo._font(50), stroke=5, gap=10)
+        y = demo._text_block(draw, seg.get("screen", seg["line"]), y, demo._font(50), stroke=5, gap=10)
+        if seg["kind"] == "ex_end_intro":  # the intro states health benefits, so it carries the disclaimer too
+            demo._text_block(draw, disclaimer, y + 20, demo._font(34, bold=False), color="#DDDDDD", stroke=4)
     return canvas
 
 
@@ -443,14 +445,47 @@ def _clip_info(path: Path) -> tuple:
 MAX_SLOWDOWN = 1.6  # a clip shorter than its scene plays up to this much slower before it loops
 
 
+def _clip_fps(path: Path) -> float:
+    import re
+    err = subprocess.run([demo._ffmpeg_bin(), "-i", str(path)], capture_output=True, text=True).stderr
+    m = re.search(r"Video:.*?([\d.]+) fps", err)
+    return float(m.group(1)) if m else float(demo.FPS)
+
+
+# Gemini app (Veo) 720x1280 clips carry a ~52 px sparkle mark at the bottom right, on the floor; its
+# centre moves between clips (seen 600–620, 1155–1210), so the box covers all of them
+GEMINI_MARK = {(720, 1280): "delogo=x=566:y=1122:w=88:h=122"}
+
+
 def _fg_filter(path: Path) -> str:
     """Landscape clips fill the clip box (sides cropped) so people are big enough to see;
     portrait clips are fitted whole so heads and feet stay in frame."""
     bw, bh = W, VIDEO_BOX[1]
     w, h, _ = _clip_info(path)
+    mark = GEMINI_MARK.get((w, h))
+    pre = f"{mark}," if mark else ""
     if w >= h:
-        return f"scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh}"
-    return f"scale={bw}:{bh}:force_original_aspect_ratio=decrease"
+        return f"{pre}scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh}"
+    return f"{pre}scale={bw}:{bh}:force_original_aspect_ratio=decrease"
+
+
+SPEECH_LEAD, SPEECH_TAIL = 0.06, 0.15  # silence kept before/after the voice in each audio file
+XFADE = 0.3                             # picture cross-fade between scenes (voice is not overlapped)
+
+
+def _speech_bounds(audio: Path, total: float) -> tuple:
+    """(start, end) of the voice in an audio file: TTS pads ~0.3 s before and ~0.8 s after the line,
+    which stacked with GAP into a 1.3 s dead pause at every scene change."""
+    import re
+    err = subprocess.run([demo._ffmpeg_bin(), "-i", str(audio), "-af", "silencedetect=noise=-45dB:d=0.1",
+                          "-f", "null", "-"], capture_output=True, text=True).stderr
+    starts = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", err)]
+    ends = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", err)]
+    start = ends[0] if starts and starts[0] < 0.01 and ends else 0.0
+    end = starts[-1] if starts and (len(ends) < len(starts) or ends[-1] >= total - 0.05) else total
+    if end <= start:
+        return 0.0, total
+    return max(start - SPEECH_LEAD, 0.0), min(end + SPEECH_TAIL, total)
 
 
 def _pingpong(clip: Path) -> Path:
@@ -492,10 +527,20 @@ def render(script: dict, out_dir: Path) -> str:
     inputs, filters, temp = [], [], []
     for p in out_dir.glob("_pp_*.mp4"):  # left over from a failed render; the clip may have changed
         p.unlink()
+    # Gemini clips are 24 fps: keep that rate instead of duplicating one frame a second for 25 fps
+    clip_rates = {round(_clip_fps(out_dir / c["file"])) for c in clips}
+    fps = clip_rates.pop() if len(clip_rates) == 1 else demo.FPS
+    bounds = []
+    for seg in segs:
+        audio = out_dir / Path(seg["audio_path"]).name
+        bounds.append(_speech_bounds(audio, seg["duration"]))
     k = 0  # next ffmpeg input index
     for i, seg in enumerate(segs):
-        dur = seg["duration"] + demo.GAP + (demo.END_HOLD if i == n - 1 else 0)
-        seg["scene_dur"] = dur
+        s0, s1 = bounds[i]
+        dur = (s1 - s0) + demo.GAP + (demo.END_HOLD if i == n - 1 else 0)
+        seg["scene_dur"] = round(dur, 3)
+        seg["speech_trim"] = [round(s0, 3), round(s1, 3)]
+        vdur = dur + (XFADE if i < n - 1 else 0)  # overlaps the next scene by the cross-fade
         ci = script["scene_clip"][i] if script.get("scene_clip") else i % len(clips)
         clip = out_dir / clips[ci]["file"]
         angle = angles[i] if i < len(angles) else None
@@ -503,45 +548,56 @@ def render(script: dict, out_dir: Path) -> str:
         png = out_dir / f"_scene_{i}.png"
         _overlay(script, i, _angle_panel_box(aclip) if aclip else None).save(png)
         temp.append(png)
-        args, slow = _clip_input(clip, dur)
+        args, slow = _clip_input(clip, vdur)
         inputs += args
         v = k
         k += 1
         # Blurred full-frame copy behind, clip in the box between the texts, texts on top
         top, box_h = VIDEO_BOX
-        chain = (f"[{v}:v]setpts={slow:.3f}*PTS,fps={demo.FPS},split=2[bgs{i}][fgs{i}];"
+        chain = (f"[{v}:v]setpts={slow:.3f}*PTS,fps={fps},split=2[bgs{i}][fgs{i}];"
                  f"[bgs{i}]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
                  f"boxblur=25:2,eq=brightness=-0.18[bg{i}];"
                  f"[fgs{i}]{_fg_filter(clip)}[fg{i}];"
                  f"[bg{i}][fg{i}]overlay=(W-w)/2:{top}+({box_h}-h)/2[base{i}];")
         if aclip:
-            aargs, aslow = _clip_input(aclip, dur)
+            aargs, aslow = _clip_input(aclip, vdur)
             inputs += aargs
             x, y, pw, ph = _angle_panel_box(aclip)
-            chain += (f"[{k}:v]setpts={aslow:.3f}*PTS,fps={demo.FPS},scale={pw - 8}:{ph - 8},"
+            amark = GEMINI_MARK.get(_clip_info(aclip)[:2])
+            chain += (f"[{k}:v]setpts={aslow:.3f}*PTS,fps={fps},{amark + ',' if amark else ''}"
+                      f"scale={pw - 8}:{ph - 8},"
                       f"pad={pw}:{ph}:4:4:white[ang{i}];"
                       f"[base{i}][ang{i}]overlay={x}:{y}[based{i}];")
             k += 1
             base_label = f"based{i}"
         else:
             base_label = f"base{i}"
-        inputs += ["-loop", "1", "-framerate", str(demo.FPS), "-t", f"{dur:.3f}", "-i", str(png)]
+        inputs += ["-loop", "1", "-framerate", str(fps), "-t", f"{vdur:.3f}", "-i", str(png)]
         o = k
         k += 1
         filters.append(chain + f"[{base_label}][{o}:v]overlay=0:0,setsar=1,format=yuv420p,"
-                               f"trim=duration={dur:.3f}[v{i}]")
+                               f"trim=duration={vdur:.3f},setpts=PTS-STARTPTS,fps={fps}[v{i}]")
         print(f"   Scene {i + 1} [{seg['kind']}]: {dur:.1f}s  {clips[ci]['source']}"
               + (f" (x{slow:.2f} slower)" if slow > 1.01 else "")
               + (f" + {angle['label']}: {clips[angle['clip']]['source']}" if angle else ""))
     base = k
     for i, seg in enumerate(segs):
         inputs += ["-i", str(out_dir / Path(seg["audio_path"]).name)]
-        pad = demo.GAP + (demo.END_HOLD if i == n - 1 else 0)
-        fade_out_at = max(seg["duration"] - 0.03, 0)
-        filters.append(f"[{base + i}:a]aresample=44100,aformat=channel_layouts=mono,"
-                       f"afade=t=in:st=0:d=0.015,afade=t=out:st={fade_out_at:.3f}:d=0.03,"
-                       f"apad=pad_dur={pad}[a{i}]")
-    filters.append("".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[vout]")
+        s0, s1 = bounds[i]
+        fade_out_at = max(s1 - s0 - 0.05, 0)
+        filters.append(f"[{base + i}:a]atrim=start={s0:.3f}:end={s1:.3f},asetpts=PTS-STARTPTS,"
+                       f"aresample=44100,aformat=channel_layouts=mono,"
+                       f"afade=t=in:st=0:d=0.02,afade=t=out:st={fade_out_at:.3f}:d=0.05,"
+                       f"apad=whole_dur={seg['scene_dur']:.3f}[a{i}]")
+    # Picture cross-fades; scene i+1 starts XFADE early, so total length = sum of scene_dur (matches audio)
+    prev, offset = "v0", 0.0
+    for i in range(1, n):
+        offset += segs[i - 1]["scene_dur"]
+        out = "vout" if i == n - 1 else f"x{i}"
+        filters.append(f"[{prev}][v{i}]xfade=transition=fade:duration={XFADE}:offset={offset:.3f}[{out}]")
+        prev = out
+    if n == 1:
+        filters.append("[v0]null[vout]")
     filters.append("".join(f"[a{i}]" for i in range(n)) + f"concat=n={n}:v=0:a=1[aout]")
 
     video_path = out_dir / "video.mp4"
@@ -574,7 +630,7 @@ def write_post_kit(out_dir: Path, script: dict) -> None:
         "[ ] Lấy video.mp4 về điện thoại (app Google Drive)\n"
         "[ ] TikTok → + → Tải lên → chọn video, dán caption\n"
         "[ ] KHÔNG gắn sản phẩm (video bài tập, không phải video bán hàng)\n"
-        "[ ] Cài đặt khác → BẬT nhãn 'Nội dung do AI tạo' (giọng đọc AI)\n"
+        "[ ] Cài đặt khác → BẬT nhãn 'Nội dung do AI tạo' (giọng đọc và hình do AI tạo)\n"
         "[ ] Đăng\n\n"
         "=== CLIP MINH HOẠ (Pixabay không bắt buộc ghi nguồn) ===\n"
         f"{credits}\n",

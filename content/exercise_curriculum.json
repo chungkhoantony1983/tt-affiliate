@@ -217,7 +217,7 @@
       "character_en": "the same Vietnamese man in his fifties with short grey hair, wearing a loose plain white tai chi uniform with knotted buttons and black cloth shoes. Location, identical in every clip: a wide light-grey stone-paved path in a quiet city park; behind him a row of tall leafy green trees, low trimmed hedges and a few dark green park lamp posts; soft hazy morning light",
       "ready_en": "stands still in a relaxed ready stance, feet shoulder-width apart, knees slightly bent, arms hanging naturally, breathing calmly",
       "intro_video": {
-        "done": false,
+        "done": true,
         "title": "Bát Đoạn Cẩm là gì?",
         "_sources": [
           "Tên Bát Đoạn Cẩm ghi chép sớm nhất thời nhà Tống, thế kỷ 12 (Hồng Mại, Di Kiên Chí)",
@@ -244,7 +244,7 @@
             "text": "Điểm nổi bật",
             "clip": "intro_3.mp4",
             "line": "Năm hai nghìn không trăm hai mươi hai, các nhà khoa học tổng hợp kết quả của mười bảy thử nghiệm, và ghi nhận: người lớn tuổi tập Bát Đoạn Cẩm giữ thăng bằng tốt hơn nhóm không tập bài này.",
-            "screen": "Tổng hợp 17 thử nghiệm (2022): người lớn tuổi tập bài này giữ thăng bằng tốt hơn."
+            "screen": "Tổng hợp 17 thử nghiệm (2022): người lớn tuổi giữ thăng bằng tốt hơn"
           },
           {
             "kind": "ex_info",
@@ -258,7 +258,7 @@
             "text": "Tập khi nào",
             "clip": "intro_5.mp4",
             "line": "Tập vào sáng sớm hoặc chiều mát, chỗ thoáng, mặc đồ rộng, đừng tập ngay sau khi ăn no. Theo nhịp của chuỗi này, tập trọn tám động tác chỉ mất khoảng mười phút.",
-            "screen": "Sáng sớm hoặc chiều mát · đồ rộng · không tập khi vừa ăn no · cả bài khoảng 10 phút"
+            "screen": "Sáng sớm, chiều mát · đồ rộng · tránh lúc no · cả bài khoảng 10 phút"
           },
           {
             "kind": "ex_end_intro",
