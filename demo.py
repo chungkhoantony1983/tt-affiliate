@@ -16,8 +16,9 @@ Usage:
 
 Review (APPROVAL_MODE=web, default): new videos stop at status "review"; edit and approve them in the
 Studio page (http://127.0.0.1:8000/studio), which runs:
-  python demo.py --render-only DIR [--revoice-all edge]   # re-voice edited lines, re-render
+  python demo.py --render-only DIR [--revoice-all edge|gemini]   # re-voice edited lines, re-render
   python demo.py --approve DIR                            # post.txt → Drive → sheet status=done
+  python demo.py --tts-status                             # Gemini TTS quota estimate, one JSON line
 """
 
 import argparse
@@ -36,7 +37,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zlib
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 W, H = 1080, 1920
@@ -342,27 +343,431 @@ def _trim_gemini_edges(pcm: bytes) -> bytes:
     return s[start * win:end * win].tobytes() if end > start else pcm
 
 
+# ---------------------------------------------------------------------------
+# Gemini TTS quota ledger (DR-0012)
+#    The Gemini API cannot report how many free-tier requests are left, so demo.py counts them in
+#    storage/gemini-tts-usage.json and checks before voicing a video. The ledger is an estimate
+#    (C-0012-2): a 429 from the API always wins and is written back; a missing, broken or
+#    unwritable ledger never stops a video. Every read and write goes through _quota_update
+#    (C-0012-4). Nothing in this block calls the network (C-0012-3).
+# ---------------------------------------------------------------------------
+
+QUOTA_TZ = "America/Los_Angeles"   # the free-tier day rolls over at midnight Pacific
+UNKNOWN_BLOCK_MINUTES = 60         # block after a 429 that is not clearly per-day
+CALLS_PER_VIDEO = 4                # only for the "enough for about N videos" estimate
+QUOTA_VERSION = 1
+DEFAULT_DAILY_LIMIT = 10
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
+
+_quota_warned = set()
+
+
+def _quota_warn(key: str, message: str) -> None:
+    """One warning per problem per run, on stderr so --tts-status keeps a clean stdout."""
+    if key not in _quota_warned:
+        _quota_warned.add(key)
+        print(f"   ⚠️  Gemini TTS ledger: {message}", file=sys.stderr)
+
+
+def _quota_file() -> Path:
+    custom = os.environ.get("GEMINI_TTS_USAGE_FILE", "").strip()
+    return Path(custom) if custom else Path(__file__).resolve().parent / "storage" / "gemini-tts-usage.json"
+
+
+def _quota_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _quota_tz():
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo(QUOTA_TZ)
+    except Exception as e:  # no tz database on this machine
+        _quota_warn("tz", f"time zone {QUOTA_TZ} not available ({e}); using UTC-8")
+        return timezone(timedelta(hours=-8))
+
+
+def _quota_day(now: datetime = None) -> str:
+    """Today's date in the quota time zone."""
+    return (now or _quota_now()).astimezone(_quota_tz()).date().isoformat()
+
+
+def _quota_reset_at(now: datetime = None) -> datetime:
+    """Next time the daily quota comes back (next midnight in the quota time zone), in UTC."""
+    tz = _quota_tz()
+    local = (now or _quota_now()).astimezone(tz)
+    midnight = datetime.combine(local.date() + timedelta(days=1), datetime.min.time(), tzinfo=tz)
+    return midnight.astimezone(timezone.utc)
+
+
+def _quota_load(path: Path, today: str) -> dict:
+    """Read the ledger. Missing, empty, broken, unknown version or another day → an empty ledger."""
+    fresh = {"version": QUOTA_VERSION, "day": today, "models": {}}
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return fresh
+    except OSError as e:
+        _quota_warn("read", f"cannot read {path} ({e}); counting from zero")
+        return fresh
+    try:
+        data = json.loads(raw)
+        if (not isinstance(data, dict) or data.get("version") != QUOTA_VERSION
+                or not isinstance(data.get("models"), dict)):
+            raise ValueError("unknown format or version")
+    except ValueError as e:
+        _quota_warn("format", f"{path} is not usable ({e}); counting from zero")
+        return fresh
+    if data.get("day") != today:
+        return fresh
+    for name, entry in data["models"].items():
+        if not isinstance(entry, dict):
+            continue
+        try:
+            used = max(0, int(entry.get("used") or 0))
+        except (TypeError, ValueError):
+            used = 0
+        fresh["models"][str(name)] = {"used": used, "blocked_until": entry.get("blocked_until"),
+                                      "block_reason": entry.get("block_reason"),
+                                      "last_call": entry.get("last_call")}
+    return fresh
+
+
+def _quota_update(fn, write: bool = True):
+    """Run fn(state) on the ledger and return its result.
+
+    write=True: under an exclusive lock (fcntl.flock on the .lock file); the file is replaced
+    atomically when fn changed the state. write=False: a plain read, nothing is created.
+    If the ledger cannot be locked or written, fn still runs on what could be read."""
+    path = _quota_file()
+    today = _quota_day()
+    if not write:
+        return fn(_quota_load(path, today))
+    try:
+        import fcntl
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lock = open(path.with_suffix(".lock"), "a")
+    except Exception as e:  # no fcntl, read-only folder, ...
+        _quota_warn("write", f"cannot lock {path} ({e}); the count is not saved")
+        return fn(_quota_load(path, today))
+    try:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        except OSError as e:
+            _quota_warn("write", f"cannot lock {path} ({e}); the count is not saved")
+            return fn(_quota_load(path, today))
+        state = _quota_load(path, today)
+        before = json.dumps(state, sort_keys=True)
+        result = fn(state)
+        if json.dumps(state, sort_keys=True) != before:
+            tmp = path.with_suffix(f".{os.getpid()}.tmp")
+            try:
+                tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+                os.replace(tmp, path)
+            except OSError as e:
+                _quota_warn("write", f"cannot write {path} ({e}); the count is not saved")
+                try:
+                    tmp.unlink()
+                except OSError:
+                    pass
+        return result
+    finally:
+        lock.close()  # closing the file releases the lock
+
+
+def quota_limit() -> int:
+    """Free-tier requests per day for each model (GEMINI_TTS_DAILY_LIMIT, default 10)."""
+    raw = os.environ.get("GEMINI_TTS_DAILY_LIMIT", "").strip()
+    if not raw:
+        return DEFAULT_DAILY_LIMIT
+    try:
+        value = int(raw)
+        if value <= 0:
+            raise ValueError
+        return value
+    except ValueError:
+        _quota_warn("limit", f"GEMINI_TTS_DAILY_LIMIT={raw!r} is not a positive whole number; "
+                             f"using {DEFAULT_DAILY_LIMIT}")
+        return DEFAULT_DAILY_LIMIT
+
+
+def _quota_blocked_until(entry: dict, now: datetime):
+    """The time this model is blocked until, or None when it is not blocked (any more)."""
+    try:
+        until = datetime.fromisoformat(entry.get("blocked_until") or "")
+    except (TypeError, ValueError):
+        return None
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    return until if until > now else None
+
+
+def _quota_left_in(state: dict, model: str, now: datetime) -> int:
+    entry = state["models"].get(model) or {}
+    if _quota_blocked_until(entry, now):
+        return 0
+    return max(0, quota_limit() - int(entry.get("used") or 0))
+
+
+def _quota_entry(state: dict, model: str) -> dict:
+    return state["models"].setdefault(model, {"used": 0, "blocked_until": None, "block_reason": None,
+                                              "last_call": None})
+
+
+def quota_left(model: str) -> int:
+    """Estimated requests left today for this model (0 while it is blocked)."""
+    return _quota_update(lambda state: _quota_left_in(state, model, _quota_now()), write=False)
+
+
+def quota_reserve(model: str, n: int) -> bool:
+    """Take n requests for this model in one locked step. False (ledger untouched) when the model
+    is blocked or has fewer than n left."""
+    def fn(state):
+        now = _quota_now()
+        if _quota_left_in(state, model, now) < n:
+            return False
+        entry = _quota_entry(state, model)
+        entry["used"] = int(entry.get("used") or 0) + n
+        entry["blocked_until"] = entry["block_reason"] = None  # an expired block
+        entry["last_call"] = now.isoformat(timespec="seconds")
+        return True
+    return _quota_update(fn)
+
+
+def quota_refund(model: str, n: int) -> None:
+    """Give back n reserved requests that were never sent."""
+    if n <= 0:
+        return
+
+    def fn(state):
+        if model in state["models"]:
+            entry = state["models"][model]
+            entry["used"] = max(0, int(entry.get("used") or 0) - n)
+    _quota_update(fn)
+
+
+def quota_block(model: str, reason: str) -> None:
+    """Record a 429: "daily_429" blocks until the quota comes back, "unknown_429" for 60 minutes."""
+    def fn(state):
+        now = _quota_now()
+        until = _quota_reset_at(now) if reason == "daily_429" else now + timedelta(minutes=UNKNOWN_BLOCK_MINUTES)
+        entry = _quota_entry(state, model)
+        entry["blocked_until"] = until.isoformat(timespec="seconds")
+        entry["block_reason"] = reason
+    _quota_update(fn)
+
+
+def quota_status() -> dict:
+    """Data for --tts-status (Studio reads it; no network call, the ledger is not written)."""
+    chain = gemini_tts_models()
+
+    def fn(state):
+        now = _quota_now()
+        rows = []
+        for m in chain + [m for m in state["models"] if m not in chain]:
+            entry = state["models"].get(m) or {}
+            until = _quota_blocked_until(entry, now)
+            role = "main" if m == chain[0] else "backup" if m in chain else "other"
+            rows.append({"model": m, "role": role, "used": int(entry.get("used") or 0),
+                         "left": _quota_left_in(state, m, now),
+                         "blocked_until": until.isoformat(timespec="seconds") if until else None,
+                         "block_reason": entry.get("block_reason") if until else None})
+        return {"provider": tts_provider(), "limit": quota_limit(), "calls_per_video": CALLS_PER_VIDEO,
+                "videos_left": sum(r["left"] // CALLS_PER_VIDEO for r in rows if r["role"] != "other"),
+                "resets_at": _quota_reset_at(now).isoformat(timespec="seconds"), "models": rows}
+    return _quota_update(fn, write=False)
+
+
+def _quota_back_at(models: list, n: int) -> datetime:
+    """Earliest time one of these models may have n requests again: the end of a 60-minute block
+    if that model would then have enough, else the daily reset."""
+    def fn(state):
+        now = _quota_now()
+        best = _quota_reset_at(now)
+        for m in models:
+            entry = state["models"].get(m) or {}
+            until = _quota_blocked_until(entry, now)
+            if (until and entry.get("block_reason") == "unknown_429"
+                    and quota_limit() - int(entry.get("used") or 0) >= n):
+                best = min(best, until)
+        return best
+    return _quota_update(fn, write=False)
+
+
+class GeminiTTSError(RuntimeError):
+    """A Gemini TTS call failed. charged=False: the request never counted against the quota
+    (bad configuration, HTTP 4xx other than 429), so its reserved slot can be refunded."""
+
+    def __init__(self, message: str, charged: bool = True):
+        super().__init__(message)
+        self.charged = charged
+
+
+class GeminiQuotaError(GeminiTTSError):
+    """HTTP 429. kind: "daily" | "minute" | "unknown"; retry_after in seconds (minute only)."""
+
+    def __init__(self, kind: str, retry_after: float = None, detail: str = ""):
+        super().__init__(f"Gemini TTS quota exceeded ({kind})" + (f": {detail}" if detail else ""))
+        self.kind = kind
+        self.retry_after = retry_after
+
+
+def _classify_429(body: str) -> tuple:
+    """(kind, retry_after_seconds) from a 429 response body. Pure function, never raises.
+    quotaId with PerDay → daily; with PerMinute → minute (wait from retryDelay, default 30 s,
+    at most 65 s); anything else, or a body that is not JSON → unknown."""
+    try:
+        details = json.loads(body)["error"]["details"]
+    except (ValueError, TypeError, KeyError):
+        return "unknown", None
+    quota_ids, delay = [], None
+    for d in details if isinstance(details, list) else []:
+        if not isinstance(d, dict):
+            continue
+        violations = d.get("violations")
+        for v in violations if isinstance(violations, list) else []:
+            if isinstance(v, dict) and isinstance(v.get("quotaId"), str):
+                quota_ids.append(v["quotaId"])
+        raw_delay = d.get("retryDelay")
+        m = re.fullmatch(r"\s*(\d+(?:\.\d+)?)s\s*", raw_delay) if isinstance(raw_delay, str) else None
+        if m:
+            delay = float(m.group(1))
+    if any("PerDay" in q for q in quota_ids):
+        return "daily", None
+    if any("PerMinute" in q for q in quota_ids):
+        return "minute", min(65.0, delay if delay is not None else 30.0)
+    return "unknown", None
+
+
+def _gemini_tts_base_url() -> str:
+    """GEMINI_TTS_BASE_URL (tests only). The API key is sent to this address, so only the Google
+    default or a server on this computer is accepted (C-0012-5)."""
+    raw = os.environ.get("GEMINI_TTS_BASE_URL", "").strip().rstrip("/")
+    if not raw:
+        return GEMINI_API_BASE
+    try:
+        url = urllib.parse.urlsplit(raw)
+        url.port  # raises ValueError on a malformed port
+        clean = not (url.username or url.password or url.query or url.fragment)
+    except ValueError:
+        url, clean = None, False
+    if clean and url.scheme == "https" and url.hostname == "generativelanguage.googleapis.com":
+        return raw
+    if clean and url.scheme == "http" and url.hostname in ("127.0.0.1", "localhost"):
+        return raw
+    raise GeminiTTSError("GEMINI_TTS_BASE_URL must be empty, the Google address, or http://127.0.0.1:<port> / "
+                         "http://localhost:<port>; no request was sent", charged=False)
+
+
+def _gemini_tts_post(url: str, body: dict, key: str) -> dict:
+    """One generateContent request. 429 → GeminiQuotaError; other 4xx → not charged; the rest → charged."""
+    req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    # A local test server is reached directly, never through a system proxy.
+    opener = (urllib.request.build_opener() if url.startswith("https://")
+              else urllib.request.build_opener(urllib.request.ProxyHandler({})))
+    try:
+        with opener.open(req, timeout=120) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")
+        if e.code == 429:
+            kind, retry_after = _classify_429(detail)
+            raise GeminiQuotaError(kind, retry_after, detail[:200]) from None
+        raise GeminiTTSError(f"Gemini TTS HTTP {e.code}: {detail[:200]}", charged=e.code >= 500) from None
+
+
+def _when_vi(at: datetime, now: datetime = None) -> str:
+    """"khoảng 15:00 hôm nay" / "khoảng 15:00 ngày mai", by this computer's clock and date."""
+    local = at.astimezone()
+    today = (now.astimezone() if now else datetime.now().astimezone()).date()
+    days = (local.date() - today).days
+    day = "hôm nay" if days == 0 else "ngày mai" if days == 1 else f"ngày {local:%d/%m}"
+    return f"khoảng {local:%H:%M} {day}"
+
+
+VOICE_NAMES_VI = {"main": "Gemini", "backup": "Gemini phụ", "free": "giọng miễn phí"}
+
+
+def voice_summary(segments: list, provider: str = None) -> dict:
+    """Which voice a video uses, from segments[0].tts_model / tts_fallback.
+    role: "main" (first Gemini model of its chain) | "backup" (another Gemini model) | "free"
+    (edge-tts) | None; reason: None | "quota" | "error". Folders made before tts_model existed
+    → role from provider ("gemini" → main, "edge" → free), else None."""
+    first = segments[0] if segments else {}
+    if "tts_model" not in first:
+        return {"role": {"gemini": "main", "edge": "free"}.get(provider), "reason": None, "model": None}
+    model, reason = first.get("tts_model"), first.get("tts_fallback")
+    role = "free" if not model else "backup" if reason else "main"
+    return {"role": role, "reason": reason, "model": model}
+
+
+def _voice_name_vi(voice: dict, why: bool = False) -> str:
+    """Short Vietnamese voice name; why=True adds the reason a video is on the free voice."""
+    name = VOICE_NAMES_VI.get(voice.get("role"), "")
+    if why and voice.get("role") == "free" and voice.get("reason"):
+        name += (" (lúc tạo, giọng Gemini không đủ lượt)" if voice["reason"] == "quota"
+                 else " (lúc tạo, không kết nối được giọng Gemini)")
+    return name
+
+
+def _voice_line_vi(voice: dict, need: int = 0, left: int = 0, after: int = 0, back_at: datetime = None) -> str:
+    """The one Vietnamese sentence the operator sees after a video is voiced with provider=gemini.
+    need: lines in the video; left: what the Gemini voice had when it was passed over; after: what
+    the voice in use has left now; back_at: when the quota comes back."""
+    role, reason = voice.get("role"), voice.get("reason")
+    if role == "main":
+        return f"Giọng đọc: Gemini (sau video này còn khoảng {after} lượt)"
+    if role == "backup":
+        head = (f"Giọng Gemini chính không đủ lượt (cần {need}, còn {left})." if reason == "quota"
+                else "Không kết nối được giọng Gemini chính (không phải do hết lượt).")
+        return f"{head} Video này dùng giọng Gemini phụ, nghe kỹ trước khi duyệt."
+    if reason == "quota":
+        back = f" Có lại lượt lúc {_when_vi(back_at)} (giờ Việt Nam)." if back_at else ""
+        return f"Giọng Gemini không đủ lượt (cần {need}, còn {left}). Video này dùng giọng miễn phí.{back}"
+    return "Không kết nối được giọng Gemini (không phải do hết lượt). Video này dùng giọng miễn phí."
+
+
+def batch_quota_line_vi():
+    """Sentence printed before the first video of a --sheet / --csv batch; None with TTS_PROVIDER=edge."""
+    if tts_provider() != "gemini":
+        return None
+    videos = quota_status()["videos_left"]
+    if videos < 1:
+        return "Lượt Gemini không còn đủ cho một video. Các video trong lô này sẽ dùng giọng miễn phí."
+    return f"Lượt Gemini còn đủ cho khoảng {videos} video. Các video sau sẽ dùng giọng miễn phí."
+
+
 def _gemini_tts(text: str, speaker: str, kind: str, output_path: str, persona: str = "nu_nam",
                 model: str = None) -> None:
+    """One Gemini TTS request → output_path (mp3). Does not touch the quota ledger: the caller
+    reserves and refunds. A per-minute 429 is waited out and retried once."""
     import wave
 
-    key = os.environ["GEMINI_API_KEY"]
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not key:
+        raise GeminiTTSError("GEMINI_API_KEY is not set; no request was sent", charged=False)
+    base_url = _gemini_tts_base_url()
     model = model or os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
     voice, prompt = _gemini_tts_prompt(_clean_tts_text(text), speaker, kind, persona)
     body = {"contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"responseModalities": ["AUDIO"],
                                  "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-        data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    url = f"{base_url}/models/{model}:generateContent"
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            data = json.load(resp)
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", "replace")
-        if e.code == 429:
-            raise RuntimeError("Gemini TTS quota exceeded (free tier: 10 requests/day per model)") from None
-        raise RuntimeError(f"Gemini TTS HTTP {e.code}: {detail[:200]}") from None
+        data = _gemini_tts_post(url, body, key)
+    except GeminiQuotaError as e:
+        if e.kind != "minute":
+            raise
+        wait = e.retry_after if e.retry_after is not None else 30.0
+        print(f"   ⏳ Gemini per-minute limit: waiting {wait:.0f}s, then one retry")
+        time.sleep(wait)
+        try:
+            data = _gemini_tts_post(url, body, key)
+        except GeminiQuotaError as again:
+            if again.kind == "daily":
+                raise
+            raise GeminiQuotaError("unknown", None, "still 429 after waiting") from None
     pcm = base64.b64decode(data["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
     pcm = _trim_gemini_edges(pcm)
 
@@ -414,29 +819,57 @@ def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam", 
                         model: str = None) -> str:
     """Write audio_{i}.mp3 per segment; stores path, duration and the spoken line on each segment.
     model overrides GEMINI_TTS_MODEL (each Gemini model has its own free-tier daily quota).
+    With Gemini, each model of the chain is checked against the quota ledger first: a model without
+    enough requests for the whole video is skipped without any API call (DR-0012).
     Returns the provider actually used ("gemini" or "edge")."""
     from mutagen.mp3 import MP3
 
     provider = provider or tts_provider()
+    wanted_gemini = provider == "gemini"
     label = {"nu_nam": "nữ miền Nam", "nam_bac": "nam miền Bắc"}.get(persona, persona)
     used_model = None
-    if provider == "gemini":
+    fallback = None   # why the first model of the chain was not used: None | "quota" | "error"
+    n = len(segments)
+    models, main_left, best_left = [], 0, 0
+    if wanted_gemini:
         models = gemini_tts_models(model)
         for m in models:
-            print(f"🎙️  Generating voiceover with Gemini TTS ({m}), narrator {label} ({len(segments)} segments)...")
-            try:
-                for i, seg in enumerate(segments):
-                    _gemini_tts(seg["line"], seg["speaker"], _segment_kind_for_tts(segments, i),
-                                str(out_dir / f"audio_{i}.mp3"), persona, m)
-                    if i < len(segments) - 1:
-                        time.sleep(7)  # free tier allows few requests per minute
-                used_model = m
-                break
-            except Exception as e:
-                # Redo every segment with the next model (each has its own daily quota), so one video
-                # never mixes two models or engines (C-0001-1).
-                nxt = models[models.index(m) + 1] if m != models[-1] else "edge-tts"
-                print(f"   ⚠️  {e} → trying {nxt} for this video")
+            left = quota_left(m)
+            if not quota_reserve(m, n):
+                failed = "quota"
+                blocked = next((r for r in quota_status()["models"] if r["model"] == m and r["blocked_until"]),
+                               None)
+                if blocked:
+                    until = datetime.fromisoformat(blocked["blocked_until"])
+                    print(f"   ⏭️  {m}: blocked until {until:%Y-%m-%dT%H:%MZ} ({blocked['block_reason']}) → skip")
+                else:
+                    print(f"   ⏭️  {m}: {left} left, need {n} → skip (no API call)")
+            else:
+                print(f"🎙️  TTS plan: {n} lines → {m} ({left} of {quota_limit()} left), narrator {label}")
+                sent = 0
+                try:
+                    for i, seg in enumerate(segments):
+                        sent = i + 1
+                        _gemini_tts(seg["line"], seg["speaker"], _segment_kind_for_tts(segments, i),
+                                    str(out_dir / f"audio_{i}.mp3"), persona, m)
+                        if i < n - 1:
+                            time.sleep(7)  # free tier allows few requests per minute
+                    used_model = m
+                    break
+                except Exception as e:
+                    # Redo every segment with the next model (each has its own daily quota), so one video
+                    # never mixes two models or engines (C-0001-1, C-0012-1). Requests never sent are refunded.
+                    quota_refund(m, n - sent + (0 if getattr(e, "charged", True) else 1))
+                    if isinstance(e, GeminiQuotaError):
+                        quota_block(m, "daily_429" if e.kind == "daily" else "unknown_429")
+                        failed, left = "quota", 0
+                    else:
+                        failed = "error"
+                    nxt = models[models.index(m) + 1] if m != models[-1] else "edge-tts"
+                    print(f"   ⚠️  {e} → trying {nxt} for this video")
+            if m == models[0]:
+                fallback, main_left = failed, left
+            best_left = max(best_left, left)
         if not used_model:
             provider = "edge"
     if provider != "gemini":
@@ -450,8 +883,18 @@ def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam", 
         seg["duration"] = float(MP3(str(path)).info.length)
         seg["audio_line"] = seg["line"]
         seg["tts_model"] = used_model  # Studio re-voices edited lines with the same model
+        seg["tts_fallback"] = fallback  # why this is not the first Gemini model: None | "quota" | "error"
     total = sum(s["duration"] for s in segments) + GAP * len(segments)
     print(f"✅ Voiceover ({provider}{', ' + used_model if used_model else ''}): {total:.1f}s")
+    if wanted_gemini:
+        # The one sentence for the operator (Vietnamese); the lines above are logs.
+        if used_model:
+            line = _voice_line_vi(voice_summary(segments), need=n, left=main_left, after=quota_left(used_model))
+        else:
+            # No "comes back at" time for a video longer than a whole day's quota
+            back_at = _quota_back_at(models, n) if fallback == "quota" and n <= quota_limit() else None
+            line = _voice_line_vi(voice_summary(segments), need=n, left=best_left, back_at=back_at)
+        print(f"🗣️  {line}")
     return provider
 
 
@@ -534,10 +977,20 @@ def revoice_changed(script: dict, out_dir: Path) -> list:
     print(f"🎙️  Re-voicing {len(changed)} edited line(s) with {provider}"
           f"{' (' + model + ')' if model and provider == 'gemini' else ''}: scenes {[i + 1 for i in changed]}")
     tmp = {i: out_dir / f"_new_audio_{i}.mp3" for i in changed}
+    # Gemini: only the video's own model, checked against the quota ledger first. No backup model
+    # and no other engine here, so the video never mixes voices (C-0012-1).
+    quota_model = (model or gemini_tts_models()[0]) if provider == "gemini" else None
+    if quota_model:
+        left = quota_left(quota_model)
+        if not quota_reserve(quota_model, len(changed)):
+            raise RevoiceError(f"gemini TTS quota: need {len(changed)}, {left} left for {quota_model}; "
+                               "no API call made, no audio changed")
+    sent = 0
     try:
         for n, i in enumerate(changed):
             seg = segments[i]
             if provider == "gemini":
+                sent = n + 1
                 _gemini_tts(seg["line"], seg["speaker"], _segment_kind_for_tts(segments, i), str(tmp[i]), persona,
                             model)
                 if n < len(changed) - 1:
@@ -547,6 +1000,10 @@ def revoice_changed(script: dict, out_dir: Path) -> list:
     except Exception as e:
         for p in tmp.values():
             p.unlink(missing_ok=True)
+        if quota_model:
+            quota_refund(quota_model, len(changed) - sent + (0 if getattr(e, "charged", True) else 1))
+            if isinstance(e, GeminiQuotaError):
+                quota_block(quota_model, "daily_429" if e.kind == "daily" else "unknown_429")
         raise RevoiceError(f"{provider} TTS failed, no audio changed: {e}") from None
     for i, p in tmp.items():
         dest = out_dir / f"audio_{i}.mp3"
@@ -908,6 +1365,12 @@ def approval_step(script: dict, video_path: str) -> bool:
     print("=" * 60)
     if sys.platform == "darwin":
         subprocess.run(["open", video_path])
+    # Tell the operator which voice the video has before the decision (C-0012-6).
+    # Folders made before tts_model existed print nothing.
+    if script["segments"] and "tts_model" in script["segments"][0]:
+        voice = _voice_name_vi(voice_summary(script["segments"], script.get("tts_provider")), why=True)
+        if voice:
+            print(f"\n🗣️  Giọng đọc của video: {voice}")
     response = input("\n✅ Approve? (y/n): ").strip().lower()
     return response == "y"
 
@@ -1044,6 +1507,9 @@ def run_sheet(sheet_ref: str, tab: str, base_dir: Path, style: str,
     rows = sheet.pending()
     print(f"📄 Sheet '{tab}': {len(rows)} product(s) to do")
     results = []
+    note = batch_quota_line_vi() if rows and not fill_only else None
+    if note:
+        print(f"🗣️  {note}")
     for row in rows:
         label = row["name"].strip() or row["product_url"].strip()
         try:
@@ -1104,7 +1570,9 @@ def run_one(product: dict, base_dir: Path, style: str, skip_approval: bool) -> d
     generate_story_images(script["segments"], out_dir, seed=zlib.crc32(product["name"].encode()) % 100000)
     save_script(out_dir, script)
     (out_dir / "product.json").write_text(json.dumps(product, ensure_ascii=False, indent=2), encoding="utf-8")
-    return finish(out_dir, script, product, skip_approval)
+    result = finish(out_dir, script, product, skip_approval)
+    result["voice"] = voice_summary(script["segments"], script["tts_provider"])["role"]  # main | backup | free
+    return result
 
 
 def approval_mode() -> str:
@@ -1196,6 +1664,14 @@ def render_only(out_dir: Path, revoice_all: str = None) -> dict:
     product = json.loads((out_dir / "product.json").read_text(encoding="utf-8"))
     print(f"🔁 Render only: {product['name']}  ({out_dir})")
     if revoice_all:
+        if revoice_all == "gemini":
+            # Check before any audio is touched: with no Gemini model able to voice the whole video,
+            # generate_voiceovers would end on the free voice, which is not what was asked.
+            need = len(script["segments"])
+            lefts = {m: quota_left(m) for m in gemini_tts_models()}
+            if not any(left >= need for left in lefts.values()):
+                raise RevoiceError(f"gemini TTS quota: need {need}, left {lefts}; "
+                                   "no API call made, no audio changed")
         persona = script.get("voice_persona") or choose_persona(product)
         script["voice_persona"] = persona
         script["tts_provider"] = generate_voiceovers(script["segments"], out_dir, persona, provider=revoice_all)
@@ -1258,11 +1734,17 @@ def main():
                         help="Re-render an exercise folder without new voice calls")
     parser.add_argument("--allow-stock", action="store_true",
                         help="With --exercise: use generic Pixabay clips when the move has no clips yet")
+    parser.add_argument("--tts-status", action="store_true",
+                        help="Print the Gemini TTS quota estimate as one JSON line and exit (for Studio)")
     args = parser.parse_args()
 
     global KEEP_LOCAL
     KEEP_LOCAL = args.keep_local
     load_env()
+    if args.tts_status:
+        # Reads the local ledger only: no network call, nothing written (C-0012-3).
+        print(json.dumps(quota_status(), ensure_ascii=False))
+        return
     if args.exercise or args.exercise_rerender:
         import exercise
         label = "exercise"
@@ -1322,6 +1804,9 @@ def main():
 
     base_dir = Path(args.output_dir)
     results = []
+    note = batch_quota_line_vi() if args.csv and products else None
+    if note:
+        print(f"🗣️  {note}")
     for product in products:
         try:
             results.append((product["name"], run_one(product, base_dir, args.style, args.skip_approval)))
@@ -1335,8 +1820,11 @@ def print_summary(results: list) -> None:
     print("\n" + "=" * 60)
     print("📊 SUMMARY")
     print("=" * 60)
+    voices = any(r.get("voice") for _, r in results)
     for name, r in results:
-        print(f"{r['status']:<24} {name}  {r.get('dir', r.get('error', ''))}")
+        # Voice column (Vietnamese, for the operator) only when a result of this run has one
+        voice = f"{VOICE_NAMES_VI.get(r.get('voice'), ''):<15} " if voices else ""
+        print(f"{r['status']:<24} {voice}{name}  {r.get('dir', r.get('error', ''))}")
 
 
 if __name__ == "__main__":

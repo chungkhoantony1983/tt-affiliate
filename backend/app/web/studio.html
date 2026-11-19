@@ -32,6 +32,7 @@ header { padding: 14px 20px; border-bottom: 1px solid var(--line); background: v
   display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 header h1 { margin: 0; font-size: var(--fs-h1); }
 header p { margin: 0; color: var(--muted); font-size: var(--fs-small); }
+header .quota { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; color: var(--ink); }
 .layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 58px); }
 aside { border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto;
   max-height: calc(100vh - 58px); position: sticky; top: 0; }
@@ -42,12 +43,13 @@ aside h2 { font-size: var(--fs-note); text-transform: uppercase; letter-spacing:
 .vlist button:hover { background: var(--soft); }
 .vlist button[aria-current="true"] { background: var(--soft); border-left-color: var(--accent); }
 .vlist .t { font-weight: 600; }
-.vlist .m { display: flex; gap: 8px; align-items: center; font-size: var(--fs-note); color: var(--muted); }
+.vlist .m { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: var(--fs-note); color: var(--muted); }
 .badge { display: inline-block; font-size: var(--fs-caption); font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
 .b-review { background: var(--warn-bg); color: var(--warn); }
 .b-needs_images { background: var(--bad-bg); color: var(--bad); }
 .b-approved { background: var(--ok-bg); color: var(--ok); }
 .b-view_only { background: var(--soft); color: var(--muted); }
+.b-voice { background: var(--info-bg); color: var(--info); }
 main { padding: 20px 24px 120px; min-width: 0; }
 .empty { color: var(--muted); padding: 40px 0; text-align: center; }
 .back { display: none; }
@@ -91,6 +93,9 @@ input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px
 .banner.warn { background: var(--warn-bg); color: var(--warn); }
 .banner.bad { background: var(--bad-bg); color: var(--bad); }
 .banner .acts { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.banner .acts .btn { max-width: 100%; text-align: left; }
+.banner .hint { color: inherit; }
+dialog .extra { font-weight: 600; color: var(--warn); }
 .banner details { margin-top: 8px; font-size: var(--fs-note); }
 .banner pre { white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; margin: 6px 0 4px; color: var(--ink); }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent;
@@ -130,6 +135,7 @@ dialog .acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 
 <header>
   <h1>Studio duyệt video</h1>
   <p>Xem video, sửa chữ và lời đọc, dựng lại, rồi duyệt.</p>
+  <p class="quota" id="quota" role="status">Đang xem số lượt giọng Gemini…</p>
 </header>
 <div class="layout">
   <aside>
@@ -140,12 +146,13 @@ dialog .acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 
 </div>
 <div class="actionbar" id="bar" hidden></div>
 
-<dialog id="confirm">
-  <h3>Duyệt video này?</h3>
+<dialog id="confirm" aria-labelledby="confirm-title">
+  <h3 id="confirm-title"></h3>
   <p id="confirm-text"></p>
+  <p class="extra" id="confirm-extra" hidden></p>
   <div class="acts">
     <button class="btn" id="confirm-no">Để sau</button>
-    <button class="btn primary" id="confirm-yes">Duyệt & lưu</button>
+    <button class="btn primary" id="confirm-yes"></button>
   </div>
 </dialog>
 <div class="sr" aria-live="polite" id="live"></div>
@@ -156,9 +163,12 @@ const API = "/api/studio";
 const LABELS = { review: "Chờ duyệt", needs_images: "Cần ảnh", approved: "Đã duyệt", view_only: "Chỉ xem" };
 const SPEAKERS = { narrator: "Người dẫn", con_gai: "Con gái", con_trai: "Con trai", me: "Mẹ", bo: "Bố", ba: "Bà", ong: "Ông" };
 const KINDS = { story: "Tiểu phẩm", product: "Sản phẩm", cta: "Kêu gọi mua" };
-const GEMINI_PER_DAY = 10;
+const VOICE_BADGES = { free: "Giọng miễn phí", backup: "Gemini phụ" };
+const VOICE_NAMES = { main: "Gemini", backup: "Gemini phụ", free: "giọng miễn phí" };
 
 let videos = [], drive = false, current = null, dirty = false, polling = null, banner = null;
+// Gemini voice quota estimate from GET /voice-quota (demo.py --tts-status). Model names stay out of the page text.
+let quota = { available: false };
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -185,6 +195,152 @@ function when(folder) {
   return m ? `${m[3]}/${m[2]} ${m[4]}:${m[5]}` : "";
 }
 
+// ---------------- confirm dialog (shared: approve, switch voice, discard edits) ----------------
+function ask({ title, text, extra = "", yes, no = "Để sau" }) {
+  const dlg = $("#confirm");
+  if (dlg.open) return Promise.resolve(false);  // one question at a time
+  $("#confirm-title").textContent = title;
+  $("#confirm-text").textContent = text;
+  $("#confirm-extra").textContent = extra;
+  $("#confirm-extra").hidden = !extra;
+  $("#confirm-yes").textContent = yes;
+  $("#confirm-no").textContent = no;
+  return new Promise((resolve) => {
+    let answer = false;
+    $("#confirm-yes").onclick = () => { answer = true; dlg.close(); };
+    $("#confirm-no").onclick = () => dlg.close();
+    dlg.onclose = () => resolve(answer);  // also Esc
+    dlg.showModal();
+  });
+}
+
+// ---------------- Gemini voice quota ----------------
+const two = (n) => String(n).padStart(2, "0");
+const clock = (d) => `${two(d.getHours())}:${two(d.getMinutes())}`;
+function dayWord(d) {
+  const a = new Date(); a.setHours(0, 0, 0, 0);
+  const b = new Date(d); b.setHours(0, 0, 0, 0);
+  const days = Math.round((b - a) / 86400000);
+  return days === 0 ? "hôm nay" : days === 1 ? "ngày mai" : `ngày ${two(d.getDate())}/${two(d.getMonth() + 1)}`;
+}
+// "khoảng 15:00 hôm nay" / "khoảng 15:00 ngày mai", by this computer's clock and date
+function about(iso) {
+  const d = new Date(iso);
+  return iso && !isNaN(d) ? `khoảng ${clock(d)} ${dayWord(d)}` : "khi có lại lượt";
+}
+// "10:45" (plus the day when it is not today), for the short 60-minute pause
+function until(iso) {
+  const d = new Date(iso);
+  if (!iso || isNaN(d)) return "một lúc nữa";
+  const day = dayWord(d);
+  return clock(d) + (day === "hôm nay" ? "" : " " + day);
+}
+
+const chain = () => (quota.models || []).filter((m) => m.role === "main" || m.role === "backup");
+// A short pause (60 minutes after an unclear "too many requests" answer) that ends with requests left
+const paused = (m) => m.block_reason === "unknown_429" && m.blocked_until && m.used < quota.limit;
+// Quota row of the model a video was voiced with (older videos: the main model)
+function modelRow(name) {
+  const rows = quota.models || [];
+  if (!name) return rows.find((m) => m.role === "main") || null;
+  return rows.find((m) => m.model === name) || { model: name, role: "other", used: 0, left: quota.limit, blocked_until: null };
+}
+// When this model has requests again
+const backAt = (row) => (row && paused(row) ? row.blocked_until : quota.resets_at);
+// When some Gemini voice can read `need` lines again
+function chainBackAt(need) {
+  const times = chain().filter((m) => paused(m) && quota.limit - m.used >= need).map((m) => m.blocked_until);
+  return times.sort()[0] || quota.resets_at;
+}
+
+function quotaText() {
+  if (!quota.available) return "Chưa xem được số lượt Gemini còn lại. Bạn vẫn dựng lại được; nếu hết lượt, máy sẽ báo và giữ nguyên video cũ.";
+  if (quota.provider !== "gemini") return "Đang dùng giọng miễn phí, không giới hạn lượt.";
+  const rows = chain(), main = rows.find((m) => m.role === "main"), backs = rows.filter((m) => m.role === "backup");
+  if (rows.every((m) => m.left === 0)) {
+    const pause = rows.filter(paused).map((m) => m.blocked_until).sort()[0];
+    return pause
+      ? `Giọng Gemini đang tạm nghỉ đến ${until(pause)}. Trong lúc đó video mới sẽ dùng giọng miễn phí.`
+      : `Giọng Gemini đã hết lượt. Video mới sẽ dùng giọng miễn phí cho đến ${about(quota.resets_at)}.`;
+  }
+  const mainLeft = main ? main.left : 0;
+  const left = backs.length ? `còn ${mainLeft} lượt chính và ${backs.reduce((n, m) => n + m.left, 0)} lượt phụ` : `còn ${mainLeft} lượt`;
+  const enough = quota.videos_left > 0 ? `đủ cho khoảng ${quota.videos_left} video mới` : "chưa đủ cho một video mới";
+  return `Giọng Gemini: ${left} · ${enough} · có lại đủ lượt lúc ${about(quota.resets_at)}`;
+}
+
+// Refreshed when the page opens, when a video opens and when a job ends
+async function loadQuota() {
+  try {
+    const data = await api("/voice-quota");
+    quota = data && data.available && Array.isArray(data.models) ? data : { available: false };
+  } catch { quota = { available: false }; }
+  $("#quota").textContent = quotaText();
+  if (current) { paintVoice(); updateBar(); }
+}
+
+// Line at the top of a video: which voice it has, and the way back to the Gemini voice
+function paintVoice() {
+  const el = $("#voiceline"), v = current;
+  if (!el || !v) return;
+  const role = v.voice_role;
+  if (!VOICE_NAMES[role]) { el.innerHTML = ""; return; }
+  if (v.label === "view_only") {
+    el.innerHTML = `<div class="banner info">Giọng của video: ${VOICE_NAMES[role]}</div>`;
+    return;
+  }
+  if (role === "main") { el.innerHTML = `<div class="banner info">Giọng của video: Gemini</div>`; return; }
+  if (role === "backup") { el.innerHTML = `<div class="banner warn">Giọng của video: Gemini phụ. Nghe kỹ trước khi duyệt.</div>`; return; }
+
+  const need = v.voice_calls || 0;
+  const row = quota.available ? chain().find((m) => m.left >= need) : null;   // the Gemini voice that can read the whole video
+  const offer = !quota.available || quota.provider === "gemini";
+  const waitFor = quota.available && offer && !row && need <= quota.limit ? about(chainBackAt(need)) : "";
+  let text;
+  if (v.voice_reason === "quota") {
+    text = "Video này đang dùng giọng miễn phí vì lúc tạo giọng Gemini không đủ lượt. Bạn có thể duyệt luôn, hoặc "
+      + (waitFor ? `đợi có lại lượt (${waitFor}) rồi ` : "") + "bấm Đọc lại toàn bộ bằng giọng Gemini.";
+  } else if (v.voice_reason === "error") {
+    text = "Lúc tạo, không kết nối được giọng Gemini (không phải do hết lượt). Nếu lặp lại, báo người phụ trách kỹ thuật.";
+  } else {
+    text = "Giọng của video: giọng miễn phí (không giới hạn lượt, kém tự nhiên hơn Gemini).";
+  }
+  let acts = "";
+  if (offer) {
+    const busy = jobBusy() ? "disabled" : "";
+    if (!quota.available) {
+      acts = `<div class="acts"><button class="btn small" data-act="regemini" ${busy}>Đọc lại toàn bộ bằng giọng Gemini</button></div>`;
+    } else if (row) {
+      acts = `<div class="acts"><button class="btn small" data-act="regemini" ${busy}>Đọc lại toàn bộ bằng giọng Gemini (dùng ${need} lượt, còn ${row.left})</button></div>`;
+    } else {
+      const why = waitFor ? `Chưa đủ lượt. Có lại lượt lúc ${waitFor}.`
+        : "Video này có nhiều câu hơn số lượt Gemini trong một ngày.";
+      acts = `<div class="acts"><button class="btn small" disabled>Đọc lại toàn bộ bằng giọng Gemini</button></div>
+        <div class="hint">${esc(why)}</div>`;
+    }
+  }
+  el.innerHTML = `<div class="banner ${v.voice_reason ? "warn" : "info"}">${esc(text)}${acts}</div>`;
+}
+
+async function askRevoice(engine) {
+  if (!current || jobBusy()) return;
+  const ok = engine === "gemini"
+    ? await ask({ title: "Đọc lại bằng giọng Gemini?",
+        text: `Cả video sẽ được đọc lại bằng giọng Gemini, dùng ${current.voice_calls} lượt. Tiếp tục?`,
+        yes: "Đọc lại bằng giọng Gemini" })
+    : await ask({ title: "Đổi sang giọng miễn phí?",
+        text: "Cả video sẽ được đọc lại bằng giọng miễn phí, kém tự nhiên hơn giọng Gemini. Không tốn lượt Gemini. Tiếp tục?",
+        yes: "Đổi sang giọng miễn phí" });
+  if (ok) startRender(engine);
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-act]");
+  if (!b || b.disabled) return;
+  if (b.dataset.act === "revoice") askRevoice("edge");
+  else if (b.dataset.act === "regemini") askRevoice("gemini");
+});
+
 // ---------------- list ----------------
 async function loadList() {
   const data = await api("/videos");
@@ -194,7 +350,8 @@ async function loadList() {
   ul.innerHTML = videos.map((v) => `
     <li><button data-folder="${esc(v.folder)}" ${current && current.folder === v.folder ? 'aria-current="true"' : ""}>
       <span class="t">${esc(v.title)}</span>
-      <span class="m"><span class="badge b-${v.label}">${LABELS[v.label]}</span>${esc(when(v.folder))}</span>
+      <span class="m"><span class="badge b-${v.label}">${LABELS[v.label]}</span>${
+        VOICE_BADGES[v.voice_role] ? `<span class="badge b-voice">${VOICE_BADGES[v.voice_role]}</span>` : ""}${esc(when(v.folder))}</span>
     </button></li>`).join("");
 }
 
@@ -204,11 +361,13 @@ $("#list").addEventListener("click", (e) => {
 });
 
 function leaveOk() {
-  return !dirty || confirm("Bạn có thay đổi chưa lưu. Bỏ các thay đổi đó?");
+  if (!dirty) return Promise.resolve(true);
+  return ask({ title: "Bỏ thay đổi chưa lưu?", text: "Bạn có thay đổi chưa lưu. Bỏ các thay đổi đó?",
+    yes: "Bỏ thay đổi", no: "Ở lại" });
 }
 
 async function openVideo(folder, keepBanner = false) {
-  if (current && current.folder !== folder && !leaveOk()) return;
+  if (current && current.folder !== folder && !(await leaveOk())) return;
   try {
     current = await api("/videos/" + encodeURIComponent(folder));
   } catch (err) { showBanner("bad", err.message); return; }
@@ -219,6 +378,7 @@ async function openVideo(folder, keepBanner = false) {
   render();
   window.scrollTo(0, 0);
   loadList();
+  loadQuota();
 }
 
 // ---------------- detail ----------------
@@ -227,7 +387,8 @@ function render() {
   const head = `
     <button class="btn small back" id="back">← Danh sách</button>
     <div class="title-row"><h2>${esc(v.title)}</h2><span class="badge b-${v.label}">${LABELS[v.label]}</span></div>
-    <div id="banner">${banner ? bannerMarkup() : ""}</div>`;
+    <div id="banner">${banner ? bannerMarkup() : ""}</div>
+    <div id="voiceline"></div>`;
   const player = `<div class="player"><video id="vid" controls playsinline preload="metadata" src="${esc(v.video_url)}#t=0.1"></video></div>`;
 
   if (v.label === "view_only") {
@@ -314,8 +475,9 @@ function productImagesMarkup() {
 }
 
 function bindCommon() {
-  $("#back")?.addEventListener("click", () => {
-    if (!leaveOk()) return;
+  paintVoice();
+  $("#back")?.addEventListener("click", async () => {
+    if (!(await leaveOk())) return;
     current = null; dirty = false; banner = null;
     history.replaceState(null, "", location.pathname);
     document.body.classList.remove("has-detail");
@@ -333,7 +495,6 @@ function bindCommon() {
   }));
   $("#main").querySelectorAll("[data-upload]").forEach((b) =>
     b.addEventListener("click", () => pickImage(b.dataset.upload, +b.dataset.index)));
-  bindBanner();
 }
 
 async function copy(text, btn) {
@@ -377,15 +538,29 @@ function updateBar() {
   document.querySelectorAll("[data-scene]").forEach((el) => {
     el.querySelector("[data-re]").hidden = !changed.includes(+el.dataset.scene);
   });
-  // Cost of re-voicing, shown before the button is pressed
+  // Cost of re-voicing, shown before the button is pressed. Edited lines are re-voiced with the
+  // video's own Gemini voice only, so the count is that voice's, not the whole chain's.
   let note = "";
   if (changed.length) {
+    const k = changed.length;
     const guess = v.voice_engine_known ? "" : " (Video này làm trước khi có Studio, máy đoán theo cài đặt hiện tại.)";
-    note = v.voice_engine === "gemini"
-      ? `<div class="banner ${changed.length > GEMINI_PER_DAY ? "bad" : "info"}">Bạn sửa ${changed.length} lời đọc. Dựng lại sẽ dùng <b>${changed.length} lượt</b> giọng Gemini, mỗi ngày tối đa ${GEMINI_PER_DAY} lượt cho mọi video.${guess}</div>`
-      : `<div class="banner info">Bạn sửa ${changed.length} lời đọc. Video dùng giọng miễn phí, không giới hạn lượt.${guess}</div>`;
+    const row = quota.available ? modelRow(v.voice_model) : null;
+    if (v.voice_engine !== "gemini") {
+      note = `<div class="banner info">Bạn sửa ${k} lời đọc. Video dùng giọng miễn phí, không giới hạn lượt.${guess}</div>`;
+    } else if (!row) {
+      note = `<div class="banner info">Bạn sửa ${k} lời đọc. Dựng lại sẽ dùng <b>${k} lượt</b> giọng Gemini của video này.${guess}</div>`;
+    } else if (row.left >= k) {
+      const after = row.left - k, per = quota.calls_per_video || 4;
+      const videosAfter = row.role === "other" ? quota.videos_left
+        : quota.videos_left - Math.floor(row.left / per) + Math.floor(after / per);
+      const tail = videosAfter < 1 ? ` Sau đó không đủ lượt Gemini cho một video mới trước ${esc(about(quota.resets_at))}.` : "";
+      note = `<div class="banner info">Bạn sửa ${k} lời đọc. Dựng lại sẽ dùng <b>${k} lượt</b> giọng Gemini của video này. Hiện còn ${row.left}, sau khi dựng còn ${after}.${tail}${guess}</div>`;
+    } else {
+      note = `<div class="banner bad">Bạn sửa ${k} lời đọc nhưng giọng Gemini của video này chỉ còn ${row.left} lượt. Chọn một cách: sửa ít câu hơn; đợi đến ${esc(about(backAt(row)))}; hoặc đọc lại toàn bộ bằng giọng miễn phí.${guess}
+        <div class="acts"><button class="btn small" data-act="revoice" ${jobBusy() ? "disabled" : ""}>Đọc lại toàn bộ bằng giọng miễn phí</button></div></div>`;
+    }
   }
-  $("#voicenote").innerHTML = note;
+  if ($("#voicenote").innerHTML !== note) $("#voicenote").innerHTML = note;
 
   const busy = jobBusy();
   const needsRender = v.needs_render || (dirty && formNeedsRender());
@@ -437,25 +612,28 @@ function pickImage(target, index) {
 async function startRender(revoiceAll) {
   try {
     await save();
-    await api(`/videos/${encodeURIComponent(current.folder)}/render`, { method: "POST", json: revoiceAll ? { revoice_all: "edge" } : {} });
+    // revoiceAll: "edge" (free voice) | "gemini" | undefined (only the edited lines)
+    await api(`/videos/${encodeURIComponent(current.folder)}/render`, { method: "POST", json: revoiceAll ? { revoice_all: revoiceAll } : {} });
     watchJob();
   } catch (e) { showBanner("bad", e.message); }
 }
 
-function askApprove() {
-  const dlg = $("#confirm");
-  $("#confirm-text").textContent = drive
-    ? "Máy sẽ lưu chữ đăng kèm, tải cả thư mục video lên Google Drive, rồi xoá bản trên máy. Sau đó video không còn trong danh sách này."
-    : "Máy sẽ lưu chữ đăng kèm và danh sách việc cần làm khi đăng vào thư mục video, rồi đánh dấu Đã duyệt. Video vẫn giữ trên máy.";
-  dlg.showModal();
-  $("#confirm-no").onclick = () => dlg.close();
-  $("#confirm-yes").onclick = async () => {
-    dlg.close();
-    try {
-      await api(`/videos/${encodeURIComponent(current.folder)}/approve`, { method: "POST" });
-      watchJob();
-    } catch (e) { showBanner("bad", e.message); }
-  };
+async function askApprove() {
+  // A video that is not on the main Gemini voice is pointed out before it is approved:
+  // after approval the folder may be gone and the voice cannot be changed any more.
+  const extra = current.voice_role === "free" ? "Video này dùng giọng miễn phí. Sau khi duyệt không đổi giọng được nữa."
+    : current.voice_role === "backup" ? "Video này dùng giọng Gemini phụ. Bạn đã nghe kỹ chưa?" : "";
+  const ok = await ask({
+    title: "Duyệt video này?",
+    text: drive
+      ? "Máy sẽ lưu chữ đăng kèm, tải cả thư mục video lên Google Drive, rồi xoá bản trên máy. Sau đó video không còn trong danh sách này."
+      : "Máy sẽ lưu chữ đăng kèm và danh sách việc cần làm khi đăng vào thư mục video, rồi đánh dấu Đã duyệt. Video vẫn giữ trên máy.",
+    extra, yes: "Duyệt & lưu" });
+  if (!ok) return;
+  try {
+    await api(`/videos/${encodeURIComponent(current.folder)}/approve`, { method: "POST" });
+    watchJob();
+  } catch (e) { showBanner("bad", e.message); }
 }
 
 function stepText(job) {
@@ -488,6 +666,7 @@ function watchJob() {
 async function jobFinished(job) {
   const log = `<details><summary>Xem chi tiết kỹ thuật</summary><pre>${esc(job.log.join("\n"))}</pre></details>`;
   const driveLink = job.drive_link ? ` <a href="${esc(job.drive_link)}" target="_blank" rel="noopener">Mở thư mục Drive</a>` : "";
+  await loadQuota();  // the job may have used Gemini requests, or learned that a voice ran out
   if (job.state === "done" && job.action === "render") {
     banner = { kind: "ok", html: "Đã dựng xong. Xem lại video." };
     await openVideo(job.folder, true);
@@ -506,9 +685,26 @@ async function jobFinished(job) {
     }
     say("Đã duyệt video");
   } else if (job.error_kind === "revoice") {
-    banner = { kind: "bad", html: "Không đọc lại được câu đã sửa bằng giọng Gemini, thường do hết 10 lượt miễn phí trong ngày. Video và giọng cũ vẫn giữ nguyên."
-      + `<div class="acts"><button class="btn small" data-act="revoice">Đọc lại toàn bộ bằng giọng miễn phí</button></div>`
-      + `<div class="hint">Hoặc để mai thử lại. Cả video phải dùng chung một giọng, nên không đổi riêng được câu đã sửa.</div>` + log };
+    const same = current && current.folder === job.folder;
+    const logText = job.log.join("\n");
+    const freeVideo = same && current.voice_engine !== "gemini";
+    if (freeVideo && !/gemini TTS quota/.test(logText)) {
+      // The free voice itself failed (network); there is no other voice to offer.
+      banner = { kind: "bad", html: "Không đọc lại được câu đã sửa bằng giọng miễn phí. Video và giọng cũ vẫn giữ nguyên. Đợi ít phút rồi bấm Dựng lại video." + log };
+    } else if (freeVideo) {
+      // "Đọc lại toàn bộ bằng giọng Gemini" was asked for a free-voice video, and Gemini is short.
+      const wait = esc(quota.available ? about(chainBackAt(current.voice_calls || 0)) : "khi có lại lượt");
+      banner = { kind: "bad", html: `Giọng Gemini không đủ lượt nên máy chưa đọc lại câu nào. Video vẫn dùng giọng miễn phí như cũ. Đợi đến ${wait} rồi thử lại.` + log };
+    } else {
+      const wait = esc(about(backAt(quota.available && same ? modelRow(current.voice_model) : null)));
+      // "no API call made": demo.py's own count said the voice was short, Gemini was not asked.
+      const what = /no API call made/.test(logText)
+        ? "Giọng Gemini không đủ lượt nên máy chưa đọc lại câu nào."
+        : "Gemini báo đã hết lượt dù máy đếm còn.";
+      banner = { kind: "bad", html: `${what} Video và giọng cũ vẫn giữ nguyên. Đợi đến ${wait} rồi dựng lại, hoặc đọc lại toàn bộ bằng giọng miễn phí.`
+        + `<div class="acts"><button class="btn small" data-act="revoice">Đọc lại toàn bộ bằng giọng miễn phí</button></div>`
+        + `<div class="hint">Cả video phải dùng chung một giọng, nên không đổi riêng được câu đã sửa.</div>` + log };
+    }
     await openVideo(job.folder, true);
   } else if (job.error_kind === "not_ready") {
     banner = { kind: "bad", html: "Chưa duyệt được: video cần dựng lại, hoặc còn cảnh thiếu ảnh nhân vật." + log };
@@ -530,16 +726,13 @@ function paintBanner() {
   const el = $("#banner");
   if (el) el.innerHTML = banner ? bannerMarkup() : "";
   else if (banner) $("#main").insertAdjacentHTML("afterbegin", `<div id="banner">${bannerMarkup()}</div>`);
-  bindBanner();
-  if (current) updateBar();
-}
-function bindBanner() {
-  document.querySelector('[data-act="revoice"]')?.addEventListener("click", () => startRender(true));
+  if (current) { paintVoice(); updateBar(); }  // buttons with data-act are handled by one document listener
 }
 
 window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
 
 (async () => {
+  loadQuota();
   try { await loadList(); }
   catch (e) { $("#list").innerHTML = `<li class="empty">${esc(e.message)}</li>`; return; }
   const job = await api("/job").catch(() => ({ state: "idle" }));

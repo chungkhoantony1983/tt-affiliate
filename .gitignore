@@ -10,6 +10,8 @@ storage/clips/
 storage/pixabay_cache/
 storage/studio-logs/
 storage/review-frames/
+storage/gemini-tts-usage.json
+storage/gemini-tts-usage.lock
 .worktrees/
 *.mp4
 *.mp3
