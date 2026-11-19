@@ -14,6 +14,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -30,16 +31,33 @@ from app.core.config import settings
 router = APIRouter(prefix="/api/studio", tags=["studio"])
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 DEMO = REPO_ROOT / "demo.py"
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp")
 PIL_FORMATS = {"PNG": ".png", "JPEG": ".jpg", "MPO": ".jpg", "WEBP": ".webp"}
 MAX_UPLOAD = 15 * 1024 * 1024
 MAX_PRODUCT_IMAGES = 3  # demo.render_video uses the first 3
 SERVED_FILE = re.compile(r"^(canh_\d+|anh_sp_\d+|img_\d+)\.(png|jpg|jpeg|webp)$")
+STAGING_FILE = re.compile(r"^anh_sp_[1-3]\.(png|jpg|jpeg|webp)$")
 LOCAL_HOSTS = {"127.0.0.1", "localhost"}
 
 # demo.py exit codes (EXIT_REVOICE_FAILED, EXIT_NOT_READY; travel: 5 wrong number, 6 stale facts)
 ERROR_KINDS = {3: "revoice", 4: "not_ready", 5: "fact_check", 6: "facts_stale", 7: "drive_failed"}
+
+
+def _validate_price(price: Optional[int]) -> Optional[int]:
+    """Rule C-0007-2: only 0 (hide price) or integer >= 1000 VND is valid; reject < 0 and 1..999."""
+    if price is None:
+        return None
+    if price < 0:
+        raise HTTPException(status_code=400, detail="Giá không được âm")
+    if 0 < price < 1000:
+        raise HTTPException(
+            status_code=400,
+            detail="Giá đang dưới 1.000đ. Kiểm tra lại xem bạn có gõ thiếu 3 số 0 (ví dụ 189.000) không, hoặc nhập 0 nếu muốn ẩn giá.",
+        )
+    return int(price)
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +72,75 @@ def _videos_root() -> Path:
 def _logs_root() -> Path:
     # Outside the video folder: approving uploads the whole folder to Drive and may delete it.
     return _videos_root().parent / "studio-logs"
+
+
+def _staging_root() -> Path:
+    return _logs_root() / "staging"
+
+
+def _slots_meta_path() -> Path:
+    return _staging_root() / "slots.json"
+
+
+def _read_slots_meta() -> dict:
+    data = _read_json(_slots_meta_path())
+    return {
+        "preview": list(data.get("preview") or []),
+        "overrides": dict(data.get("overrides") or {}),
+    }
+
+
+def _write_slots_meta(meta: dict) -> None:
+    _staging_root().mkdir(parents=True, exist_ok=True)
+    _write_json(_slots_meta_path(), meta)
+
+
+def _clear_staging() -> None:
+    root = _staging_root()
+    if not root.is_dir():
+        return
+    for f in root.iterdir():
+        if f.is_file():
+            f.unlink(missing_ok=True)
+
+
+def _studio_csv_path() -> str:
+    env_csv = (os.environ.get("STUDIO_CSV_PATH") or "").strip()
+    if env_csv:
+        return env_csv
+    default_videos = (REPO_ROOT / "storage" / "videos").resolve()
+    if _videos_root().resolve() != default_videos:
+        tmp_csv = _logs_root() / "products.csv"
+        if not tmp_csv.is_file() and (REPO_ROOT / "products.csv").is_file():
+            _logs_root().mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(REPO_ROOT / "products.csv", tmp_csv)
+        if tmp_csv.is_file():
+            return str(tmp_csv)
+    if (REPO_ROOT / "products.csv").is_file():
+        return str(REPO_ROOT / "products.csv")
+    return ""
+
+
+def _open_sheet(tab: str = "Tiktok"):
+    import product_sources
+
+    sheet_ref = (os.environ.get("SPREADSHEET_ID") or settings.SPREADSHEET_ID or "").strip()
+    creds_path = Path(settings.GOOGLE_APPLICATION_CREDENTIALS or "google-credentials.json")
+    if not creds_path.is_absolute():
+        creds_path = REPO_ROOT / creds_path
+    csv_path = _studio_csv_path() if not (sheet_ref and creds_path.is_file()) else ""
+    try:
+        return product_sources.open_product_sheet(
+            sheet_ref=sheet_ref,
+            tab=tab,
+            credentials=str(creds_path),
+            csv_path=csv_path,
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Chưa kết nối được Google Sheet. Bạn hãy kiểm tra cài đặt hoặc chuyển sang mục Dán link TikTok Shop.",
+        )
 
 
 def _folders() -> List[Path]:
@@ -235,6 +322,31 @@ def _start_job(action: str, folder: Path, args: list) -> dict:
         return job_status()
 
 
+def _start_create_job(spec: dict) -> dict:
+    global _proc
+    with _job_lock:
+        _no_job_or_409()
+        _logs_root().mkdir(parents=True, exist_ok=True)
+        spec_path = _logs_root() / "create-input.json"
+        _write_json(spec_path, spec)
+        log_path = _logs_root() / "create.log"
+        log = open(log_path, "w", encoding="utf-8")
+        env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
+        try:
+            _proc = subprocess.Popen(
+                [sys.executable, str(DEMO), "--create-json", str(spec_path), "--output-dir", str(_videos_root())],
+                cwd=str(REPO_ROOT),
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                env=env,
+            )
+        finally:
+            log.close()
+        _job.clear()
+        _job.update(action="create", folder="", log=str(log_path))
+        return job_status()
+
+
 def _log_lines(path: str, n: int = 40) -> list:
     try:
         lines = Path(path).read_text(encoding="utf-8", errors="replace").splitlines()
@@ -247,15 +359,24 @@ def _log_lines(path: str, n: int = 40) -> list:
 def job_status():
     if not _job:
         return {"state": "idle"}
-    lines = _log_lines(_job["log"])
-    status = {"action": _job["action"], "folder": _job["folder"], "log": lines[-15:]}
+    lines = _log_lines(_job["log"], n=80)
+    folder = _job["folder"]
+    if _job["action"] == "create":
+        found = next(
+            (line.split("Studio folder:", 1)[1].strip() for line in reversed(lines) if "Studio folder:" in line),
+            None,
+        )
+        if found:
+            folder = found
+            _job["folder"] = found
+    status = {"action": _job["action"], "folder": folder, "log": lines[-15:]}
     if _job_running():
         return {**status, "state": "running"}
     code = _proc.returncode if _proc else -1
     if code == 0:
         drive = next((line.split("Drive:", 1)[1].strip() for line in lines if "Drive:" in line), None)
         return {**status, "state": "done", "drive_link": drive,
-                "folder_kept": (_videos_root() / _job["folder"]).is_dir()}
+                "folder_kept": bool(folder and (_videos_root() / folder).is_dir())}
     notices = [l.strip() for l in lines if l.strip().startswith(("[FACT_CHECK] ", "[FACTS_STALE] ", "[DRIVE_FAILED] "))]
     return {**status, "state": "error", "error_kind": ERROR_KINDS.get(code, "failed"),
             "notices": notices[-8:], "repo_root": str(REPO_ROOT)}
@@ -410,8 +531,7 @@ def save_video(folder: str, edit: VideoEdit):
         script["hook"] = edit.hook.strip()
         needs_render = True
     if edit.price is not None and not travel:
-        if edit.price < 0:
-            raise HTTPException(status_code=400, detail="Giá không được âm")
+        _validate_price(edit.price)
         if edit.price != int(product.get("price") or 0):
             product["price"] = edit.price
             needs_render = True
@@ -531,3 +651,390 @@ def approve(folder: str):
     if _label(path) == "needs_images":
         raise HTTPException(status_code=409, detail="Còn cảnh chưa có ảnh nhân vật, chưa duyệt được")
     return _start_job("approve", path, ["--approve"])
+
+
+# ---------------------------------------------------------------------------
+# Create new video (DR-0007)
+# ---------------------------------------------------------------------------
+
+class PreviewRequest(BaseModel):
+    source: str = "url"  # "url" | "sheet"
+    product_url: Optional[str] = None
+    sheet_row: Optional[int] = None
+    tab: str = "Tiktok"
+
+
+class CreateVideoRequest(BaseModel):
+    sheet_row: Optional[int] = None
+    product_url: Optional[str] = None
+    name: Optional[str] = None
+    price: Optional[int] = None
+    images: Optional[List[str]] = None
+    style: str = "story"
+    category: Optional[str] = None
+    selling_points: Optional[str] = None
+    notes: Optional[str] = None
+    tab: str = "Tiktok"
+
+
+@router.get("/sheet-rows")
+def list_sheet_rows(tab: str = "Tiktok"):
+    try:
+        sheet = _open_sheet(tab)
+    except HTTPException as e:
+        return {"available": False, "rows": [], "message": e.detail}
+    items = []
+    for r in sheet.rows:
+        name = (r.get("name") or "").strip()
+        url = (r.get("product_url") or "").strip()
+        if not name and not url:
+            continue
+        price = int(re.sub(r"[^\d]", "", r.get("price") or "0") or 0)
+        status = (r.get("status") or "").strip()
+        imgs = [x.strip() for x in (r.get("images") or "").split("|") if x.strip()]
+        items.append({
+            "row": int(r["_row"]),
+            "name": name or url,
+            "price": price,
+            "product_url": url,
+            "status": status,
+            "has_video": status.lower() in ("done", "review", "needs_images"),
+            "images_count": len(imgs),
+        })
+    return {"available": True, "rows": items}
+
+
+@router.post("/product-preview", dependencies=[Depends(require_studio)])
+def product_preview(req: PreviewRequest):
+    import product_sources
+
+    _no_job_or_409()
+    _clear_staging()
+
+    use_sheet = req.source == "sheet" or (req.sheet_row is not None and not (req.product_url or "").strip())
+    if use_sheet:
+        if req.sheet_row is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Hãy chọn một dòng hoặc nhập số dòng trên Google Sheet (bắt đầu từ dòng 2).",
+            )
+        if req.sheet_row == 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Dòng 1 là dòng tiêu đề cột. Hãy chọn từ dòng số 2 trở đi.",
+            )
+        if req.sheet_row < 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Số dòng không hợp lệ. Hãy chọn từ dòng số 2 trở đi.",
+            )
+        sheet = _open_sheet(req.tab)
+        row = sheet.get_row(req.sheet_row)
+        if not row or (not (row.get("name") or "").strip() and not (row.get("product_url") or "").strip()):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Dòng {req.sheet_row} đang trống hoặc không có sản phẩm. Hãy chọn dòng khác.",
+            )
+        name = (row.get("name") or "").strip()
+        raw_price = (row.get("price") or "").strip()
+        price = int(re.sub(r"[^\d]", "", raw_price) or 0) if raw_price != "" else None
+        images = [x.strip() for x in (row.get("images") or "").split("|") if x.strip()][:MAX_PRODUCT_IMAGES]
+        selling_points = [x.strip() for x in (row.get("selling_points") or "").split("|") if x.strip()]
+        category = (row.get("category") or "").strip() or "Nhà cửa"
+        notes = (row.get("notes") or "").strip()
+        product_url = (row.get("product_url") or "").strip()
+        warning = None
+
+        if product_url and (not name or price is None or not images):
+            try:
+                info = product_sources.fetch_tiktok_product(product_url)
+                if not name and info.get("title"):
+                    name = info["title"].strip()
+                if price is None and info.get("price"):
+                    price = int(info["price"])
+                if not images and info.get("images"):
+                    images = list(info["images"][:MAX_PRODUCT_IMAGES])
+                if not selling_points and info.get("description"):
+                    selling_points = [
+                        ln.lstrip("- ").strip() for ln in info["description"].splitlines() if ln.strip()
+                    ][:5]
+                if info.get("partial"):
+                    warning = (
+                        "Đã lấy được tên và 1 ảnh từ link TikTok. Bạn hãy kiểm tra lại Giá bán "
+                        "và tải thêm ảnh sản phẩm (nếu có) trước khi bấm Tạo video."
+                    )
+            except Exception:
+                warning = (
+                    "TikTok tạm chặn đọc tự động từ link trên dòng này. Đã giữ nguyên thông tin có sẵn "
+                    "trên bảng tính; bạn hãy kiểm tra thêm Tên, Giá bán và Ảnh sản phẩm ở bên dưới."
+                )
+
+        _write_slots_meta({"preview": images, "overrides": {}})
+        return {
+            "source": "sheet",
+            "sheet_row": req.sheet_row,
+            "product_url": product_url,
+            "name": name,
+            "price": price if price is not None else 0,
+            "category": category,
+            "images": images,
+            "selling_points": "\n".join(selling_points),
+            "description": "\n".join(selling_points),
+            "notes": notes,
+            "status": (row.get("status") or "").strip(),
+            "partial": False,
+            "blocked": False,
+            "warning": warning,
+        }
+
+    url = (req.product_url or "").strip()
+    if not url or not url.startswith(("http://", "https://")):
+        raise HTTPException(
+            status_code=400,
+            detail="Hãy dán đường dẫn (link) sản phẩm TikTok Shop hợp lệ (bắt đầu bằng https://).",
+        )
+    try:
+        info = product_sources.fetch_tiktok_product(url)
+        images = list((info.get("images") or [])[:MAX_PRODUCT_IMAGES])
+        _write_slots_meta({"preview": images, "overrides": {}})
+        pts = [ln.lstrip("- ").strip() for ln in (info.get("description") or "").splitlines() if ln.strip()][:5]
+        warning = None
+        if info.get("partial"):
+            warning = (
+                "Đã lấy được tên và 1 ảnh từ link TikTok. Bạn hãy kiểm tra lại Giá bán "
+                "và tải thêm ảnh sản phẩm (nếu có) trước khi bấm Tạo video."
+            )
+        return {
+            "source": "url",
+            "sheet_row": None,
+            "product_url": url,
+            "name": (info.get("title") or "").strip(),
+            "price": int(info.get("price") or 0),
+            "category": "Nhà cửa",
+            "images": images,
+            "selling_points": "\n".join(pts),
+            "description": info.get("description") or "",
+            "notes": "",
+            "partial": bool(info.get("partial")),
+            "blocked": False,
+            "warning": warning,
+        }
+    except Exception:
+        _write_slots_meta({"preview": [], "overrides": {}})
+        return {
+            "source": "url",
+            "sheet_row": None,
+            "product_url": url,
+            "name": "",
+            "price": 0,
+            "category": "Nhà cửa",
+            "images": [],
+            "selling_points": "",
+            "description": "",
+            "notes": "",
+            "partial": False,
+            "blocked": True,
+            "warning": (
+                "TikTok tạm chặn đọc tự động từ link này. Bạn chỉ cần tự điền "
+                "(1) Tên sản phẩm, (2) Giá bán và (3) Tải ảnh sản phẩm ở bên dưới "
+                "rồi bấm Tạo video như bình thường."
+            ),
+        }
+
+
+@router.post("/staging-image", dependencies=[Depends(require_studio)])
+async def upload_staging_image(request: Request, slot: int = 0):
+    _no_job_or_409()
+    if not 0 <= slot < MAX_PRODUCT_IMAGES:
+        raise HTTPException(status_code=400, detail="Vị trí ảnh sản phẩm không hợp lệ")
+    if int(request.headers.get("content-length") or 0) > MAX_UPLOAD:
+        raise HTTPException(status_code=413, detail="Ảnh quá lớn (tối đa 15 MB)")
+    data = await request.body()
+    if not data:
+        raise HTTPException(status_code=400, detail="Chưa có dữ liệu ảnh")
+    if len(data) > MAX_UPLOAD:
+        raise HTTPException(status_code=413, detail="Ảnh quá lớn (tối đa 15 MB)")
+    ext = _sniff_image(data)
+    _staging_root().mkdir(parents=True, exist_ok=True)
+    name = _replace_image(_staging_root(), f"anh_sp_{slot + 1}", ext, data)
+    meta = _read_slots_meta()
+    meta["overrides"][str(slot)] = name
+    _write_slots_meta(meta)
+    stamp = int((_staging_root() / name).stat().st_mtime)
+    return {
+        "slot": slot,
+        "name": name,
+        "url": f"/api/studio/staging-image/{name}?v={stamp}",
+        "uploaded": True,
+    }
+
+
+@router.delete("/staging-image", dependencies=[Depends(require_studio)])
+def delete_staging_image(slot: int = 0):
+    _no_job_or_409()
+    if not 0 <= slot < MAX_PRODUCT_IMAGES:
+        raise HTTPException(status_code=400, detail="Vị trí ảnh sản phẩm không hợp lệ")
+    if _staging_root().is_dir():
+        for ext in IMAGE_EXTS:
+            (_staging_root() / f"anh_sp_{slot + 1}{ext}").unlink(missing_ok=True)
+    meta = _read_slots_meta()
+    meta["overrides"][str(slot)] = ""
+    _write_slots_meta(meta)
+    return {"slot": slot, "deleted": True}
+
+
+@router.get("/staging-image/{name}")
+def get_staging_image(name: str):
+    if not STAGING_FILE.match(name) or not (_staging_root() / name).is_file():
+        raise HTTPException(status_code=404, detail="Không có ảnh này")
+    return FileResponse(_staging_root() / name, headers={"Cache-Control": "no-store"})
+
+
+def _normalize_create_images(req_images: Optional[List[str]], base_images: List[str]) -> Optional[List[str]]:
+    if req_images is not None:
+        cleaned = []
+        for raw in req_images[:MAX_PRODUCT_IMAGES]:
+            item = str(raw or "").strip()
+            if not item:
+                continue
+            if item.startswith("/api/studio/staging-image/"):
+                item = item.split("/api/studio/staging-image/", 1)[1].split("?", 1)[0]
+            if STAGING_FILE.match(item):
+                if not (_staging_root() / item).is_file():
+                    raise HTTPException(status_code=400, detail=f"Ảnh tải lên ({item}) không tồn tại, hãy tải lại ảnh")
+                cleaned.append(item)
+            elif item.startswith(("http://", "https://")):
+                cleaned.append(item)
+            else:
+                raise HTTPException(status_code=400, detail="Nguồn ảnh sản phẩm không hợp lệ")
+        return cleaned
+
+    meta = _read_slots_meta()
+    preview_imgs = meta["preview"] or base_images
+    overrides = meta["overrides"]
+    has_disk_staging = any(
+        (_staging_root() / f"anh_sp_{k + 1}{ext}").is_file()
+        for k in range(MAX_PRODUCT_IMAGES)
+        for ext in IMAGE_EXTS
+    )
+    if not overrides and not has_disk_staging and not preview_imgs:
+        return None
+    slots = [preview_imgs[k] if k < len(preview_imgs) else None for k in range(MAX_PRODUCT_IMAGES)]
+    for k in range(MAX_PRODUCT_IMAGES):
+        key = str(k)
+        if key in overrides:
+            val = overrides[key]
+            slots[k] = val if (val and (_staging_root() / val).is_file()) else None
+        else:
+            for ext in IMAGE_EXTS:
+                cand = f"anh_sp_{k + 1}{ext}"
+                if (_staging_root() / cand).is_file():
+                    slots[k] = cand
+                    break
+    return [s for s in slots if s]
+
+
+@router.post("/create", dependencies=[Depends(require_studio)])
+def create_video(req: CreateVideoRequest):
+    import product_sources
+
+    _no_job_or_409()
+    if req.style not in ("story", "simple"):
+        raise HTTPException(status_code=400, detail="Kiểu video phải là story hoặc simple")
+    _validate_price(req.price)
+
+    url = (req.product_url or "").strip()
+    name = (req.name or "").strip()
+    sheet_row = req.sheet_row
+    if sheet_row is None and not url and not name:
+        raise HTTPException(
+            status_code=400,
+            detail="Hãy dán link sản phẩm TikTok Shop hoặc chọn dòng trên Google Sheet.",
+        )
+
+    base_images: List[str] = []
+    csv_path_used = ""
+    sheet_ref = (os.environ.get("SPREADSHEET_ID") or settings.SPREADSHEET_ID or "").strip()
+
+    if sheet_row is not None:
+        if sheet_row == 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Dòng 1 là dòng tiêu đề cột. Hãy chọn từ dòng số 2 trở đi.",
+            )
+        if sheet_row < 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Số dòng không hợp lệ. Hãy chọn từ dòng số 2 trở đi.",
+            )
+        sheet = _open_sheet(req.tab)
+        csv_path_used = str(getattr(sheet, "path", "") or "")
+        row = sheet.get_row(sheet_row)
+        if not row or (
+            not (row.get("name") or "").strip()
+            and not (row.get("product_url") or "").strip()
+            and not name
+            and not url
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Dòng {sheet_row} đang trống hoặc không có sản phẩm. Hãy chọn dòng khác.",
+            )
+        base_images = [x.strip() for x in (row.get("images") or "").split("|") if x.strip()][:MAX_PRODUCT_IMAGES]
+        row_name = (row.get("name") or "").strip()
+        row_url = url or (row.get("product_url") or "").strip()
+        if not name and not row_name:
+            if row_url:
+                try:
+                    info = product_sources.fetch_tiktok_product(row_url)
+                    name = (info.get("title") or "").strip()
+                    if not base_images and info.get("images"):
+                        base_images = list(info["images"][:MAX_PRODUCT_IMAGES])
+                except Exception:
+                    pass
+            if not name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="TikTok tạm chặn đọc tự động từ link này. Bạn hãy tự nhập Tên sản phẩm rồi bấm Tạo video.",
+                )
+    else:
+        if url and (not name or req.price is None or req.images is None):
+            try:
+                info = product_sources.fetch_tiktok_product(url)
+                if not name and info.get("title"):
+                    name = info["title"].strip()
+                if req.price is None and info.get("price"):
+                    req.price = int(info["price"])
+                if info.get("images"):
+                    base_images = list(info["images"][:MAX_PRODUCT_IMAGES])
+            except Exception:
+                if not name:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="TikTok tạm chặn đọc tự động từ link này. Bạn hãy tự nhập Tên sản phẩm rồi bấm Tạo video.",
+                    )
+        if not name:
+            raise HTTPException(status_code=400, detail="Hãy nhập Tên sản phẩm trước khi bấm Tạo video.")
+
+    final_images = _normalize_create_images(req.images, base_images)
+    points = [
+        p.strip().lstrip("-• ").strip()
+        for p in re.split(r"[\n|]+", req.selling_points or "")
+        if p.strip()
+    ]
+    spec = {
+        "sheet_row": sheet_row,
+        "sheet_ref": sheet_ref,
+        "csv_path": csv_path_used,
+        "tab": req.tab,
+        "product_url": url or None,
+        "name": name or None,
+        "price": req.price,
+        "images": final_images,
+        "style": req.style,
+        "category": (req.category or "").strip() or None,
+        "selling_points": points or None,
+        "notes": (req.notes or "").strip() or None,
+        "output_dir": str(_videos_root()),
+    }
+    return _start_create_job(spec)

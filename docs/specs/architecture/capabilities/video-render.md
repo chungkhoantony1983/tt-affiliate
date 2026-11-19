@@ -137,22 +137,33 @@ storage/
 
 ---
 
-## Duyệt & sửa trên web (Studio) — DR-0001
+## Tạo mới, duyệt & sửa trên web (Studio) — DR-0001, DR-0007
 
-> Áp dụng cho MVP `demo.py`. Quyết định và lý do: `docs/decision-records/DR-0001-video-review-studio.md`.
+> Áp dụng cho MVP `demo.py`. Quyết định và lý do: `docs/decision-records/DR-0001-video-review-studio.md` và `docs/decision-records/DR-0007-studio-tao-video-san-pham.md`.
 
 ### Luồng
 
 ```
+[Tạo video mới trên Studio (DR-0007)]
+http://127.0.0.1:8000/studio → bấm "+ Tạo video mới"
+  → Bước 1: Chọn sản phẩm ("Dán link TikTok Shop" hoặc "Chọn dòng trên Google Sheet", dòng >= 2)
+           → bấm "Lấy thông tin sản phẩm" (POST /api/studio/product-preview, $0)
+  → Bước 2: Kiểm tra/sửa Giá sản phẩm (0 = ẩn giá, hoặc >= 1000 VND; có chữ đọc tiền tiếng Việt)
+           & Tải/thay/xoá tối đa 3 Ảnh sản phẩm (POST/DELETE /api/studio/staging-image?slot=0..2)
+  → Bước 3: Kiểm tra Tên sản phẩm, Kiểu video (story | simple), Điểm nổi bật, Danh mục, Ghi chú
+           → bấm "Tạo video" (POST /api/studio/create → demo.py --create-json FILE)
+                  │
+                  ▼
 demo.py … → render_video → [APPROVAL_MODE=web, mặc định] dừng, status=review, giữ thư mục
-                 │
-                 ▼  http://127.0.0.1:8000/studio  (service creator_main, bấm đúp scripts/mo-studio.command)
-        Xem video → sửa caption / hashtag / hook / chữ cảnh / giá / lời đọc / ảnh
-                 → "Dựng lại video" = demo.py --render-only DIR   (chỉ đọc lại câu đã sửa)
-                 → "Duyệt & lưu"    = demo.py --approve DIR       (post.txt → Drive → status=done)
+                  │
+                  ▼  http://127.0.0.1:8000/studio  (service creator_main, bấm đúp scripts/mo-studio.command)
+         Xem video → sửa caption / hashtag / hook / chữ cảnh / giá / lời đọc / ảnh
+                  → "Dựng lại video" = demo.py --render-only DIR   (chỉ đọc lại câu đã sửa)
+                  → "Duyệt & lưu"    = demo.py --approve DIR       (post.txt → Drive → status=done)
 ```
 
 - `APPROVAL_MODE=terminal`: giữ cách cũ (`approval_step`, hỏi `y/n`). `--skip-approval`: duyệt luôn, không dừng.
+- Tạo 1 video theo dòng bảng tính từ CLI: `demo.py --sheet-row <ROW>` (dòng `>= 2`, hỗ trợ kèm `--price`, `--images`, `--style`…).
 - `--render-only` xoá `post.txt` cũ nếu có: video mới phải duyệt lại.
 - `--approve` từ chối (exit 4) nếu `script.json` còn `needs_render` hoặc còn cảnh story thiếu ảnh.
 
@@ -163,18 +174,22 @@ demo.py … → render_video → [APPROVAL_MODE=web, mặc định] dừng, stat
 | `script.json` → `tts_provider` | `gemini` hoặc `edge`: bộ giọng của video. Thư mục cũ không có thì đoán theo cài đặt hiện tại |
 | `script.json` → `segments[i].audio_line` | Câu đã dùng để tạo `audio_i.mp3`. `line != audio_line` → câu cần đọc lại |
 | `script.json` → `needs_render` | Studio đặt khi sửa hook/giá/lời đọc/chữ cảnh/ảnh. `render_and_check` xoá sau khi dựng |
-| `product.json` → `images[k]` | URL, hoặc `anh_sp_{k+1}.<ext>` (ảnh tải lên, nằm trong thư mục video) |
+| `product.json` → `images[k]` | URL, hoặc `anh_sp_{k+1}.<ext>` (ảnh tải lên, nằm trong thư mục video; C-0007-3) |
+| `product.json` → `sheet_row` | Số dòng nguyên (`>= 2`) trên Google Sheet / CSV nếu tạo từ dòng bảng tính, hoặc `null` nếu tạo từ link rời |
 | `canh_N.<ext>` | Ảnh cảnh story N (tải lên từ Studio hoặc chép tay) |
-| `storage/studio-logs/<thư mục>.log` | Log của job Studio gần nhất. Nằm ngoài thư mục video để không bị tải lên Drive |
+| `storage/studio-logs/<thư mục>.log` | Log của job Studio gần nhất (`create.log` cho job tạo mới). Nằm ngoài thư mục video để không bị tải lên Drive |
+| `storage/studio-logs/staging/` | Thư mục tạm chứa `anh_sp_{1..3}.<ext>` và `slots.json` khi chuẩn bị tạo video mới; tự dọn sạch sau khi `demo.py` chép vào thư mục video |
 
 Cột `status` trên Sheet thêm giá trị `review` (đã dựng, chờ duyệt trên web).
 
-### Quy tắc giọng đọc (C-0001-1)
+### Quy tắc giọng đọc (C-0001-1) & Giá / Ảnh đầu vào (C-0007-1..3)
 
 - Một video chỉ dùng một bộ giọng. `revoice_changed()` đọc lại các câu đã sửa bằng `tts_provider` của video.
 - Tạo hết file mới (`_new_audio_i.mp3`) rồi mới thay. Lỗi ở bất kỳ câu nào → xoá file tạm, **không đổi audio nào**, exit 3.
 - Studio khi đó đưa lựa chọn `--revoice-all edge`: đọc lại toàn bộ bằng edge-tts, `tts_provider=edge`.
-- Mỗi câu sửa trên video Gemini = 1 lượt (free tier 10 lượt/ngày). Trang hiện số lượt trước khi dựng.
+- Mỗi câu sửa trên video Gemini = 1 lượt (free tier 10 lượt/ngày). Video tạo mới dùng khoảng 4 lượt. Trang hiện số lượt trước khi tạo/dựng.
+- Giá sản phẩm do người dùng nhập/sửa trên Studio (kể cả `0` để ẩn giá) luôn ghi đè giá từ Google Sheet và TikTok Shop; `autofill_row` không ghi đè lại giá này (C-0007-1). Khi tạo từ dòng Sheet và sửa giá, `demo.py` cập nhật ngược `price` mới lên dòng tương ứng trên Google Sheet / CSV.
+- Giá hợp lệ chỉ nhận `0` (ẩn giá) hoặc số nguyên `>= 1000` (VND); mọi giá âm hoặc nằm trong khoảng `1..999` bị từ chối với HTTP 400 ở cả `POST /create` và `PUT /videos/{folder}` (C-0007-2).
 
 ### API (`backend/app/api/studio.py`, prefix `/api/studio`)
 
@@ -183,13 +198,19 @@ Cột `status` trên Sheet thêm giá trị `review` (đã dựng, chờ duyệt
 | GET | `/videos` | Danh sách thư mục có `video.mp4`, nhãn `review` / `needs_images` / `approved` / `view_only` |
 | GET | `/videos/{folder}` | Chi tiết: caption, hook, giá, từng cảnh, ảnh, bộ giọng, `needs_render` |
 | GET | `/videos/{folder}/video`, `/files/{name}` | Phát video; ảnh `canh_N`, `anh_sp_N`, `img_N` |
-| PUT | `/videos/{folder}` | Lưu sửa vào JSON, không dựng |
+| PUT | `/videos/{folder}` | Lưu sửa vào JSON, không dựng (kiểm tra giá theo C-0007-2) |
 | POST | `/videos/{folder}/image?target=scene\|product&index=` | Body là bytes ảnh. PNG/JPG/WEBP, ≤ 15 MB, kiểm bằng Pillow |
 | POST | `/videos/{folder}/render` | Body `{"revoice_all": "edge"}` tuỳ chọn. Chạy `demo.py --render-only` nền |
 | POST | `/videos/{folder}/approve` | Chạy `demo.py --approve` nền |
-| GET | `/job` | `idle` / `running` / `done` / `error` (`error_kind`: `revoice`, `not_ready`, `failed`) + log |
+| GET | `/sheet-rows` | Danh sách dòng có sản phẩm trên Google Sheet / CSV (`row >= 2`, `name`, `price`, `status`, `has_video`, `images_count`) |
+| POST | `/product-preview` | Xem trước thông tin từ `product_url` hoặc `sheet_row` (`>= 2`), dọn sạch `staging/`. Fallback `og_info` (`partial=True`) hoặc trả cảnh báo thân thiện (`blocked=True`) khi TikTok chặn đọc tự động |
+| POST | `/staging-image?slot=0..2` | Tải ảnh sản phẩm đầu vào (PNG/JPG/WEBP, ≤ 15 MB, kiểm bằng Pillow) vào `storage/studio-logs/staging/anh_sp_{slot+1}.<ext>` |
+| DELETE | `/staging-image?slot=0..2` | Xoá ảnh ở ô `slot` trong `staging/` |
+| GET | `/staging-image/{name}` | Xem trước ảnh `anh_sp_{1..3}.<ext>` trong `staging/` |
+| POST | `/create` | Ghi `storage/studio-logs/create-input.json` và chạy nền `demo.py --create-json` để tạo video sản phẩm mới |
+| GET | `/job` | `idle` / `running` / `done` / `error` (`error_kind`: `revoice`, `not_ready`, `failed`) + `folder` (đọc từ `Studio folder:` khi `action="create"`) + log |
 
-- Mỗi lúc chỉ một job. Job thứ hai, hoặc sửa/tải ảnh khi job đang chạy → 409.
+- Mỗi lúc chỉ một job. Job thứ hai, hoặc sửa/tải ảnh/xem trước khi job đang chạy → 409.
 - API ghi bắt buộc header `X-Studio: 1` và Host là `127.0.0.1`/`localhost` (C-0001-3). Header này không nằm trong CORS `allow_headers`.
 - Thư mục không có `product.json` hoặc `segments` (video bài tập làm ngoài repo) → `view_only`, API ghi trả 409.
 - `api/studio.py` không xử lý video (C-0001-2): chỉ đọc/ghi JSON, ảnh và chạy `demo.py` bằng `sys.executable`, cwd = repo root.

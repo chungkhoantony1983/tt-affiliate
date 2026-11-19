@@ -29,7 +29,7 @@
 | 2 | Chấm điểm & chọn | ⬜ | — | Tiêu chí chấm điểm, file `products.csv` |
 | 3 | Script gen | ✅ | `demo.py`: prompt TikTok Shop (hook style, key_points, CTA giỏ hàng, caption), đọc `products.csv`; đã test với Groq thật | — |
 | 4 | TTS + Video | ✅ | `demo.py`: edge-tts + hook → 1 cảnh/ảnh sản phẩm (tối đa 3) → CTA, zoom chậm, chữ tránh vùng UI TikTok | Chưa dùng clip video sản phẩm (chỉ ảnh) |
-| 5 | Duyệt thủ công | ✅ | Trang **Studio** `http://127.0.0.1:8000/studio` (DR-0001): xem, sửa caption/hook/giá/lời đọc/ảnh, dựng lại, duyệt. `APPROVAL_MODE=terminal` giữ cách y/n cũ | — |
+| 5 | Duyệt thủ công | ✅ | Trang **Studio** `http://127.0.0.1:8000/studio` (DR-0001, DR-0007): tạo video sản phẩm mới (từ link TikTok hoặc dòng Google Sheet, thêm ảnh, nhập/sửa giá có đọc chữ tiếng Việt), xem, sửa caption/hook/giá/lời đọc/ảnh, dựng lại, duyệt. `APPROVAL_MODE=terminal` giữ cách y/n cũ | — |
 | 6 | Đăng + gắn giỏ hàng | 🟡 | Đăng tay: `post.txt` (caption + checklist) cạnh mỗi video · `tiktok_service.py` cho API sau này | API chờ TikTok duyệt. Gắn sản phẩm làm tay trong app (xem §5) |
 | 7 | Analytics | ⬜ | `get_video_stats()` trong `tiktok_service.py` | Chưa thu thập; tạm ghi tay ở §4 |
 
@@ -42,14 +42,16 @@
 python3 -m venv .venv && .venv/bin/pip install -r requirements-demo.txt
 cp .env.example .env      # điền GROQ_API_KEY
 
-# Tạo video
+# Tạo video trên web Studio (khuyên dùng): bấm đúp scripts/mo-studio.command → "+ Tạo video mới"
+# Hoặc tạo từ CLI:
+.venv/bin/python demo.py --sheet-row 2
 .venv/bin/python demo.py --csv products.csv
 .venv/bin/python demo.py --product "Tên SP" --price 189000 --images a.jpg,b.jpg --points "Ý 1|Ý 2|Ý 3"
 ```
 
 Kết quả nằm trong `storage/videos/<ngày>_<tên-sp>/`: `video.mp4`, `post.txt` (caption + checklist đăng), `script.json`, `audio_N.mp3`.
 
-Duyệt và sửa: bấm đúp `scripts/mo-studio.command` → trang Studio. Video mới dừng ở `status=review`, duyệt trên web (DR-0001).
+Tạo mới, duyệt và sửa: bấm đúp `scripts/mo-studio.command` → trang Studio (`http://127.0.0.1:8000/studio`). Video mới dừng ở `status=review`, duyệt trên web (DR-0001, DR-0007).
 
 Style `story` (mặc định) cần ảnh nhân vật:
 1. Lần chạy đầu tạo `video.mp4` bản nháp + `prompts.txt` (nhãn **Cần ảnh** trên Studio)
@@ -223,7 +225,7 @@ giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thi�
 - **Shopee tạm dừng (quyết định 2026-11-05):** ưu tiên TikTok, không làm thêm gì liên quan Shopee. Code giữ lại nhưng tắt: `SHOPEE_ENABLED=false`, nút dashboard bị vô hiệu, `scripts/run_perfume.py`, `scripts/run_suitcase.py`, `scripts/test_workflow.py`, `scripts/test_pw.py` thoát ngay khi chạy. Khi làm lại: bật cờ và gỡ dòng `raise SystemExit` ở đầu các script.
 - **Quyết định nghiệp vụ (từ session 2026-06-26):** niche Nhà cửa, Công nghệ, Đồ bếp, Phụ kiện ô tô · giá mục tiêu 100K–500K ₫ · commission ≥10% · budget 1–2 triệu ₫/tháng × 6 tháng.
 - **TikTok app review (từ session 2026-06-26):** quy trình mới ở `docs/operations/tiktok-demo-recording.md`. Chỉ xin 2 scope: `user.info.basic`, `video.upload`, không dùng `video.publish`. Ghi chú cũ lưu ở tag `archive/docs-sa-requirement-design`.
-- **Studio duyệt & sửa video (DR-0001, 2026-11-12):** trang riêng `/studio` do service `creator_main` phục vụ, không đụng `app.html` (đang xét duyệt). Mọi xử lý video vẫn ở `demo.py` (`--render-only`, `--approve`, `--revoice-all edge`). Sửa lời đọc chỉ đọc lại câu đã sửa, bằng đúng bộ giọng của video; Gemini lỗi thì không đổi audio nào. Mỗi câu sửa trên video Gemini tốn 1 lượt (10/ngày).
+- **Studio duyệt & sửa video (DR-0001, 2026-11-12) + Tạo video sản phẩm mới trên Studio (DR-0007, 2026-11-14):** trang riêng `/studio` do service `creator_main` phục vụ, không đụng `app.html` (đang xét duyệt). Hỗ trợ tạo video mới từ link TikTok Shop hoặc dòng trên Google Sheet (`>= 2`), xem trước thông tin (`og_info` fallback khi bị chặn), tải tối đa 3 ảnh sản phẩm đầu vào, nhập/sửa giá có đọc số thành chữ tiếng Việt (ghi đè lên Sheet và kịch bản AI). Mọi xử lý video vẫn ở `demo.py` (`--create-json`, `--sheet-row`, `--render-only`, `--approve`, `--revoice-all edge`). Sửa lời đọc chỉ đọc lại câu đã sửa, bằng đúng bộ giọng của video; Gemini lỗi thì không đổi audio nào. Mỗi câu sửa trên video Gemini tốn 1 lượt, tạo video mới tốn ~4 lượt (10/ngày).
 - **Đội vai trò AI (2026-11-12):** subagent `ba`, `dev`, `reviewer`, `tester`, `marketing` trong `agent/agents/`. Lệnh `/feature` (làm tính năng theo vai trò, có cổng duyệt DR) và `/video-review` (marketing review video trước khi duyệt). Đặt ở `agents/` và `commands/` vì `/sync` xoá mọi skill lạ trong `agent/skills/`. Các skill SSoT `/task`, `/fix` bị kẹt vì `workflow_step.py` thiếu module `automation_engine`. Lần chạy thử marketing trên video Bột mè đen phát hiện khung CTA "BẤM GIỎ HÀNG VÀNG" rộng gần hết màn hình, lấn sang cột nút bên phải của TikTok (đề xuất cho Dev, chưa sửa).
 - **Duyệt trước khi dựng (DR-0011, đã duyệt 2026-11-19):** cổng duyệt kịch bản / ảnh nhân vật / hình từng cảnh trên Studio TRƯỚC khi đọc giọng và dựng, cho video sản phẩm, bài tập, du lịch. Làm theo thứ tự du lịch → sản phẩm → bài tập, hạ tầng chỉ sau khi PR #17 merge. `--skip-approval` vẫn dừng ở cổng kịch bản (bỏ hết cần `--no-gates`). Chi tiết: `docs/decision-records/DR-0011-duyet-truoc-khi-dung.md`.
 - `.env.example` vẫn liệt kê `OPENAI_API_KEY`, `ELEVENLABS_API_KEY` (phương án C). Giai đoạn này chỉ cần Groq.

@@ -31,10 +31,12 @@ cp .env.example .env                       # bắt buộc: GROQ_API_KEY
 
 # Tạo video (demo.py)
 .venv/bin/python demo.py --sheet                  # Google Sheet (SPREADSHEET_ID trong .env), tab "Tiktok"
+.venv/bin/python demo.py --sheet-row 2            # tạo video cho 1 dòng cụ thể trên Google Sheet / CSV (dòng >= 2)
 .venv/bin/python demo.py --sheet --fill-only      # chỉ điền ô trống từ link TikTok, không làm video
 .venv/bin/python demo.py --csv products.csv
 .venv/bin/python demo.py --product "Tên SP" --price 189000 --images a.jpg,b.jpg \
                          --points "Ý 1|Ý 2|Ý 3" --style simple
+.venv/bin/python demo.py --create-json storage/studio-logs/create-input.json  # Studio: tạo video sản phẩm mới
 .venv/bin/python demo.py --rerender storage/videos/<thư mục>   # sau khi thêm canh_N.png; không gọi lại AI
 .venv/bin/python demo.py --render-only storage/videos/<thư mục> [--revoice-all edge]  # Studio: đọc lại câu đã sửa + dựng
 .venv/bin/python demo.py --approve storage/videos/<thư mục>     # Studio: post.txt → Drive → status=done
@@ -45,7 +47,7 @@ cp .env.example .env                       # bắt buộc: GROQ_API_KEY
 .venv/bin/python demo.py --travel --refresh-facts storage/videos/<thư mục> [--confirm id1,id2]  # làm mới dữ kiện quá 30 ngày; --confirm = đã kiểm tay trang chính thức
 # --approve / --render-only dùng chung lệnh trên, tự nhận thư mục travel qua topic.json
 
-# Service local: app.html (đăng nhập TikTok, gửi video vào inbox) + trang Studio /studio (duyệt, sửa video)
+# Service local: app.html (đăng nhập TikTok, gửi video vào inbox) + trang Studio /studio (tạo mới, duyệt, sửa video)
 .venv/bin/uvicorn --app-dir backend app.creator_main:app --host 127.0.0.1 --port 8000
 # hoặc bấm đúp scripts/mo-studio.command (bật service nếu chưa chạy, mở http://127.0.0.1:8000/studio)
 
@@ -86,10 +88,11 @@ input (Sheet / CSV / CLI)
 - **Lưu ý**: `api/creator.py` chỉ liệt kê thư mục trong `storage/videos/` có `video.mp4`. Khi bật Drive, thư mục đã duyệt bị xoá nên không còn hiện trên `app.html` (dùng `--keep-local` nếu cần).
 - **Prompt script** có ràng buộc chống bịa thông số, bịa trải nghiệm cá nhân. Ràng buộc riêng cho từng sản phẩm (vd sản phẩm sức khỏe) nằm ở cột `notes`.
 
-### Studio (DR-0001)
+### Studio (DR-0001, DR-0007)
 
-- Trang `http://127.0.0.1:8000/studio`, tiếng Việt, cho người vận hành. **Không** đụng `app.html` (đang xét duyệt).
-- `api/studio.py` chỉ đọc/ghi JSON, ảnh, rồi chạy `demo.py --render-only` / `--approve` bằng subprocess (C-0001-2). Một job một lúc; log ở `storage/studio-logs/`.
+- Trang `http://127.0.0.1:8000/studio`, tiếng Việt, cho người vận hành: **tạo video sản phẩm mới** (`+ Tạo video mới` từ link TikTok Shop hoặc dòng Google Sheet `>= 2`, xem trước thông tin, sửa giá có đọc số bằng chữ tiếng Việt, tải tối đa 3 ảnh sản phẩm đầu vào) và **duyệt / sửa video**. **Không** đụng `app.html` (đang xét duyệt).
+- `api/studio.py` chỉ đọc/ghi JSON, ảnh, rồi chạy `demo.py --create-json` / `--render-only` / `--approve` bằng subprocess (C-0001-2). Một job một lúc; log ở `storage/studio-logs/`, ảnh chuẩn bị tạo mới ở `storage/studio-logs/staging/`.
+- Giá & ảnh người dùng nhập/tải trên Studio luôn ưu tiên hơn dữ liệu tự đọc từ Sheet/TikTok (C-0007-1); chỉ nhận giá `0` (ẩn giá) hoặc `>= 1000` VND (C-0007-2); ảnh sản phẩm tải lên lưu thành `anh_sp_{1..3}.<ext>` trong thư mục video (C-0007-3).
 - Sửa lời đọc: chỉ đọc lại câu có `line != audio_line`, bằng `script.json → tts_provider` của video. Lỗi thì không đổi audio nào (exit 3), Studio đưa lựa chọn `--revoice-all edge`. Không trộn 2 bộ giọng (C-0001-1).
 - API ghi bắt buộc header `X-Studio: 1`, không mở qua CORS (C-0001-3). Thư mục không có `product.json` → "Chỉ xem".
 - Chi tiết: `docs/specs/architecture/capabilities/video-render.md` § Studio.
