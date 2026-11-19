@@ -144,6 +144,7 @@ Quy tắc:
 - "text" là chữ hiện trên màn hình: rất ngắn hoặc để "" (đã có giọng đọc, không lặp lại lời thoại).
 - "hook": chữ lớn hiện ở cảnh đầu, ≤ 8 từ.
 - CHỈ dùng thông số/con số có trong "Điểm nổi bật" và "Ghi chú". Không tự thêm thông số.
+- Nếu có nhắc đến giá sản phẩm thì PHẢI dùng đúng mức giá ở mục "Giá"; nếu mục "Giá" ghi chưa có thì tuyệt đối KHÔNG nhắc đến giá hay tự bịa số tiền.
 - Không cam kết sai sự thật, không dùng "rẻ nhất", "tốt nhất thế giới", không bịa số liệu/đánh giá.
 - Ghi chú có ràng buộc (vd: không phải thiết bị y tế) thì PHẢI tuân thủ tuyệt đối.
 - Ghi chú nêu khách hàng mục tiêu thì hook nói trực tiếp với người đó, bằng tình huống cụ thể họ gặp hằng ngày.
@@ -974,6 +975,7 @@ def _product_from_row(row: dict) -> dict:
         "product_url": (row.get("product_url") or "").strip(),
         "notes": (row.get("notes") or "").strip(),
         "style": (row.get("style") or "").strip().lower() or None,
+        "sheet_row": int(row["_row"]) if row.get("_row") is not None else None,
     }
 
 
@@ -1029,10 +1031,15 @@ def autofill_row(row: dict) -> dict:
         "images": "|".join(info["images"][:3]),
         "sold_count": str(info["sold_count"]) if info["sold_count"] else "",
     }
-    if any(not row.get(k, "").strip() for k in ("category", "selling_points", "notes")):
-        facts = extract_product_facts(info["title"], info["description"], info["specs"])
-        found.update(category=facts.get("category", ""), notes=facts.get("notes", ""),
-                     selling_points="|".join(facts["selling_points"]))
+    if any(not row.get(k, "").strip() for k in ("category", "selling_points", "notes")) and (
+        info["title"] or info["description"] or info["specs"]
+    ):
+        try:
+            facts = extract_product_facts(info["title"], info["description"], info["specs"])
+            found.update(category=facts.get("category", ""), notes=facts.get("notes", ""),
+                         selling_points="|".join(facts["selling_points"]))
+        except Exception as e:
+            print(f"   ⚠️  Could not extract product facts ({e})")
     return {k: v for k, v in found.items() if v and not row.get(k, "").strip()}
 
 
@@ -1071,17 +1078,21 @@ def run_sheet(sheet_ref: str, tab: str, base_dir: Path, style: str,
 SHEET_STATUS = {"ready_for_manual_upload": "done", "needs_images": "needs_images", "review": "review"}
 
 
-def set_sheet_status(product_url: str, tab: str, result_status: str) -> None:
+def set_sheet_status(product_url: str, tab: str, result_status: str, sheet_row: int = None) -> None:
     """After work on an existing folder, update status on the matching sheet row, if a sheet is set up."""
     status = SHEET_STATUS.get(result_status)
     sheet_ref = os.environ.get("SPREADSHEET_ID", "")
-    if not (status and product_url and sheet_ref and Path("google-credentials.json").exists()):
+    csv_path = os.environ.get("STUDIO_CSV_PATH", "")
+    has_sheet = bool(sheet_ref and Path("google-credentials.json").exists())
+    if not status or not (product_url or sheet_row) or not (has_sheet or csv_path):
         return
-    from product_sources import ProductSheet
+    from product_sources import open_product_sheet
 
     try:
-        sheet = ProductSheet(sheet_ref, tab)
-        row = sheet.find_by_url(product_url)
+        sheet = open_product_sheet(sheet_ref, tab, csv_path=csv_path)
+        row = sheet.get_row(int(sheet_row)) if sheet_row else None
+        if not row and product_url:
+            row = sheet.find_by_url(product_url)
         if row and row["status"].strip() != status:
             sheet.update(row, {"status": status})
             print(f"📄 Sheet '{tab}': status={status}")
@@ -1089,10 +1100,175 @@ def set_sheet_status(product_url: str, tab: str, result_status: str) -> None:
         print(f"   ⚠️  Could not update the sheet ({e}) — set status={status} by hand")
 
 
+PIL_EXT_MAP = {"PNG": ".png", "JPEG": ".jpg", "MPO": ".jpg", "WEBP": ".webp"}
+
+
+def _materialize_product_images(product: dict, out_dir: Path) -> None:
+    """Copy local/staging product images into <out_dir>/anh_sp_{1..3}.<ext> and record relative names (C-0007-3)."""
+    from PIL import Image
+
+    staging_dir = out_dir.parent.parent / "studio-logs" / "staging"
+    out_images = []
+    for i, raw in enumerate((product.get("images") or [])[:3]):
+        src = str(raw or "").strip()
+        if not src:
+            continue
+        if src.startswith(("http://", "https://")):
+            out_images.append(src)
+            continue
+        candidate = Path(src)
+        if not candidate.is_file() and not candidate.is_absolute():
+            if (out_dir / src).is_file():
+                candidate = out_dir / src
+            elif (staging_dir / src).is_file():
+                candidate = staging_dir / src
+        if candidate.is_file():
+            ext = candidate.suffix.lower()
+            try:
+                with Image.open(candidate) as im:
+                    ext = PIL_EXT_MAP.get(im.format, ext)
+            except Exception:
+                pass
+            if ext not in IMAGE_EXTS:
+                ext = ".jpg"
+            dest = out_dir / f"anh_sp_{i + 1}{ext}"
+            if candidate.resolve() != dest.resolve():
+                shutil.copyfile(candidate, dest)
+            out_images.append(dest.name)
+        else:
+            out_images.append(src)
+    product["images"] = out_images
+
+
+def run_create(spec: dict, base_dir: Path, default_style: str, skip_approval: bool,
+               default_tab: str = "Tiktok") -> dict:
+    """Create a single video from a Sheet row or a TikTok product URL + Studio overrides (DR-0007)."""
+    from product_sources import open_product_sheet
+
+    tab = (spec.get("tab") or default_tab or "Tiktok").strip()
+    sheet_ref = (spec.get("sheet_ref") or os.environ.get("SPREADSHEET_ID") or "").strip()
+    csv_path = (spec.get("csv_path") or os.environ.get("STUDIO_CSV_PATH") or "").strip()
+    sheet_row = spec.get("sheet_row")
+    style = (spec.get("style") or default_style or "story").strip().lower()
+
+    user_price = spec.get("price")
+    user_images = spec.get("images")
+    if isinstance(user_images, list):
+        user_images = [str(x).strip() for x in user_images if str(x).strip()][:3]
+    else:
+        user_images = None
+    user_points = spec.get("selling_points")
+    if isinstance(user_points, list):
+        user_points_str = "|".join(str(p).strip() for p in user_points if str(p).strip())
+    else:
+        user_points_str = (user_points or "").strip()
+
+    sheet = None
+    row = None
+    sheet_updates = {}
+
+    if sheet_row is not None:
+        sheet_row = int(sheet_row)
+        if sheet_row < 2:
+            raise ValueError("Row 1 is the header row; choose row 2 or higher")
+        sheet = open_product_sheet(sheet_ref, tab, csv_path=csv_path)
+        row = sheet.get_row(sheet_row)
+        if not row or (
+            not row.get("name", "").strip()
+            and not row.get("product_url", "").strip()
+            and not (spec.get("name") or "").strip()
+            and not (spec.get("product_url") or "").strip()
+        ):
+            raise ValueError(f"Row {sheet_row} has no product data")
+        working = dict(row)
+        # Apply user overrides BEFORE autofill_row so user price (including 0) and images are never overwritten (C-0007-1)
+        if user_price is not None:
+            price_str = str(int(user_price))
+            if working.get("price", "").strip() != price_str:
+                sheet_updates["price"] = price_str
+            working["price"] = price_str
+        if (spec.get("name") or "").strip():
+            working["name"] = spec["name"].strip()
+        if (spec.get("product_url") or "").strip():
+            working["product_url"] = spec["product_url"].strip()
+        if (spec.get("category") or "").strip():
+            working["category"] = spec["category"].strip()
+        if user_points_str:
+            working["selling_points"] = user_points_str
+        if (spec.get("notes") or "").strip():
+            working["notes"] = spec["notes"].strip()
+        if user_images is not None and len(user_images) > 0:
+            working["images"] = "|".join(user_images)
+        try:
+            filled = autofill_row(working)
+            if filled:
+                working.update(filled)
+                for k, v in filled.items():
+                    if not row.get(k, "").strip():
+                        sheet_updates[k] = v
+        except Exception as e:
+            print(f"   ⚠️  Could not autofill from TikTok URL ({e})")
+        if sheet_updates:
+            sheet.update(row, sheet_updates)
+            print(f"📝 Row {sheet_row}: updated {', '.join(sheet_updates)}")
+    else:
+        working = {
+            "name": (spec.get("name") or "").strip(),
+            "price": str(int(user_price)) if user_price is not None else "",
+            "category": (spec.get("category") or "").strip(),
+            "images": "|".join(user_images) if user_images else "",
+            "selling_points": user_points_str,
+            "product_url": (spec.get("product_url") or "").strip(),
+            "notes": (spec.get("notes") or "").strip(),
+            "style": style,
+        }
+        if working["product_url"]:
+            try:
+                filled = autofill_row(working)
+                working.update(filled)
+            except Exception as e:
+                print(f"   ⚠️  Could not autofill from TikTok URL ({e})")
+
+    # User overrides always win (C-0007-1)
+    if (spec.get("name") or "").strip():
+        working["name"] = spec["name"].strip()
+    if (spec.get("category") or "").strip():
+        working["category"] = spec["category"].strip()
+    if user_points_str:
+        working["selling_points"] = user_points_str
+    if (spec.get("notes") or "").strip():
+        working["notes"] = spec["notes"].strip()
+
+    if not working.get("name", "").strip():
+        raise ValueError("Missing product name (add a product name or a readable TikTok link)")
+
+    product = _product_from_row(working)
+    product["sheet_row"] = int(sheet_row) if sheet_row is not None else None
+    if user_price is not None:
+        product["price"] = int(user_price)
+    if user_images is not None and len(user_images) > 0:
+        product["images"] = list(user_images)
+    if spec.get("style"):
+        product["style"] = spec["style"].strip().lower()
+
+    result = run_one(product, base_dir, style, skip_approval)
+    if sheet is not None and row is not None:
+        status = SHEET_STATUS.get(result["status"])
+        if status:
+            sheet.update(row, {"status": status})
+    staging_dir = base_dir.parent / "studio-logs" / "staging"
+    if staging_dir.is_dir():
+        for f in staging_dir.iterdir():
+            if f.is_file():
+                f.unlink(missing_ok=True)
+    return result
+
+
 def run_one(product: dict, base_dir: Path, style: str, skip_approval: bool) -> dict:
     style = product.get("style") or style
     out_dir = base_dir / f"{datetime.now():%Y%m%d_%H%M%S}_{_slug(product['name'])}"
     out_dir.mkdir(parents=True, exist_ok=True)
+    _materialize_product_images(product, out_dir)
 
     print("\n" + "=" * 60)
     print(f"🎯 {product['name']} — {product['price'] or '?'}đ ({product['category']}, style={style})")
@@ -1133,16 +1309,20 @@ def render_and_check(out_dir: Path, script: dict, product: dict) -> list:
 def finish(out_dir: Path, script: dict, product: dict, skip_approval: bool) -> dict:
     """Render → (draft if story images missing) → approval → upload kit."""
     if render_and_check(out_dir, script, product):
+        print(f"Studio folder: {out_dir.name}")
         return {"status": "needs_images", "dir": str(out_dir)}
 
     if not skip_approval:
         if approval_mode() == "web":
             print(f"\n👀 Ready for review: open http://127.0.0.1:8000/studio and pick {out_dir.name}")
+            print(f"Studio folder: {out_dir.name}")
             return {"status": "review", "dir": str(out_dir)}
         if not approval_step(script, str(out_dir / "video.mp4")):
             print("❌ Rejected — kept files for reference.")
             return {"status": "rejected", "dir": str(out_dir)}
-    return publish(out_dir, script, product)
+    res = publish(out_dir, script, product)
+    print(f"Studio folder: {out_dir.name}")
+    return res
 
 
 def publish(out_dir: Path, script: dict, product: dict) -> dict:
@@ -1227,6 +1407,10 @@ def main():
     parser = argparse.ArgumentParser(description="TT Content Publisher — TikTok Shop affiliate video")
     parser.add_argument("--sheet", nargs="?", const="", metavar="LINK",
                         help="Google Sheet link or ID (default: SPREADSHEET_ID in .env)")
+    parser.add_argument("--sheet-row", type=int, metavar="ROW",
+                        help="Create a video for a single Google Sheet / CSV row number (>= 2)")
+    parser.add_argument("--create-json", metavar="FILE",
+                        help="Create a video from a Studio JSON specification file")
     parser.add_argument("--tab", default="Tiktok", help="Sheet tab name")
     parser.add_argument("--fill-only", action="store_true",
                         help="With --sheet: only fill empty cells from product links, no video")
@@ -1288,7 +1472,7 @@ def main():
         else:
             r = approve(d)
         print(f"\n{r['status']:<24} {r.get('dir', '')}")
-        set_sheet_status(product.get("product_url", ""), args.tab, r["status"])
+        set_sheet_status(product.get("product_url", ""), args.tab, r["status"], product.get("sheet_row"))
         return
     if args.rerender:
         for d in args.rerender:
@@ -1296,12 +1480,44 @@ def main():
             product = json.loads((Path(d) / "product.json").read_text(encoding="utf-8"))
             r = rerender(Path(d), args.skip_approval)
             print(f"\n{r['status']:<24} {r.get('dir', '')}")
-            set_sheet_status(product.get("product_url", ""), args.tab, r["status"])
+            set_sheet_status(product.get("product_url", ""), args.tab, r["status"], product.get("sheet_row"))
         return
     if not os.environ.get("GROQ_API_KEY"):
         print("❌ GROQ_API_KEY not set. Add it to .env (see .env.example)")
         sys.exit(1)
 
+    if args.create_json:
+        try:
+            spec = json.loads(Path(args.create_json).read_text(encoding="utf-8"))
+            out_base = Path(spec.get("output_dir") or args.output_dir)
+            r = run_create(spec, out_base, spec.get("style") or args.style, args.skip_approval, args.tab)
+            print_summary([(spec.get("name") or f"row {spec.get('sheet_row')}", r)])
+        except Exception as e:
+            print(f"❌ {e}")
+            sys.exit(1)
+        return
+    if args.sheet_row is not None:
+        spec = {
+            "sheet_row": args.sheet_row,
+            "sheet_ref": args.sheet or "",
+            "tab": args.tab,
+            "csv_path": args.csv or "",
+            "name": args.product,
+            "price": args.price,
+            "category": args.category if "--category" in sys.argv else None,
+            "images": _split(args.images, ",") if args.images else None,
+            "selling_points": _split(args.points, "|") if args.points else None,
+            "product_url": args.url or None,
+            "notes": args.notes or None,
+            "style": args.style if "--style" in sys.argv else None,
+        }
+        try:
+            r = run_create(spec, Path(args.output_dir), args.style, args.skip_approval, args.tab)
+            print_summary([(f"row {args.sheet_row}", r)])
+        except Exception as e:
+            print(f"❌ {e}")
+            sys.exit(1)
+        return
     if args.sheet is not None:
         sheet_ref = args.sheet or os.environ.get("SPREADSHEET_ID", "")
         if not sheet_ref:

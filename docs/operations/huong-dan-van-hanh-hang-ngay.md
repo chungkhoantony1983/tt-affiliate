@@ -13,10 +13,10 @@ Hệ thống hiện tại **không tự đăng video**. Máy lo phần viết k�
 | Việc | Ai làm | Ghi chú |
 |---|---|---|
 | Chọn sản phẩm trên TikTok Shop | **Người** | Mỗi tuần 5–10 sản phẩm |
-| Dán link sản phẩm vào Google Sheet | **Người** | Sheet "Tiktok" |
-| Điền tên, giá, ảnh, số đã bán, ý chính | Máy | Đọc từ trang sản phẩm TikTok Shop |
-| Kiểm tra lại các ý máy điền | **Người** | Bắt buộc |
-| Viết kịch bản, caption, hashtag | Máy (AI) | Tự động |
+| Dán link sản phẩm trên **Studio** (hoặc vào Google Sheet) | **Người** | Bấm **+ Tạo video mới** trên Studio hoặc điền Sheet "Tiktok" |
+| Điền tên, giá, ảnh, số đã bán, ý chính | Máy | Đọc từ trang sản phẩm TikTok Shop khi bấm **Lấy thông tin sản phẩm** |
+| Kiểm tra lại giá, ảnh sản phẩm và các ý máy điền | **Người** | Bắt buộc (ngay trên màn hình Tạo video của Studio) |
+| Viết kịch bản, caption, hashtag | Máy (AI) | Tự động khi bấm **Tạo video** |
 | Đọc giọng | Máy (AI) | Tự động |
 | Ảnh nhân vật cho video kiểu tiểu phẩm | **Người**, dùng Gemini | Bỏ qua được nếu chọn video kiểu đơn giản |
 | Dựng video | Máy | Tự động |
@@ -103,58 +103,72 @@ Hết buổi: bấm vào cửa sổ máy chủ, nhấn `Ctrl + C`.
 3. Bấm **Thêm vào showcase**. Không có bước này thì lúc đăng sẽ không gắn được giỏ hàng.
 4. Trên trang sản phẩm, bấm **Chia sẻ → Sao chép liên kết**.
 
-### Bước 2. Dán link vào Google Sheet
+### Bước 2. Chuẩn bị sản phẩm (trên Google Sheet hoặc dùng thẳng link TikTok)
 
-Mở Google Sheet **Shopee_Tiktok_Affiliate_Management**, sheet **Tiktok**. Mỗi dòng là một sản phẩm. Chỉ cần điền 2 ô:
+Bạn có thể dán sẵn danh sách sản phẩm vào Google Sheet **Shopee_Tiktok_Affiliate_Management** (tab **Tiktok**), hoặc cầm thẳng link sản phẩm vừa sao chép để qua **Bước 3** làm ngay trên trang web Studio.
+
+Nếu dùng Google Sheet, mỗi dòng là một sản phẩm (bắt đầu từ **dòng số 2**, vì dòng 1 là tiêu đề cột). Chỉ cần điền 2 ô:
 
 | Cột | Ghi gì | Ví dụ |
 |---|---|---|
 | `name` | Tên ngắn gọn để dễ nhận ra | `Trà oolong` |
 | `product_url` | Link vừa sao chép | `https://vt.tiktok.com/...` |
 
-Các ô khác để trống, máy sẽ tự điền. Ô nào bạn đã điền thì máy giữ nguyên.
-
-Muốn máy điền ngay để xem trước, trong cửa sổ Terminal thứ hai chạy:
-```bash
-.venv/bin/python demo.py --sheet --fill-only
-```
-
-Máy điền: `price` (giá thấp nhất lúc đọc), `images` (3 ảnh), `sold_count`, `category`, `selling_points`, `notes`.
-
-**Bắt buộc đọc lại `selling_points` và `notes`.** Máy chỉ lấy từ mô tả của người bán, nhưng người bán có thể quảng cáo quá lời, ví dụ "không gây mất ngủ". Ý nào không chắc chắn thì xoá đi.
+Các ô khác để trống, máy sẽ tự điền khi tạo video. Ô nào bạn đã điền thì máy giữ nguyên.
 
 Lưu ý:
 - `commission_pct` (% hoa hồng) máy **không** đọc được vì chỉ hiện trong Affiliate Center. Tự điền nếu muốn theo dõi.
-- Giá trên TikTok Shop thay đổi theo ngày. Không muốn video nhắc giá thì ghi `0` vào ô `price`. Đừng xoá trống, vì máy sẽ tự điền lại.
-- Sản phẩm sức khoẻ, thực phẩm, làm đẹp: kiểm tra ô `notes` có ghi những điều không được nói, ví dụ "không chữa bệnh".
-- Muốn bỏ qua một sản phẩm: ghi `skip` vào ô `status`.
+- Giá trên TikTok Shop thay đổi theo ngày. Không muốn video nhắc giá thì nhập `0` vào ô giá (hoặc cột `price`).
+- Sản phẩm sức khoẻ, thực phẩm, làm đẹp: kiểm tra ô Ghi chú (`notes`) có ghi những điều không được nói, ví dụ "không chữa bệnh".
+- Muốn bỏ qua một sản phẩm trên Sheet: ghi `skip` vào ô `status`.
 
 ### Bước 3. Tạo video
 
-Trong cửa sổ Terminal thứ hai, chọn một trong hai kiểu.
+#### Cách 1: Tạo video ngay trên trang web Studio (khuyên dùng — không cần gõ lệnh)
 
-**Kiểu đơn giản** (chỉ dùng ảnh sản phẩm):
+1. Mở trang Studio (`http://127.0.0.1:8000/studio`, đã bật ở mục 3). Ở đầu cột bên trái, bấm nút **+ Tạo video mới** (trên điện thoại nếu muốn quay lại danh sách thì bấm **← Danh sách**).
+2. **Bước 1: Chọn sản phẩm** — chọn một trong hai cách:
+   - **Dán link TikTok Shop**: dán link sản phẩm vào ô **Link sản phẩm TikTok Shop**.
+   - **Chọn dòng trên Google Sheet**: chọn sản phẩm trong **Danh sách chọn nhanh từ Google Sheet** (ví dụ `Dòng 2 — Nồi chiên không dầu 5L (189.000đ) [Chưa tạo]`), hoặc gõ số dòng vào ô **Số dòng trên Google Sheet** (nhìn cột số bên trái bảng tính, bắt đầu từ **dòng 2**; dòng 1 là dòng tiêu đề cột).
+   - Bấm nút **Lấy thông tin sản phẩm** và chờ 1–3 giây để máy tự điền tên, giá, ảnh và điểm nổi bật.
+   - *(Nếu TikTok tạm chặn đọc tự động từ link đó, trang sẽ hiện thông báo màu vàng hướng dẫn bạn tự điền Tên sản phẩm, Giá bán và tải Ảnh sản phẩm ở ngay bên dưới — không cần chạy lại).*
+3. **Bước 2: Kiểm tra giá & Ảnh sản phẩm**:
+   - **Giá sản phẩm hiện trên video (đồng)**: gõ hoặc dán giá (ví dụ `189000` hoặc `189.000`). Nhìn dòng chữ ngay bên dưới ô giá (ví dụ: *Sẽ hiện trên video: 189.000đ (Một trăm tám mươi chín nghìn đồng)*) để chắc chắn không gõ thừa hay thiếu số `0`. Nếu muốn **ẩn giá** trên video, nhập **`0`** (*Không hiện giá trên video*). Nếu tạo từ dòng Google Sheet và bạn sửa lại giá ở đây, máy sẽ tự cập nhật giá mới lên đúng dòng đó trên Google Sheet.
+   - **Ảnh sản phẩm (tối đa 3 ảnh)**: kiểm tra 3 ô **Ảnh 1 (Ảnh chính)**, **Ảnh 2**, **Ảnh 3** (*Ảnh 1 quan trọng nhất vì sẽ xuất hiện ở cảnh mở đầu và cảnh kêu gọi mua*). Ở mỗi ô, bạn có thể bấm **+ Tải ảnh lên** (hoặc **Đổi ảnh** / **Xoá**) để chọn ảnh PNG, JPG, WEBP từ máy tính/điện thoại làm ảnh đầu vào cho video.
+4. **Bước 3: Thông tin chi tiết & Kiểu video**:
+   - Kiểm tra lại **Tên sản phẩm**, **Điểm nổi bật (mỗi ý 1 dòng)**, **Danh mục** và **Ghi chú / Lưu ý khi viết kịch bản** (bắt buộc xoá những ý quảng cáo quá lời của người bán nếu có).
+   - Chọn **Kiểu video**:
+     - **Tiểu phẩm câu chuyện**: có nhân vật đối thoại đời thường rồi giới thiệu sản phẩm (cần thêm ảnh nhân vật ở Bước 4).
+     - **Giới thiệu ngắn gọn**: chỉ dùng ảnh sản phẩm và giọng người dẫn, dựng nhanh.
+5. Kiểm tra dòng nhắc lượt giọng đọc Gemini (~4 lượt cho 1 video mới, mỗi ngày có 10 lượt miễn phí), rồi bấm nút **Tạo video** ở thanh dưới cùng.
+6. Chờ 2–3 phút (trang hiện tiến độ: *Đang đọc thông tin sản phẩm… → Đang viết kịch bản… → Đang tạo giọng đọc… → Đang dựng hình…*). Khi dựng xong, Studio **tự động mở màn hình duyệt** của video vừa tạo.
+
+#### Cách 2: Chạy hàng loạt bằng lệnh Terminal (cách phụ)
+
+Nếu muốn máy chạy tự động lần lượt mọi dòng đang để trống `status` trên Google Sheet (hoặc chỉ chạy 1 dòng chỉ định từ cửa sổ Terminal thứ hai):
+
 ```bash
+# Chỉ điền trước các ô trống trên Google Sheet để xem trước, chưa tạo video
+.venv/bin/python demo.py --sheet --fill-only
+
+# Tạo video cho 1 dòng cụ thể trên Google Sheet (từ dòng 2 trở đi)
+.venv/bin/python demo.py --sheet-row 2 --style simple
+
+# Chạy hàng loạt mọi dòng có status trống (kiểu đơn giản hoặc kiểu tiểu phẩm)
 .venv/bin/python demo.py --sheet --style simple
-```
-
-**Kiểu tiểu phẩm** (có nhân vật, phải tự tạo ảnh bằng Gemini ở bước 4):
-```bash
 .venv/bin/python demo.py --sheet
 ```
 
-Máy làm lần lượt từng dòng có `status` trống, và tự điền các ô còn trống trước khi làm.
-
-Giọng đọc được chọn tự động theo cột `category` và tên sản phẩm:
+Giọng đọc được chọn tự động theo **Danh mục** (`category`) và tên sản phẩm:
 
 | Sản phẩm | Giọng |
 |---|---|
 | Điện tử, công nghệ, máy móc, dụng cụ, ô tô/xe, thể thao, tập luyện | Nam Hà Nội |
 | Sức khỏe, gia đình, mẹ và bé, người già, quà tặng, tình cảm, và mọi loại khác | Nữ Sài Gòn |
 
-Muốn đổi giọng cho một sản phẩm thì sửa ô `category`, ví dụ ghi `Điện tử` để dùng giọng nam. Video nằm trong thư mục `storage/videos/<ngày giờ>_<tên sản phẩm>/`.
+Muốn đổi giọng cho một sản phẩm thì sửa ô **Danh mục** (ví dụ ghi `Điện tử` để dùng giọng nam). Video nằm trong thư mục `storage/videos/<ngày giờ>_<tên sản phẩm>/`.
 
-Máy tự ghi vào cột `status`:
+Máy tự ghi vào cột `status` trên Google Sheet:
 
 | Giá trị | Nghĩa |
 |---|---|
@@ -193,7 +207,7 @@ Làm xong video, máy **không hỏi gì trên Terminal** nữa mà dừng lại
 | Muốn sửa | Sửa ở | Sau đó |
 |---|---|---|
 | Lời giới thiệu, hashtag khi đăng | **Chữ đăng kèm video** | Bấm **Lưu thay đổi**. Không cần dựng lại |
-| Câu mở đầu, giá trên video | **Chữ trên video** | Bấm **Dựng lại video** (1–2 phút) |
+| Câu mở đầu, giá trên video | **Chữ trên video** *(khi đổi Giá, trang sẽ hiện chữ đọc tiền và nhắc bạn kiểm tra lại Lời giới thiệu & Lời đọc xem có câu nào đang nhắc giá cũ không)* | Bấm **Dựng lại video** (1–2 phút) |
 | Chữ nhỏ trên từng cảnh | **Từng cảnh** → Chữ trên màn hình | Bấm **Dựng lại video** |
 | Câu giọng nói đọc sai hoặc chưa hay | **Từng cảnh** → Lời đọc | Bấm **Dựng lại video**. Chỉ câu đã sửa được đọc lại |
 | Ảnh sản phẩm xấu hoặc sai | **Ảnh sản phẩm** → Thay ảnh | Bấm **Dựng lại video** |
@@ -301,7 +315,10 @@ Clip bài tập đã làm được giữ trong `storage/clips/`, không bị xo�
 | Trang web báo *"local … service is not running"* | Máy chủ chưa bật hoặc đã tắt: làm lại mục 3. Nếu máy chủ vẫn chạy: bấm biểu tượng bên trái thanh địa chỉ Chrome, cho phép truy cập mạng cục bộ, tải lại trang |
 | Danh sách video trống | Chưa có video nào được tạo: làm bước 3 |
 | Studio báo *Không kết nối được máy chủ Studio* | Cửa sổ Terminal của máy chủ đã bị đóng: bấm đúp lại `scripts/mo-studio.command` (mục 3) |
-| Studio báo *Đang có việc chạy* | Đang dựng hoặc duyệt một video khác. Đợi xong rồi bấm lại |
+| Studio báo *TikTok tạm chặn đọc tự động từ link này* | Tự điền **Tên sản phẩm**, **Giá sản phẩm hiện trên video (đồng)** và bấm **+ Tải ảnh lên** ở 3 ô Ảnh sản phẩm ngay bên dưới rồi bấm **Tạo video** như bình thường |
+| Studio báo *Giá đang dưới 1.000đ* | Kiểm tra lại xem có gõ thiếu 3 số 0 không (ví dụ gõ `189.000` thay vì `189`), hoặc nhập `0` nếu muốn ẩn giá trên video |
+| Studio báo *Dòng 1 là dòng tiêu đề cột* | Nhìn cột số thứ tự bên trái bảng tính Google Sheet và chọn từ **dòng số 2** trở đi |
+| Studio báo *Đang có việc chạy* | Đang tạo, dựng hoặc duyệt một video khác. Đợi xong rồi bấm lại |
 | Nút **Duyệt & lưu** bị mờ | Đọc dòng chữ cạnh nút: có thay đổi chưa lưu, video chưa dựng lại, hoặc còn thiếu ảnh nhân vật |
 | Studio báo *Không đọc lại được câu đã sửa bằng giọng Gemini* | Hết 10 lượt Gemini trong ngày. Bấm **Đọc lại toàn bộ bằng giọng miễn phí**, hoặc để mai |
 | Studio báo *Dựng lại video bị lỗi* | Bấm **Xem chi tiết kỹ thuật**, chụp màn hình gửi người phụ trách kỹ thuật. Thư mục video không mất gì |

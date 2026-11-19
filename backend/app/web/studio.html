@@ -36,6 +36,8 @@ header p { margin: 0; color: var(--muted); font-size: var(--fs-small); }
 aside { border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto;
   max-height: calc(100vh - 58px); position: sticky; top: 0; }
 aside h2 { font-size: var(--fs-note); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 16px 8px; }
+.aside-top { padding: 14px 12px 4px; }
+.aside-top .btn { width: 100%; min-height: 44px; font-size: var(--fs-body); display: flex; align-items: center; justify-content: center; gap: 6px; }
 .vlist { list-style: none; margin: 0; padding: 0 8px 16px; }
 .vlist button { width: 100%; text-align: left; background: none; border: 0; border-left: 3px solid transparent;
   border-radius: 10px; padding: 10px 12px; cursor: pointer; display: grid; gap: 4px; }
@@ -60,11 +62,28 @@ video { width: 100%; aspect-ratio: 9 / 16; background: #000; border-radius: var(
 .card h3 { margin: 0 0 4px; font-size: var(--fs-h3); }
 .card .sub { margin: 0 0 12px; color: var(--muted); font-size: var(--fs-small); }
 label.f { display: block; font-size: var(--fs-small); font-weight: 600; margin: 12px 0 4px; }
-input[type=text], input[type=number], textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line);
-  border-radius: 10px; background: var(--bg); }
+input[type=text], input[type=number], textarea, select { width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--bg); font: inherit; color: inherit; }
 textarea { resize: vertical; min-height: 64px; }
-input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .hint { font-size: var(--fs-note); color: var(--muted); margin-top: 4px; }
+.price-preview { font-size: var(--fs-small); margin-top: 6px; padding: 6px 10px; border-radius: 8px; background: var(--soft); }
+.price-preview.bad-text { background: var(--bad-bg); color: var(--bad); font-weight: 600; }
+.source-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.source-tabs .btn { flex: 1 1 200px; text-align: center; }
+.source-tabs .btn[aria-pressed="true"] { background: var(--info-bg); color: var(--info); border-color: var(--focus); }
+.create-wrap { max-width: 780px; }
+.slot-card { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--bg);
+  display: grid; gap: 6px; justify-items: center; flex: 1 1 140px; max-width: 220px; }
+.slot-card .slot-title { font-size: var(--fs-note); font-weight: 600; text-align: center; }
+.slot-card .thumb { width: 104px; aspect-ratio: 1; }
+.slot-card .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.style-choices { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.style-choice { flex: 1 1 220px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  background: var(--bg); cursor: pointer; display: flex; gap: 8px; align-items: flex-start; }
+.style-choice input { margin-top: 4px; }
+.style-choice b { display: block; font-size: var(--fs-small); }
+.style-choice span { display: block; font-size: var(--fs-note); color: var(--muted); }
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 9px 14px;
   cursor: pointer; font-weight: 600; min-height: 42px; }
 .btn:hover:not(:disabled) { background: var(--soft); }
@@ -123,20 +142,24 @@ dialog .acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 
   .actionbar { left: 0; padding: 10px 16px; }
   .actionbar .btn { flex: 1 1 auto; }
   header { padding: 12px 16px; }
+  .slot-card { max-width: none; }
 }
 </style>
 </head>
 <body>
 <header>
   <h1>Studio duyệt video</h1>
-  <p>Xem video, sửa chữ và lời đọc, dựng lại, rồi duyệt.</p>
+  <p>Tạo video sản phẩm mới, xem và sửa chữ, dựng lại, rồi duyệt.</p>
 </header>
 <div class="layout">
   <aside>
+    <div class="aside-top">
+      <button class="btn primary" id="b-new-video">+ Tạo video mới</button>
+    </div>
     <h2>Video trên máy</h2>
     <ul class="vlist" id="list"><li class="empty">Đang tải…</li></ul>
   </aside>
-  <main id="main"><p class="empty">Chọn một video ở danh sách bên trái.</p></main>
+  <main id="main"><p class="empty">Chọn một video ở danh sách bên trái hoặc bấm <b>+ Tạo video mới</b>.</p></main>
 </div>
 <div class="actionbar" id="bar" hidden></div>
 
@@ -157,13 +180,105 @@ const LABELS = { review: "Chờ duyệt", needs_images: "Cần ảnh", approved:
 const SPEAKERS = { narrator: "Người dẫn", con_gai: "Con gái", con_trai: "Con trai", me: "Mẹ", bo: "Bố", ba: "Bà", ong: "Ông" };
 const KINDS = { story: "Tiểu phẩm", product: "Sản phẩm", cta: "Kêu gọi mua" };
 const GEMINI_PER_DAY = 10;
+const VN_DIGITS = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
 
-let videos = [], drive = false, current = null, dirty = false, polling = null, banner = null;
+let videos = [], drive = false, current = null, mode = null, dirty = false, polling = null, banner = null;
+
+function emptyCreateState() {
+  return {
+    source: "url",
+    productUrl: "",
+    sheetRow: "",
+    sheetRows: [],
+    sheetAvailable: true,
+    sheetMessage: "",
+    loadingPreview: false,
+    name: "",
+    priceRaw: "",
+    slots: [null, null, null],
+    style: "story",
+    sellingPoints: "",
+    category: "Nhà cửa",
+    notes: "",
+  };
+}
+let createState = emptyCreateState();
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const say = (msg) => { $("#live").textContent = msg; };
 const norm = (s) => String(s || "").trim().replace(/\s+/g, " ");
+
+function formatVndDots(n) {
+  return String(Math.max(0, Math.trunc(Number(n) || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+function readThreeDigits(num, fullHundred) {
+  const h = Math.floor(num / 100), t = Math.floor((num % 100) / 10), u = num % 10;
+  const out = [];
+  if (h > 0 || fullHundred) out.push(VN_DIGITS[h] + " trăm");
+  if (t === 0 && u > 0 && (h > 0 || fullHundred)) out.push("lẻ");
+  else if (t === 1) out.push("mười");
+  else if (t > 1) out.push(VN_DIGITS[t] + " mươi");
+  if (u > 0) {
+    if (t > 1 && u === 1) out.push("mốt");
+    else if (t >= 1 && u === 5) out.push("lăm");
+    else if (t > 1 && u === 4) out.push("tư");
+    else out.push(VN_DIGITS[u]);
+  }
+  return out.join(" ");
+}
+
+function readVndWords(n) {
+  n = Math.trunc(Number(n) || 0);
+  if (n <= 0) return "Không đồng";
+  const scales = ["", "nghìn", "triệu", "tỷ"];
+  const groups = [];
+  let rem = n;
+  while (rem > 0) {
+    groups.push(rem % 1000);
+    rem = Math.floor(rem / 1000);
+  }
+  const parts = [];
+  for (let i = groups.length - 1; i >= 0; i--) {
+    if (groups[i] === 0) continue;
+    const text = readThreeDigits(groups[i], i < groups.length - 1);
+    const scale = scales[i] || "";
+    parts.push(scale ? `${text} ${scale}` : text);
+  }
+  const s = parts.join(" ").trim() + " đồng";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function parsePriceRaw(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return { empty: true, value: null, invalid: false };
+  if (/^-/.test(s)) return { empty: false, value: -1, invalid: true };
+  const digits = s.replace(/[^\d]/g, "");
+  if (!digits) return { empty: true, value: null, invalid: false };
+  const n = parseInt(digits, 10);
+  const invalid = n < 0 || (n > 0 && n < 1000);
+  return { empty: false, value: n, invalid };
+}
+
+function pricePreviewMarkup(raw, { allowEmpty = false, oldPrice = null } = {}) {
+  const p = parsePriceRaw(raw);
+  if (p.empty) {
+    return allowEmpty
+      ? '<div class="hint">Để trống nếu muốn máy tự lấy giá từ link/bảng tính, hoặc nhập <b>0</b> nếu muốn ẩn giá.</div>'
+      : '<div class="price-preview"><b>Không hiện giá trên video</b></div>';
+  }
+  if (p.invalid) {
+    return '<div class="price-preview bad-text">Giá đang dưới 1.000đ. Kiểm tra lại xem bạn có gõ thiếu 3 số 0 (ví dụ 189.000) không, hoặc nhập 0 nếu muốn ẩn giá.</div>';
+  }
+  let html = p.value === 0
+    ? '<div class="price-preview"><b>Không hiện giá trên video</b></div>'
+    : `<div class="price-preview">Sẽ hiện trên video: <b>${formatVndDots(p.value)}đ (${readVndWords(p.value)})</b></div>`;
+  if (oldPrice !== null && p.value !== oldPrice) {
+    html += '<div class="banner warn" style="margin-top:8px;margin-bottom:0;padding:8px 12px;font-size:var(--fs-small)">Bạn vừa đổi giá. Hãy liếc kiểm tra Lời giới thiệu và Lời đọc các cảnh bên dưới xem có câu nào đang nhắc tới giá cũ không nhé.</div>';
+  }
+  return html;
+}
 
 async function api(path, opts = {}) {
   const headers = { ...(opts.headers || {}) };
@@ -192,7 +307,7 @@ async function loadList() {
   const ul = $("#list");
   if (!videos.length) { ul.innerHTML = '<li class="empty">Chưa có video nào trên máy.</li>'; return; }
   ul.innerHTML = videos.map((v) => `
-    <li><button data-folder="${esc(v.folder)}" ${current && current.folder === v.folder ? 'aria-current="true"' : ""}>
+    <li><button data-folder="${esc(v.folder)}" ${mode === "detail" && current && current.folder === v.folder ? 'aria-current="true"' : ""}>
       <span class="t">${esc(v.title)}</span>
       <span class="m"><span class="badge b-${v.label}">${LABELS[v.label]}</span>${esc(when(v.folder))}</span>
     </button></li>`).join("");
@@ -203,15 +318,18 @@ $("#list").addEventListener("click", (e) => {
   if (b) openVideo(b.dataset.folder);
 });
 
+$("#b-new-video").addEventListener("click", () => openCreate());
+
 function leaveOk() {
   return !dirty || confirm("Bạn có thay đổi chưa lưu. Bỏ các thay đổi đó?");
 }
 
 async function openVideo(folder, keepBanner = false) {
-  if (current && current.folder !== folder && !leaveOk()) return;
+  if ((mode === "detail" && current && current.folder !== folder || mode === "create") && !leaveOk()) return;
   try {
     current = await api("/videos/" + encodeURIComponent(folder));
   } catch (err) { showBanner("bad", err.message); return; }
+  mode = "detail";
   dirty = false;
   if (!keepBanner) banner = null;
   history.replaceState(null, "", "#" + encodeURIComponent(folder));
@@ -219,6 +337,410 @@ async function openVideo(folder, keepBanner = false) {
   render();
   window.scrollTo(0, 0);
   loadList();
+}
+
+// ---------------- create new video ----------------
+async function openCreate(keepState = false) {
+  if (!leaveOk()) return;
+  current = null;
+  mode = "create";
+  dirty = false;
+  if (!keepState) {
+    banner = null;
+    createState = emptyCreateState();
+  }
+  history.replaceState(null, "", "#new");
+  document.body.classList.add("has-detail");
+  renderCreate();
+  window.scrollTo(0, 0);
+  loadList();
+  await loadSheetRows();
+}
+
+async function loadSheetRows() {
+  try {
+    const data = await api("/sheet-rows");
+    createState.sheetAvailable = !!data.available;
+    createState.sheetRows = data.rows || [];
+    createState.sheetMessage = data.message || "";
+    if (mode === "create") paintSheetSelect();
+  } catch {
+    createState.sheetAvailable = false;
+    createState.sheetRows = [];
+  }
+}
+
+function syncCreateDomToState() {
+  if (mode !== "create") return;
+  if ($("#c-url")) createState.productUrl = $("#c-url").value;
+  if ($("#c-sheet-row")) createState.sheetRow = $("#c-sheet-row").value;
+  if ($("#c-name")) createState.name = $("#c-name").value;
+  if ($("#c-price")) createState.priceRaw = $("#c-price").value;
+  if ($("#c-points")) createState.sellingPoints = $("#c-points").value;
+  if ($("#c-category")) createState.category = $("#c-category").value;
+  if ($("#c-notes")) createState.notes = $("#c-notes").value;
+  const st = document.querySelector('input[name="c-style"]:checked');
+  if (st) createState.style = st.value;
+}
+
+function sheetRowValidationMessage() {
+  if (createState.source !== "sheet") return "";
+  const raw = String(createState.sheetRow || "").trim();
+  if (!raw) return "";
+  const num = parseInt(raw, 10);
+  if (num === 1 || num < 2 || Number.isNaN(num)) {
+    return "Dòng 1 là dòng tiêu đề cột. Hãy chọn từ dòng số 2 trở đi.";
+  }
+  return "";
+}
+
+function paintSheetSelect() {
+  const sel = $("#c-sheet-select");
+  if (!sel) return;
+  if (!createState.sheetAvailable || !createState.sheetRows.length) {
+    sel.innerHTML = `<option value="">${esc(createState.sheetMessage || "Chưa có dòng sản phẩm nào trên Google Sheet")}</option>`;
+    return;
+  }
+  const cur = String(createState.sheetRow || "").trim();
+  const opts = ['<option value="">— Chọn nhanh một dòng sản phẩm trên Google Sheet —</option>'];
+  for (const r of createState.sheetRows) {
+    const priceLabel = r.price ? `${formatVndDots(r.price)}đ` : "Chưa có giá";
+    const statusLabel = r.has_video ? "[Đã có video]" : "[Chưa tạo]";
+    const selected = String(r.row) === cur ? "selected" : "";
+    opts.push(`<option value="${r.row}" ${selected}>Dòng ${r.row} — ${esc(r.name)} (${priceLabel}) ${statusLabel}</option>`);
+  }
+  sel.innerHTML = opts.join("");
+}
+
+function createSlotsMarkup() {
+  const labels = ["Ảnh 1 (Ảnh chính)", "Ảnh 2", "Ảnh 3"];
+  return labels.map((title, k) => {
+    const slot = createState.slots[k];
+    if (!slot) {
+      return `<div class="slot-card" data-slot="${k}">
+        <div class="slot-title">${esc(title)}</div>
+        <div class="thumb">Chưa có ảnh</div>
+        <div class="acts">
+          <button type="button" class="btn small" data-c-upload="${k}">+ Tải ảnh lên</button>
+        </div>
+      </div>`;
+    }
+    const badgeText = slot.uploaded ? "Ảnh từ máy" : "Ảnh từ link";
+    return `<div class="slot-card" data-slot="${k}">
+      <div class="slot-title">${esc(title)}</div>
+      <img class="thumb" src="${esc(slot.url)}" alt="${esc(title)}">
+      <span class="chip">${esc(badgeText)}</span>
+      <div class="acts">
+        <button type="button" class="btn small" data-c-upload="${k}">Đổi ảnh</button>
+        <button type="button" class="btn small" data-c-del="${k}">Xoá</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderCreate() {
+  const main = $("#main");
+  const isUrl = createState.source === "url";
+  const rowErr = sheetRowValidationMessage();
+  const busy = jobBusy() || createState.loadingPreview;
+
+  main.innerHTML = `
+    <button class="btn small back" id="back">← Danh sách</button>
+    <div class="title-row"><h2>Tạo video sản phẩm mới</h2></div>
+    <div id="banner">${banner ? bannerMarkup() : ""}</div>
+    <div class="create-wrap">
+      <div class="card">
+        <h3>Bước 1: Chọn sản phẩm</h3>
+        <p class="sub">Dán link sản phẩm TikTok Shop hoặc chọn một dòng có sẵn trên Google Sheet.</p>
+        <div class="source-tabs" role="group" aria-label="Nguồn sản phẩm">
+          <button type="button" class="btn" id="tab-url" aria-pressed="${isUrl}">Dán link TikTok Shop</button>
+          <button type="button" class="btn" id="tab-sheet" aria-pressed="${!isUrl}">Chọn dòng trên Google Sheet</button>
+        </div>
+        ${isUrl ? `
+          <label class="f" for="c-url">Link sản phẩm TikTok Shop</label>
+          <input type="text" id="c-url" placeholder="Ví dụ: https://vt.tiktok.com/... hoặc https://shop.tiktok.com/..." value="${esc(createState.productUrl)}">
+          <div class="hint">Dán link sản phẩm rồi bấm <b>Lấy thông tin sản phẩm</b> để máy tự điền tên, giá và ảnh.</div>
+        ` : `
+          <label class="f" for="c-sheet-select">Danh sách chọn nhanh từ Google Sheet</label>
+          <select id="c-sheet-select"></select>
+          <label class="f" for="c-sheet-row">Số dòng trên Google Sheet (nhìn cột số bên trái bảng tính, bắt đầu từ dòng 2)</label>
+          <input type="number" id="c-sheet-row" min="2" step="1" inputmode="numeric" placeholder="Ví dụ: 2" value="${esc(createState.sheetRow)}">
+          <div id="c-row-msg">${rowErr ? `<div class="price-preview bad-text">${esc(rowErr)}</div>` : '<div class="hint">Dòng 1 là dòng tiêu đề cột. Các sản phẩm bắt đầu từ dòng 2 trở đi.</div>'}</div>
+        `}
+        <div class="copy-row" style="margin-top:12px">
+          <button type="button" class="btn" id="b-preview" ${busy || !!rowErr ? "disabled" : ""}>
+            ${createState.loadingPreview ? '<span class="spinner"></span>Đang đọc thông tin (1–3 giây)…' : "Lấy thông tin sản phẩm"}
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Bước 2: Kiểm tra giá & Ảnh sản phẩm</h3>
+        <p class="sub">Kiểm tra kỹ trước khi tạo video để không tốn lượt đọc giọng phải sửa lại.</p>
+        <label class="f" for="c-price">Giá sản phẩm hiện trên video (đồng)</label>
+        <input type="text" id="c-price" inputmode="numeric" placeholder="Ví dụ: 189.000 (hoặc nhập 0 nếu muốn ẩn giá)" value="${esc(createState.priceRaw)}">
+        <div id="c-price-preview">${pricePreviewMarkup(createState.priceRaw, { allowEmpty: true })}</div>
+
+        <label class="f" style="margin-top:16px">Ảnh sản phẩm (tối đa 3 ảnh)</label>
+        <div class="hint" style="margin-top:0;margin-bottom:10px">Nên có đủ 3 ảnh rõ nét. Ảnh 1 quan trọng nhất vì sẽ xuất hiện ở cảnh mở đầu và cảnh kêu gọi mua.</div>
+        <div class="pimgs" id="c-slots">${createSlotsMarkup()}</div>
+      </div>
+
+      <div class="card">
+        <h3>Bước 3: Thông tin chi tiết & Kiểu video</h3>
+        <p class="sub">Tự điền sau khi bấm Lấy thông tin sản phẩm, hoặc bạn có thể tự nhập/sửa trực tiếp.</p>
+        <label class="f" for="c-name">Tên sản phẩm</label>
+        <input type="text" id="c-name" placeholder="Ví dụ: Nồi chiên không dầu 5L" value="${esc(createState.name)}">
+
+        <label class="f">Kiểu video</label>
+        <div class="style-choices">
+          <label class="style-choice">
+            <input type="radio" name="c-style" value="story" ${createState.style === "story" ? "checked" : ""}>
+            <div><b>Tiểu phẩm câu chuyện</b><span>Có nhân vật đối thoại đời thường rồi giới thiệu sản phẩm.</span></div>
+          </label>
+          <label class="style-choice">
+            <input type="radio" name="c-style" value="simple" ${createState.style === "simple" ? "checked" : ""}>
+            <div><b>Giới thiệu ngắn gọn</b><span>Chỉ dùng ảnh sản phẩm và giọng người dẫn, dựng nhanh.</span></div>
+          </label>
+        </div>
+
+        <label class="f" for="c-points">Điểm nổi bật (mỗi ý 1 dòng)</label>
+        <textarea id="c-points" rows="3" placeholder="Ví dụ:&#10;Lực hút mạnh&#10;Pin sạc USB tiện lợi&#10;Nhỏ gọn dễ cầm">${esc(createState.sellingPoints)}</textarea>
+
+        <label class="f" for="c-category">Danh mục</label>
+        <input type="text" id="c-category" value="${esc(createState.category)}">
+
+        <label class="f" for="c-notes">Ghi chú / Lưu ý khi viết kịch bản</label>
+        <textarea id="c-notes" rows="2" placeholder="Ví dụ: Không phải thiết bị y tế; khách hàng là người lớn tuổi...">${esc(createState.notes)}</textarea>
+      </div>
+
+      <div class="banner info">
+        Tạo video mới sẽ dùng khoảng 4 lượt giọng đọc Gemini (mỗi ngày có 10 lượt miễn phí; hết lượt máy tự chuyển sang giọng miễn phí). Hãy kiểm tra kỹ Giá và Ảnh sản phẩm trước khi bấm.
+      </div>
+    </div>`;
+
+  if (!isUrl) paintSheetSelect();
+  bindCreateEvents();
+  updateCreateBar();
+}
+
+function bindCreateEvents() {
+  $("#back")?.addEventListener("click", () => {
+    if (!leaveOk()) return;
+    current = null; mode = null; dirty = false; banner = null;
+    history.replaceState(null, "", location.pathname);
+    document.body.classList.remove("has-detail");
+    $("#bar").hidden = true;
+    $("#main").innerHTML = '<p class="empty">Chọn một video ở danh sách bên trái hoặc bấm <b>+ Tạo video mới</b>.</p>';
+    loadList();
+  });
+
+  $("#tab-url")?.addEventListener("click", () => {
+    syncCreateDomToState();
+    createState.source = "url";
+    renderCreate();
+  });
+  $("#tab-sheet")?.addEventListener("click", () => {
+    syncCreateDomToState();
+    createState.source = "sheet";
+    renderCreate();
+  });
+
+  $("#c-sheet-select")?.addEventListener("change", (e) => {
+    createState.sheetRow = e.target.value;
+    if ($("#c-sheet-row")) $("#c-sheet-row").value = e.target.value;
+    updateCreateRowMsg();
+    updateCreateBar();
+  });
+  $("#c-sheet-row")?.addEventListener("input", (e) => {
+    createState.sheetRow = e.target.value;
+    if ($("#c-sheet-select")) $("#c-sheet-select").value = e.target.value;
+    updateCreateRowMsg();
+    updateCreateBar();
+  });
+
+  $("#c-price")?.addEventListener("input", (e) => {
+    createState.priceRaw = e.target.value;
+    const prev = $("#c-price-preview");
+    if (prev) prev.innerHTML = pricePreviewMarkup(createState.priceRaw, { allowEmpty: true });
+    updateCreateBar();
+  });
+
+  $("#b-preview")?.addEventListener("click", () => fetchProductPreview());
+
+  $("#main").querySelectorAll("input, textarea").forEach((el) => {
+    el.addEventListener("input", () => {
+      syncCreateDomToState();
+      updateCreateBar();
+    });
+  });
+
+  bindCreateSlotEvents();
+  bindBanner();
+}
+
+function updateCreateRowMsg() {
+  const msgEl = $("#c-row-msg");
+  const err = sheetRowValidationMessage();
+  if (msgEl) {
+    msgEl.innerHTML = err
+      ? `<div class="price-preview bad-text">${esc(err)}</div>`
+      : '<div class="hint">Dòng 1 là dòng tiêu đề cột. Các sản phẩm bắt đầu từ dòng 2 trở đi.</div>';
+  }
+  const btn = $("#b-preview");
+  if (btn) btn.disabled = jobBusy() || createState.loadingPreview || !!err;
+}
+
+function bindCreateSlotEvents() {
+  const root = $("#c-slots");
+  if (!root) return;
+  root.querySelectorAll("[data-c-upload]").forEach((b) =>
+    b.addEventListener("click", () => pickStagingImage(+b.dataset.cUpload))
+  );
+  root.querySelectorAll("[data-c-del]").forEach((b) =>
+    b.addEventListener("click", () => removeStagingImage(+b.dataset.cDel))
+  );
+}
+
+async function fetchProductPreview() {
+  syncCreateDomToState();
+  const rowErr = sheetRowValidationMessage();
+  if (rowErr) { showBanner("bad", rowErr); return; }
+  if (createState.source === "url" && !createState.productUrl.trim()) {
+    showBanner("bad", "Hãy dán link sản phẩm TikTok Shop trước khi bấm Lấy thông tin sản phẩm.");
+    $("#c-url")?.focus();
+    return;
+  }
+  if (createState.source === "sheet" && !String(createState.sheetRow || "").trim()) {
+    showBanner("bad", "Hãy chọn một dòng hoặc nhập số dòng trên Google Sheet (bắt đầu từ dòng 2).");
+    $("#c-sheet-row")?.focus();
+    return;
+  }
+  createState.loadingPreview = true;
+  renderCreate();
+  try {
+    const payload = createState.source === "sheet"
+      ? { source: "sheet", sheet_row: parseInt(createState.sheetRow, 10) }
+      : { source: "url", product_url: createState.productUrl.trim() };
+    const res = await api("/product-preview", { method: "POST", json: payload });
+    if (res.name) createState.name = res.name;
+    if (!res.blocked) {
+      createState.priceRaw = res.price ? formatVndDots(res.price) : (createState.priceRaw || "");
+    }
+    const imgs = res.images || [];
+    createState.slots = [0, 1, 2].map((k) =>
+      imgs[k] ? { url: imgs[k], source: imgs[k], uploaded: false } : null
+    );
+    if (res.selling_points) createState.sellingPoints = res.selling_points;
+    if (res.category) createState.category = res.category;
+    if (res.notes !== undefined && res.notes !== null && res.notes !== "") createState.notes = res.notes;
+
+    if (res.warning) {
+      banner = { kind: "warn", html: esc(res.warning) };
+    } else {
+      banner = { kind: "ok", html: "Đã lấy thông tin sản phẩm. Hãy kiểm tra lại Giá và Ảnh sản phẩm ở Bước 2 trước khi bấm Tạo video." };
+    }
+    createState.loadingPreview = false;
+    renderCreate();
+    if (res.blocked || !createState.name.trim()) {
+      $("#c-name")?.focus();
+    }
+  } catch (e) {
+    createState.loadingPreview = false;
+    showBanner("bad", e.message);
+    renderCreate();
+  }
+}
+
+function pickStagingImage(slot) {
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = "image/png,image/jpeg,image/webp";
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) { showBanner("bad", "Ảnh quá lớn (tối đa 15 MB)."); return; }
+    syncCreateDomToState();
+    try {
+      const res = await api(`/staging-image?slot=${slot}`, {
+        method: "POST",
+        body: file,
+        headers: { "Content-Type": "application/octet-stream" },
+      });
+      createState.slots[slot] = { url: res.url, source: res.name, uploaded: true };
+      const slotsEl = $("#c-slots");
+      if (slotsEl) { slotsEl.innerHTML = createSlotsMarkup(); bindCreateSlotEvents(); }
+      updateCreateBar();
+    } catch (e) { showBanner("bad", e.message); }
+  };
+  input.click();
+}
+
+async function removeStagingImage(slot) {
+  syncCreateDomToState();
+  try {
+    await api(`/staging-image?slot=${slot}`, { method: "DELETE" });
+    createState.slots[slot] = null;
+    const slotsEl = $("#c-slots");
+    if (slotsEl) { slotsEl.innerHTML = createSlotsMarkup(); bindCreateSlotEvents(); }
+    updateCreateBar();
+  } catch (e) { showBanner("bad", e.message); }
+}
+
+function updateCreateBar() {
+  if (mode !== "create") return;
+  const bar = $("#bar");
+  const busy = jobBusy() || createState.loadingPreview;
+  const p = parsePriceRaw(createState.priceRaw);
+  const rowErr = sheetRowValidationMessage();
+  const hasSource = createState.source === "sheet"
+    ? (String(createState.sheetRow || "").trim() !== "" && !rowErr)
+    : (createState.productUrl.trim() !== "" || createState.name.trim() !== "");
+  const canCreate = !busy && !p.invalid && !rowErr && hasSource;
+
+  let why;
+  if (busy) why = "Đang xử lý, đợi một chút…";
+  else if (rowErr) why = rowErr;
+  else if (p.invalid) why = "Giá sản phẩm chưa hợp lệ (nhập từ 1.000đ trở lên, hoặc nhập 0 để ẩn giá).";
+  else if (!hasSource) why = "Chọn nguồn sản phẩm ở Bước 1, kiểm tra Giá & Ảnh ở Bước 2 rồi bấm Tạo video.";
+  else why = "Tạo video mới dùng ~4 lượt giọng Gemini (10 lượt miễn phí/ngày). Kiểm tra kỹ Giá & Ảnh trước khi bấm.";
+
+  bar.hidden = false;
+  bar.innerHTML = `<span class="why">${esc(why)}</span>
+    <button class="btn primary" id="b-create" ${canCreate ? "" : "disabled"}>Tạo video</button>`;
+  $("#b-create").onclick = () => startCreate();
+}
+
+async function startCreate() {
+  syncCreateDomToState();
+  const p = parsePriceRaw(createState.priceRaw);
+  if (p.invalid) {
+    showBanner("bad", "Giá đang dưới 1.000đ. Kiểm tra lại xem bạn có gõ thiếu 3 số 0 (ví dụ 189.000) không, hoặc nhập 0 nếu muốn ẩn giá.");
+    return;
+  }
+  const rowErr = sheetRowValidationMessage();
+  if (rowErr) { showBanner("bad", rowErr); return; }
+
+  const activeImages = createState.slots.filter(Boolean).map((s) => s.source);
+  const payload = {
+    sheet_row: createState.source === "sheet" && String(createState.sheetRow || "").trim()
+      ? parseInt(createState.sheetRow, 10)
+      : null,
+    product_url: createState.source === "url" ? (createState.productUrl.trim() || null) : null,
+    name: createState.name.trim() || null,
+    price: p.empty ? null : p.value,
+    images: activeImages.length ? activeImages : null,
+    style: createState.style || "story",
+    category: createState.category.trim() || "Nhà cửa",
+    selling_points: createState.sellingPoints.trim() || null,
+    notes: createState.notes.trim() || null,
+  };
+  try {
+    await api("/create", { method: "POST", json: payload });
+    watchJob();
+  } catch (e) {
+    showBanner("bad", e.message);
+    if (/Tên sản phẩm/i.test(e.message)) $("#c-name")?.focus();
+  }
 }
 
 // ---------------- detail ----------------
@@ -242,6 +764,7 @@ function render() {
     return;
   }
 
+  const initialPriceStr = v.price ? formatVndDots(v.price) : "0";
   main.innerHTML = head + `<div class="detail">${player}<div>
     <div id="voicenote"></div>
     <div class="card">
@@ -260,8 +783,8 @@ function render() {
       <label class="f" for="hook">Câu mở đầu (chữ lớn ở cảnh 1)</label>
       <input type="text" id="hook" value="${esc(v.hook)}">
       <label class="f" for="price">Giá hiện trên video (đồng)</label>
-      <input type="number" id="price" min="0" step="1000" inputmode="numeric" value="${v.price}">
-      <div class="hint">Ghi 0 nếu không muốn hiện giá.</div>
+      <input type="text" id="price" inputmode="numeric" value="${esc(initialPriceStr)}">
+      <div id="price-preview">${pricePreviewMarkup(initialPriceStr, { allowEmpty: false, oldPrice: v.price })}</div>
     </div>
     <div class="card">
       <h3>Từng cảnh</h3>
@@ -275,7 +798,13 @@ function render() {
     </div>
   </div></div>`;
   bindCommon();
-  main.querySelectorAll("input, textarea").forEach((el) => el.addEventListener("input", () => { dirty = true; updateBar(); }));
+  main.querySelectorAll("input, textarea").forEach((el) => el.addEventListener("input", () => {
+    dirty = true;
+    if (el.id === "price" && $("#price-preview")) {
+      $("#price-preview").innerHTML = pricePreviewMarkup($("#price").value, { allowEmpty: false, oldPrice: v.price });
+    }
+    updateBar();
+  }));
   updateBar();
 }
 
@@ -316,11 +845,11 @@ function productImagesMarkup() {
 function bindCommon() {
   $("#back")?.addEventListener("click", () => {
     if (!leaveOk()) return;
-    current = null; dirty = false; banner = null;
+    current = null; mode = null; dirty = false; banner = null;
     history.replaceState(null, "", location.pathname);
     document.body.classList.remove("has-detail");
     $("#bar").hidden = true;
-    $("#main").innerHTML = '<p class="empty">Chọn một video ở danh sách.</p>';
+    $("#main").innerHTML = '<p class="empty">Chọn một video ở danh sách bên trái hoặc bấm <b>+ Tạo video mới</b>.</p>';
     loadList();
   });
   $("#main").querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => {
@@ -346,11 +875,13 @@ async function copy(text, btn) {
 }
 
 function formValues() {
+  const p = parsePriceRaw($("#price").value);
   return {
     caption: $("#caption").value,
     hashtags: $("#hashtags").value,
     hook: $("#hook").value,
-    price: Math.max(0, parseInt($("#price").value || "0", 10) || 0),
+    price: p.empty ? 0 : p.value,
+    priceInvalid: p.invalid,
     segments: current.segments.map((s) => ({
       line: $(`[data-line="${s.index}"]`).value,
       text: $(`[data-text="${s.index}"]`)?.value ?? s.text,
@@ -372,6 +903,7 @@ function jobBusy() { return !!polling; }
 
 function updateBar() {
   const v = current, bar = $("#bar");
+  if (mode === "create") { updateCreateBar(); return; }
   if (!v || v.label === "view_only") { bar.hidden = true; return; }
   const changed = changedLines();
   document.querySelectorAll("[data-scene]").forEach((el) => {
@@ -388,20 +920,22 @@ function updateBar() {
   $("#voicenote").innerHTML = note;
 
   const busy = jobBusy();
+  const priceInvalid = parsePriceRaw($("#price")?.value).invalid;
   const needsRender = v.needs_render || (dirty && formNeedsRender());
   let why;
   if (busy) why = "Đang chạy, đợi một chút…";
+  else if (priceInvalid) why = "Giá đang dưới 1.000đ. Kiểm tra lại số 0 hoặc nhập 0 nếu muốn ẩn giá.";
   else if (dirty && needsRender) why = "Có thay đổi chưa lưu. Bấm Dựng lại video để lưu và xem kết quả.";
   else if (dirty) why = "Có thay đổi chưa lưu.";
   else if (v.needs_render) why = "Video chưa cập nhật theo chỗ bạn vừa sửa. Bấm Dựng lại video.";
   else if (v.label === "needs_images") why = "Còn cảnh chưa có ảnh nhân vật. Tải ảnh lên rồi dựng lại.";
   else if (v.label === "approved") why = "Video này đã duyệt trước đó.";
   else why = "Xem hết video. Đạt thì bấm Duyệt & lưu.";
-  const canApprove = !busy && !dirty && !v.needs_render && v.label !== "needs_images";
+  const canApprove = !busy && !dirty && !priceInvalid && !v.needs_render && v.label !== "needs_images";
   bar.hidden = false;
   bar.innerHTML = `<span class="why">${esc(why)}</span>
-    <button class="btn" id="b-save" ${!dirty || busy ? "disabled" : ""}>Lưu thay đổi</button>
-    <button class="btn ${needsRender && !busy ? "primary" : ""}" id="b-render" ${busy ? "disabled" : ""}>Dựng lại video</button>
+    <button class="btn" id="b-save" ${!dirty || busy || priceInvalid ? "disabled" : ""}>Lưu thay đổi</button>
+    <button class="btn ${needsRender && !busy && !priceInvalid ? "primary" : ""}" id="b-render" ${busy || priceInvalid ? "disabled" : ""}>Dựng lại video</button>
     <button class="btn ${canApprove ? "primary" : ""}" id="b-approve" ${canApprove ? "" : "disabled"}>Duyệt & lưu</button>`;
   $("#b-save").onclick = () => save().then(() => { showBanner("ok", "Đã lưu."); render(); }).catch((e) => showBanner("bad", e.message));
   $("#b-render").onclick = () => startRender();
@@ -410,7 +944,12 @@ function updateBar() {
 
 async function save() {
   if (!dirty) return;
-  current = await api("/videos/" + encodeURIComponent(current.folder), { method: "PUT", json: formValues() });
+  const vals = formValues();
+  if (vals.priceInvalid) {
+    throw new Error("Giá đang dưới 1.000đ. Kiểm tra lại xem bạn có gõ thiếu 3 số 0 (ví dụ 189.000) không, hoặc nhập 0 nếu muốn ẩn giá.");
+  }
+  delete vals.priceInvalid;
+  current = await api("/videos/" + encodeURIComponent(current.folder), { method: "PUT", json: vals });
   dirty = false;
   say("Đã lưu");
 }
@@ -463,6 +1002,8 @@ function stepText(job) {
   if (job.action === "approve") return /Drive|Upload/i.test(log) ? "Đang tải lên Google Drive…" : "";
   if (/Rendering video|Scene \d/.test(log)) return "Đang dựng hình…";
   if (/voic/i.test(log)) return "Đang tạo giọng đọc…";
+  if (/Generating .* script/i.test(log)) return "Đang viết kịch bản…";
+  if (job.action === "create") return "Đang đọc thông tin sản phẩm…";
   return "Đang chuẩn bị…";
 }
 
@@ -472,7 +1013,10 @@ function watchJob() {
     let job;
     try { job = await api("/job"); } catch { return; }
     if (job.state === "running") {
-      const what = job.action === "approve" ? "Đang duyệt." : "Đang dựng lại video, thường mất 1–2 phút.";
+      let what;
+      if (job.action === "approve") what = "Đang duyệt.";
+      else if (job.action === "create") what = "Đang tạo video mới, thường mất 2–3 phút.";
+      else what = "Đang dựng lại video, thường mất 1–2 phút.";
       banner = { kind: "job", html: `<span class="spinner"></span>${what} ${esc(stepText(job))}` };
       paintBanner();
       return;
@@ -488,7 +1032,16 @@ function watchJob() {
 async function jobFinished(job) {
   const log = `<details><summary>Xem chi tiết kỹ thuật</summary><pre>${esc(job.log.join("\n"))}</pre></details>`;
   const driveLink = job.drive_link ? ` <a href="${esc(job.drive_link)}" target="_blank" rel="noopener">Mở thư mục Drive</a>` : "";
-  if (job.state === "done" && job.action === "render") {
+  if (job.state === "done" && job.action === "create") {
+    banner = { kind: "ok", html: "Đã tạo xong video mới. Xem hết video và kiểm tra lời đọc trước khi bấm Duyệt & lưu." };
+    await loadList();
+    if (job.folder && videos.some((v) => v.folder === job.folder)) {
+      await openVideo(job.folder, true);
+    } else if (videos.length) {
+      await openVideo(videos[0].folder, true);
+    }
+    say("Đã tạo xong video mới");
+  } else if (job.state === "done" && job.action === "render") {
     banner = { kind: "ok", html: "Đã dựng xong. Xem lại video." };
     await openVideo(job.folder, true);
     say("Đã dựng xong video");
@@ -497,7 +1050,7 @@ async function jobFinished(job) {
       banner = { kind: "ok", html: "Đã duyệt. Chữ đăng kèm đã lưu cạnh video." + driveLink };
       await openVideo(job.folder, true);
     } else {
-      current = null; dirty = false; banner = null;
+      current = null; mode = null; dirty = false; banner = null;
       document.body.classList.remove("has-detail");
       $("#bar").hidden = true;
       $("#main").innerHTML = `<div class="banner ok">Đã duyệt và chuyển video lên Google Drive.${driveLink}</div>`;
@@ -505,6 +1058,17 @@ async function jobFinished(job) {
       await loadList();
     }
     say("Đã duyệt video");
+  } else if (job.action === "create") {
+    banner = {
+      kind: "bad",
+      html: "Tạo video chưa thành công. Bạn hãy kiểm tra lại thông tin ở dưới rồi bấm Tạo video để thử lại." + log,
+    };
+    if (mode !== "create") {
+      await openCreate(true);
+    } else {
+      paintBanner();
+      updateCreateBar();
+    }
   } else if (job.error_kind === "revoice") {
     banner = { kind: "bad", html: "Không đọc lại được câu đã sửa bằng giọng Gemini, thường do hết 10 lượt miễn phí trong ngày. Video và giọng cũ vẫn giữ nguyên."
       + `<div class="acts"><button class="btn small" data-act="revoice">Đọc lại toàn bộ bằng giọng miễn phí</button></div>`
@@ -531,7 +1095,8 @@ function paintBanner() {
   if (el) el.innerHTML = banner ? bannerMarkup() : "";
   else if (banner) $("#main").insertAdjacentHTML("afterbegin", `<div id="banner">${bannerMarkup()}</div>`);
   bindBanner();
-  if (current) updateBar();
+  if (mode === "create") updateCreateBar();
+  else if (current) updateBar();
 }
 function bindBanner() {
   document.querySelector('[data-act="revoice"]')?.addEventListener("click", () => startRender(true));
@@ -543,8 +1108,15 @@ window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault()
   try { await loadList(); }
   catch (e) { $("#list").innerHTML = `<li class="empty">${esc(e.message)}</li>`; return; }
   const job = await api("/job").catch(() => ({ state: "idle" }));
-  const wanted = job.state === "running" ? job.folder : decodeURIComponent(location.hash.slice(1));
-  if (wanted && videos.some((v) => v.folder === wanted)) await openVideo(wanted);
+  const hash = decodeURIComponent(location.hash.slice(1));
+  if (job.state === "running" && job.action === "create") {
+    await openCreate(true);
+    watchJob();
+    return;
+  }
+  const wanted = job.state === "running" ? job.folder : hash;
+  if (wanted === "new") await openCreate();
+  else if (wanted && videos.some((v) => v.folder === wanted)) await openVideo(wanted);
   if (job.state === "running") watchJob();
 })();
 </script>
