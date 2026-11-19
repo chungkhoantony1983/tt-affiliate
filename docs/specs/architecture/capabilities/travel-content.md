@@ -255,6 +255,12 @@ Còn lại: MKTG đối chiếu checklist với video mẫu.
 
 ---
 
+## Kế hoạch v2 (DR-0010)
+
+Sau video thật đầu tiên (hình lạc đề, quá ngắn, giọng "mùi AI"), `docs/decision-records/DR-0010-travel-story-video.md` đề xuất phần 10a (chờ duyệt, chưa có code): video kể chuyện 4 nhịp 60–90 s (cột Sheet `series`, file `content/travel/series/pho-north-south.json`), thư viện cảnh quay riêng ở `BROLL_DIR` (chỉ mục cạnh clip, không trong git), kiểm khớp hình, thiếu cảnh quay thì dừng trước khi gọi AI (mã 8 `needs_broll`, `--resume`), loại cảnh `observe`, dissolve frame-exact giữa các nhịp, edge-tts cải tiến. Gemini TTS cho travel tách sang DR-0010b (sau khi `feat/gemini-quota` merge). Spec sẽ cập nhật chi tiết sau khi Dev xong.
+
+---
+
 ## Lộ trình
 
 | Giai đoạn | Nội dung | Cổng |
