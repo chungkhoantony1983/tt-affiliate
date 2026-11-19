@@ -101,16 +101,40 @@ def _following(cur: dict, series: dict, move: dict):
     return moves[idx + 1] if idx + 1 < len(moves) else None
 
 
+def _preceding(series: dict, move: dict):
+    """The move before this one in the series (for the 'yesterday we did' line), or None."""
+    moves = series["moves"]
+    idx = next(i for i, m in enumerate(moves) if m["n"] == move["n"])
+    return moves[idx - 1] if idx > 0 else None
+
+
+def _opening_line(series: dict, move: dict) -> str:
+    """Spoken opening of a move video. From the second move of a series that has a 'welcome' line:
+    greeting + link to the previous move; otherwise the series title and move name."""
+    prev = _preceding(series, move)
+    if series.get("welcome") and prev:
+        return (f"{series['welcome']} Hôm qua mình tập {prev['name']}, bạn nào chưa xem thì tìm bài "
+                f"{prev['n']} trong kênh nhé. Hôm nay mình tập bài {move['n']}, {move['name']}.")
+    return f"{series['title']}, bài {move['n']}: {move['name']}."
+
+
 def build_script(cur: dict, series: dict, move: dict) -> dict:
-    """Segments straight from the approved curriculum text: intro, one per step, closing."""
+    """Segments straight from the approved curriculum text: intro, one per step, closing.
+    On-screen texts (series 'prepare_screen', move 'screens') never change the spoken 'line'."""
     title = f"Bài {move['n']}: {move['name']}"
     segs = [{"kind": "ex_intro", "speaker": "narrator",
-             "line": f"{series['title']}, bài {move['n']}: {move['name']}. {series['prepare']}",
-             "screen": series["prepare"],  # the title is already at the top of the frame
+             "line": f"{_opening_line(series, move)} {series['prepare']}",
+             # the title is already at the top of the frame
+             "screen": series.get("prepare_screen") or series["prepare"],
              "text": "Chuẩn bị"}]
     steps = move["steps"]
+    screens = move.get("screens") or []
     for i, step in enumerate(steps, 1):
-        segs.append({"kind": "ex_step", "speaker": "narrator", "line": step, "text": f"Bước {i}/{len(steps)}"})
+        seg = {"kind": "ex_step", "speaker": "narrator", "line": step, "text": f"Bước {i}/{len(steps)}"}
+        short = screens[i - 1].strip() if i <= len(screens) and isinstance(screens[i - 1], str) else ""
+        if short:  # shorter on-screen text; an empty entry shows the spoken line
+            seg["screen"] = short
+        segs.append(seg)
 
     nxt = _following(cur, series, move)
     if nxt:
@@ -242,6 +266,22 @@ def attach_angles(script: dict, series: dict, move: dict, out_dir: Path) -> None
         script["scene_angle"][i] = {"clip": len(script["clips"]) - 1, "label": ANGLE_VIEWS[view][0]}
 
 
+def missing_clips(series: dict, move: dict) -> list:
+    """File names of the clips this move needs that are not in the clip folder yet:
+    the shared ready stance, one clip per step, and the angle clips listed in move['angles']."""
+    d, nn = _clip_dir(series), f"{move['n']:02d}"
+    names = ["00.mp4"] + [f"{nn}_{k}.mp4" for k in range(1, len(move["steps"]) + 1)]
+    names += [name for _, _, name in _angle_wanted(move)]
+    return [n for n in names if not (d / n).exists()]
+
+
+def _step_action(en: str) -> str:
+    """Prompt sentence for a step clip. A scene shorter than its clip only plays the start of the
+    clip, so the main action has to come first (C-0006-6)."""
+    return (f"He {en}. The main action happens within the first three seconds, "
+            f"then he holds the final pose still until the end of the clip.")
+
+
 def write_prompts(series: dict, move: dict) -> Path:
     """prompts_NN.txt with one Gemini-app video prompt per clip still missing for this move."""
     d, nn = _clip_dir(series), f"{move['n']:02d}"
@@ -252,13 +292,13 @@ def write_prompts(series: dict, move: dict) -> Path:
                        f"Over about eight seconds he {series['ready_en']}."))
     for k, (vi, en) in enumerate(zip(move["steps"], move.get("steps_en", [])), 1):
         if not (d / f"{nn}_{k}.mp4").exists():
-            wanted.append((f"{nn}_{k}.mp4", f"Bước {k}: {vi}", f"Over about eight seconds he {en}."))
+            wanted.append((f"{nn}_{k}.mp4", f"Bước {k}: {vi}", _step_action(en)))
     steps_en = move.get("steps_en", [])
     for k, view, name in _angle_wanted(move):
         if not (d / name).exists() and k <= len(steps_en):
             label, framing = ANGLE_VIEWS[view]
             wanted.append((name, f"Bước {k} – {label} (khung nhỏ cạnh clip chính): {move['steps'][k - 1]}",
-                           f"Over about eight seconds he {steps_en[k - 1]}.",
+                           _step_action(steps_en[k - 1]),
                            MOVE_LOOK.replace("front view", framing)))
     return _write_prompt_file(series, d / f"prompts_{nn}.txt",
                               f"{series['title']} bài {move['n']}: {move['name']}", wanted)
@@ -339,7 +379,7 @@ def _write_prompt_file(series: dict, path: Path, heading: str, wanted: list) -> 
              "3. Xem kỹ: tay, chân, hướng nhìn có đúng như dòng tiếng Việt không. Sai thì tạo lại.",
              f"4. Tải video về, đổi tên đúng như dòng 'Lưu thành', bỏ vào thư mục {d}/",
              "5. Đủ clip thì chạy lại: .venv/bin/python demo.py --exercise",
-             "   (Hết lượt tạo video trong ngày thì làm trước các clip lẻ 1, 3: clip thiếu sẽ mượn clip khác.)",
+             "   (Phải đủ mọi clip trong danh sách rồi mới chạy lệnh. Hết lượt tạo video thì để hôm sau làm tiếp.)",
              ""]
     for name, vi, action, *look in wanted:
         lines += ["=" * 70, f"Lưu thành: {name}", f"Nội dung: {vi}", "",
@@ -509,15 +549,19 @@ def _clip_input(clip: Path, dur: float) -> tuple:
     return ["-stream_loop", "-1", "-t", f"{dur / slow + 0.1:.3f}", "-i", str(src)], slow
 
 
-ANGLE_PANEL_W, ANGLE_PANEL_MARGIN = 250, 14  # angle clip panel, right of the (portrait) front clip
+# Angle clip panel, left of the (portrait) front clip: the right side sits under TikTok's button column.
+# x = 60 clears the ~54 px that tall phones crop; the panel overlaps the front clip's left edge by ~29 px.
+ANGLE_PANEL_W, ANGLE_PANEL_X = 250, 60
+STEP_MIN_SECONDS = 5.0       # an ex_step scene lasts at least this long: the picture holds after the line
+EDGE_NARRATOR_RATE = "-10%"  # edge-tts narrator rate for exercise videos (product videos keep demo.VOICES)
 
 
 def _angle_panel_box(clip: Path) -> tuple:
-    """(x, y, w, h) of the angle panel: bottom-right of the clip box."""
+    """(x, y, w, h) of the angle panel: bottom-left of the clip box."""
     w, h, _ = _clip_info(clip)
     ph = round(ANGLE_PANEL_W * h / w / 2) * 2
     top, box_h = VIDEO_BOX
-    return W - ANGLE_PANEL_W - ANGLE_PANEL_MARGIN, top + box_h - ph, ANGLE_PANEL_W, ph
+    return ANGLE_PANEL_X, top + box_h - ph, ANGLE_PANEL_W, ph
 
 
 def render(script: dict, out_dir: Path) -> str:
@@ -538,6 +582,8 @@ def render(script: dict, out_dir: Path) -> str:
     for i, seg in enumerate(segs):
         s0, s1 = bounds[i]
         dur = (s1 - s0) + demo.GAP + (demo.END_HOLD if i == n - 1 else 0)
+        if seg["kind"] == "ex_step":
+            dur = max(dur, STEP_MIN_SECONDS)  # audio is padded with silence to scene_dur below
         seg["scene_dur"] = round(dur, 3)
         seg["speech_trim"] = [round(s0, 3), round(s1, 3)]
         vdur = dur + (XFADE if i < n - 1 else 0)  # overlaps the next scene by the cross-fade
@@ -691,6 +737,11 @@ def run_next(base_dir: Path, skip_approval: bool, allow_stock: bool = False) -> 
         return {"status": "needs_clips", "dir": str(prompts)}
     if files is not None and prompts_fn:
         prompts_fn()  # keeps the list of clips still missing up to date
+    if files is not None and kind == "move":
+        missing = missing_clips(series, move)
+        if missing:  # still renders (stand-in clips, no angle panel), but says so before the voice is made
+            print(f"⚠️  Thiếu clip: {', '.join(missing)} — cảnh thiếu sẽ mượn clip khác, clip góc phụ thiếu thì "
+                  f"không có khung nhỏ. Nên làm đủ clip trong {_clip_dir(series)}/ rồi mới chạy lại.")
 
     out_dir = base_dir / f"{datetime.now():%Y%m%d_%H%M%S}_baitap_{series['id']}_{slug}"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -709,7 +760,13 @@ def run_next(base_dir: Path, skip_approval: bool, allow_stock: bool = False) -> 
     persona = demo.choose_persona({"category": "tập luyện"})
     model = (os.environ.get("EXERCISE_TTS_MODEL", DEFAULT_TTS_MODEL) if kind == "move"
              else os.environ.get("EXERCISE_EXTRA_TTS_MODEL", EXTRA_TTS_MODEL))
-    demo.generate_voiceovers(script["segments"], out_dir, persona, model=model)
+    # Slower edge-tts narrator for this call only (Gemini ignores the rate); product videos keep theirs
+    narrator = demo.VOICES["narrator"]
+    demo.VOICES["narrator"] = (narrator[0], EDGE_NARRATOR_RATE, narrator[2])
+    try:
+        demo.generate_voiceovers(script["segments"], out_dir, persona, model=model)
+    finally:
+        demo.VOICES["narrator"] = narrator
     script["voice_persona"] = persona
     return finish(out_dir, script, skip_approval)
 
