@@ -3,8 +3,9 @@ Studio API — review and edit rendered videos from the local web page /studio (
 
 Rule C-0001-2: every video operation lives in demo.py. This module only reads/writes
 script.json, product.json and uploaded images, and runs demo.py in a subprocess:
-  demo.py --render-only DIR [--revoice-all edge]
+  demo.py --render-only DIR [--revoice-all edge|gemini]
   demo.py --approve DIR
+  demo.py --tts-status          (Gemini TTS quota estimate; this module never reads the ledger, C-0012-4)
 
 Rule C-0001-3: write endpoints require the X-Studio header, which is not allowed by CORS,
 so other web pages cannot call them from the browser.
@@ -168,6 +169,21 @@ def _voice_engine(script: dict) -> tuple:
     return guess, False
 
 
+def _voice(script: dict) -> dict:
+    """Which voice the video has, read from the first segment's tts_model / tts_fallback (written by
+    demo.generate_voiceovers) and tts_provider. No quota rule lives here.
+    voice_role: "main" | "backup" | "free" | None (older folders with nothing recorded)."""
+    segments = [s for s in (script.get("segments") or []) if isinstance(s, dict)]
+    first = segments[0] if segments else {}
+    if "tts_model" in first:
+        model, reason = first.get("tts_model"), first.get("tts_fallback")
+        role = "free" if not model else "backup" if reason else "main"
+    else:
+        model, reason = None, None
+        role = {"gemini": "main", "edge": "free"}.get(script.get("tts_provider"))
+    return {"voice_role": role, "voice_reason": reason, "voice_model": model, "voice_calls": len(segments)}
+
+
 # ---------------------------------------------------------------------------
 # Guards
 # ---------------------------------------------------------------------------
@@ -249,16 +265,35 @@ def job_status():
 # Read
 # ---------------------------------------------------------------------------
 
+@router.get("/voice-quota")
+def voice_quota():
+    """Gemini TTS quota estimate from `demo.py --tts-status` (reads the local ledger, no Gemini call).
+    Read-only, works while a job runs. Any failure → {"available": false}, never a 500."""
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    try:
+        done = subprocess.run([sys.executable, str(DEMO), "--tts-status"], cwd=str(REPO_ROOT), env=env,
+                              capture_output=True, text=True, encoding="utf-8", timeout=15)
+        lines = [line for line in done.stdout.splitlines() if line.strip()]
+        data = json.loads(lines[-1]) if done.returncode == 0 and lines else None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        data = None
+    if not isinstance(data, dict) or not isinstance(data.get("models"), list):
+        return {"available": False}
+    return {**data, "available": True}
+
+
 @router.get("/videos")
 def list_videos():
     items = []
     for folder in _folders():
         product = _read_json(folder / "product.json")
+        script = _read_json(folder / "script.json")
         items.append({
             "folder": folder.name,
-            "title": _title(folder, product, _read_json(folder / "script.json")),
+            "title": _title(folder, product, script),
             "label": _label(folder),
             "updated": int((folder / "video.mp4").stat().st_mtime),
+            "voice_role": _voice(script)["voice_role"],
         })
     return {"videos": items, "drive": bool(settings.DRIVE_FOLDER_ID)}
 
@@ -278,6 +313,7 @@ def video_detail(folder: str):
         "hashtags": hashtags,
         "post_text": f"{(script.get('caption') or '').strip()} {hashtags}".strip(),
         "drive": bool(settings.DRIVE_FOLDER_ID),
+        **_voice(script),  # also for view-only folders (exercise videos)
     }
     if detail["label"] == "view_only":
         return detail
@@ -469,7 +505,8 @@ async def upload_image(folder: str, target: str, index: int, request: Request):
 
 
 class RenderRequest(BaseModel):
-    revoice_all: Optional[str] = None  # "edge": re-voice every line with the free voice
+    # Re-voice every line: "edge" = the free voice, "gemini" = Gemini (demo.py checks the quota first)
+    revoice_all: Optional[str] = None
 
 
 @router.post("/videos/{folder}/render", dependencies=[Depends(require_studio)])
@@ -478,9 +515,10 @@ def render(folder: str, req: RenderRequest = RenderRequest()):
     _editable_or_409(path)
     args = ["--render-only"]
     if req.revoice_all:
-        if req.revoice_all != "edge":
-            raise HTTPException(status_code=400, detail="Chỉ hỗ trợ đọc lại toàn bộ bằng giọng edge")
-        args = ["--revoice-all", "edge", "--render-only"]
+        if req.revoice_all not in ("edge", "gemini"):
+            raise HTTPException(status_code=400,
+                                detail="Chỉ đọc lại toàn bộ được bằng giọng miễn phí hoặc giọng Gemini")
+        args = ["--revoice-all", req.revoice_all, "--render-only"]
     return _start_job("render", path, args)
 
 
