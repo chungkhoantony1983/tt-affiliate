@@ -1616,7 +1616,7 @@ def run_create(spec: dict, base_dir: Path, default_style: str, skip_approval: bo
     sheet_ref = (spec.get("sheet_ref") or os.environ.get("SPREADSHEET_ID") or "").strip()
     csv_path = (spec.get("csv_path") or os.environ.get("STUDIO_CSV_PATH") or "").strip()
     sheet_row = spec.get("sheet_row")
-    style = (spec.get("style") or default_style or "story").strip().lower()
+    style = (spec.get("style") or default_style or "simple").strip().lower()
 
     user_price = spec.get("price")
     user_images = spec.get("images")
@@ -1910,8 +1910,9 @@ def main():
     parser.add_argument("--points", default="", help="Selling points, |-separated")
     parser.add_argument("--url", default="", help="TikTok Shop product URL (for post.txt)")
     parser.add_argument("--notes", default="", help="Constraints / target customer for the script")
-    parser.add_argument("--style", default="story", choices=["story", "simple"],
-                        help="story = skit with AI characters; simple = product images only")
+    parser.add_argument("--style", default="simple", choices=["story", "simple"],
+                        help="simple (default) = product images only, fully automatic; "
+                             "story = skit with AI characters, needs character images (IMAGE_PROVIDER)")
     parser.add_argument("--output-dir", default="storage/videos", help="Output directory")
     parser.add_argument("--skip-approval", action="store_true", help="Skip manual approval step")
     parser.add_argument("--keep-local", action="store_true",
