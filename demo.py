@@ -901,7 +901,8 @@ def generate_voiceovers(segments: list, out_dir: Path, persona: str = "nu_nam", 
 
 # Backup Gemini TTS models, tried in order when the main one fails (e.g. its 10 requests/day are used up).
 # They are the exercise videos' models, so a busy product day can eat into their quota.
-DEFAULT_TTS_FALLBACK_MODELS = "gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts"
+# V-0 (2026-11-20): gemini-2.5-flash-preview-tts mispronounced a correct script ("liên tục" read as "liên túc"), so it is not a default.
+DEFAULT_TTS_FALLBACK_MODELS = "gemini-3.1-flash-tts-preview"
 
 
 def gemini_tts_models(model: str = None) -> list:
