@@ -55,7 +55,7 @@ cp .env.example .env                       # bắt buộc: GROQ_API_KEY
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-- **Không có test suite hay linter.** Kiểm tra thay đổi bằng cách chạy chính pipeline (`--style simple` nhanh hơn vì không cần ảnh nhân vật).
+- **Không có test suite hay linter.** Kiểm tra thay đổi bằng cách chạy chính pipeline (`simple` là mặc định, nhanh vì không cần ảnh nhân vật).
 - `scripts/test_*.py`, `scripts/run_perfume.py`, `scripts/run_suitcase.py` là script Shopee, `raise SystemExit` ngay khi chạy, không phải test.
 
 ---
@@ -72,7 +72,7 @@ docker compose -f docker/docker-compose.yml up -d
 ```
 input (Sheet / CSV / CLI)
  → autofill_row        chỉ điền ô trống: product_sources.fetch_tiktok_product + Groq extract_product_facts
- → generate_script     Groq, JSON "segments" (kind: story | product | cta), style story | simple
+ → generate_script     Groq, JSON "segments" (kind: story | product | cta), style simple (mặc định, tự động hoàn toàn) | story (chỉ khi cần: cột `style`/`--style story`, cần ảnh nhân vật)
  → choose_persona + generate_voiceovers   Gemini TTS mặc định; hết quota → cả video chuyển edge-tts
  → generate_story_images   IMAGE_PROVIDER=manual (mặc định) → ghi prompts.txt, status=needs_images
  → render_video        1080×1920, 25fps
