@@ -104,6 +104,10 @@ input (Sheet / CSV / CLI)
 - Studio hiện thư mục travel (nguồn, ảnh/bản quyền, checklist); chỉ edge-tts (không tốn Gemini); không tải `clip_*` / `img_*` lên Drive.
 - Chi tiết: `docs/specs/architecture/capabilities/travel-content.md`, `DR-0002`, `DR-0008`.
 
+### CapCut MCP (`tools/capcut_mcp/`)
+
+- MCP server riêng (không import `demo.py`/`backend/`), dựng draft CapCut desktop để người dùng mở và xuất trong CapCut. Test: `cd tools/capcut_mcp && python -m pytest -q` (cần `pip install -e '.[test]'`). Cài cho Claude Desktop/Code: `tools/capcut_mcp/README.md`.
+
 ### TikTok
 
 - App chỉ xin `user.info.basic` + `video.upload`: video vào **inbox nháp** của creator, **không** dùng Direct Post (`video.publish`).
