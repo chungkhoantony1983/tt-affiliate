@@ -42,6 +42,7 @@ from pathlib import Path
 
 W, H = 1080, 1920
 FPS = 25
+MAX_PRODUCT_IMAGES = 10   # DR-0013 Q-5: was 3; product scenes cycle through all of them
 GAP = 0.25          # silence between spoken segments (s)
 END_HOLD = 0.8      # extra hold on the last scene (s)
 
@@ -1283,7 +1284,7 @@ def _load_image(src: str, out_dir: Path, idx: int):
 def render_video(script: dict, product: dict, output_path: str) -> str:
     """One scene per segment; each scene lasts exactly as long as its spoken line."""
     out_dir = Path(output_path).parent
-    images = [im for im in (_load_image(s, out_dir, i) for i, s in enumerate(product["images"][:3])) if im]
+    images = [im for im in (_load_image(s, out_dir, i) for i, s in enumerate(product["images"][:MAX_PRODUCT_IMAGES])) if im]
     segments = script["segments"]
     print(f"🎬 Rendering video (1080x1920, {len(segments)} scenes, {len(images)} product image(s))...")
 
@@ -1497,7 +1498,7 @@ def autofill_row(row: dict) -> dict:
     found = {
         "name": info["title"],
         "price": str(info["price"]) if info["price"] else "",
-        "images": "|".join(info["images"][:3]),
+        "images": "|".join(info["images"][:MAX_PRODUCT_IMAGES]),
         "sold_count": str(info["sold_count"]) if info["sold_count"] else "",
     }
     if any(not row.get(k, "").strip() for k in ("category", "selling_points", "notes")) and (
@@ -1576,12 +1577,12 @@ PIL_EXT_MAP = {"PNG": ".png", "JPEG": ".jpg", "MPO": ".jpg", "WEBP": ".webp"}
 
 
 def _materialize_product_images(product: dict, out_dir: Path) -> None:
-    """Copy local/staging product images into <out_dir>/anh_sp_{1..3}.<ext> and record relative names (C-0007-3)."""
+    """Copy local/staging product images into <out_dir>/anh_sp_{1..MAX_PRODUCT_IMAGES}.<ext> and record relative names (C-0007-3)."""
     from PIL import Image
 
     staging_dir = out_dir.parent.parent / "studio-logs" / "staging"
     out_images = []
-    for i, raw in enumerate((product.get("images") or [])[:3]):
+    for i, raw in enumerate((product.get("images") or [])[:MAX_PRODUCT_IMAGES]):
         src = str(raw or "").strip()
         if not src:
             continue
@@ -1626,7 +1627,7 @@ def run_create(spec: dict, base_dir: Path, default_style: str, skip_approval: bo
     user_price = spec.get("price")
     user_images = spec.get("images")
     if isinstance(user_images, list):
-        user_images = [str(x).strip() for x in user_images if str(x).strip()][:3]
+        user_images = [str(x).strip() for x in user_images if str(x).strip()][:MAX_PRODUCT_IMAGES]
     else:
         user_images = None
     user_points = spec.get("selling_points")
@@ -1938,7 +1939,7 @@ def main():
     parser.add_argument("--product", help="Product name")
     parser.add_argument("--price", type=int, help="Price in VND")
     parser.add_argument("--category", default="Nhà cửa", help="Product category")
-    parser.add_argument("--images", default="", help="Comma-separated image paths or URLs (max 3 used)")
+    parser.add_argument("--images", default="", help="Comma-separated image paths or URLs (max 10 used)")
     parser.add_argument("--points", default="", help="Selling points, |-separated")
     parser.add_argument("--url", default="", help="TikTok Shop product URL (for post.txt)")
     parser.add_argument("--notes", default="", help="Constraints / target customer for the script")

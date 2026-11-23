@@ -37,9 +37,9 @@ DEMO = REPO_ROOT / "demo.py"
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp")
 PIL_FORMATS = {"PNG": ".png", "JPEG": ".jpg", "MPO": ".jpg", "WEBP": ".webp"}
 MAX_UPLOAD = 15 * 1024 * 1024
-MAX_PRODUCT_IMAGES = 3  # demo.render_video uses the first 3
+MAX_PRODUCT_IMAGES = 10  # same as demo.MAX_PRODUCT_IMAGES (DR-0013 Q-5; was 3)
 SERVED_FILE = re.compile(r"^(canh_\d+|anh_sp_\d+|img_\d+)\.(png|jpg|jpeg|webp)$")
-STAGING_FILE = re.compile(r"^anh_sp_[1-3]\.(png|jpg|jpeg|webp)$")
+STAGING_FILE = re.compile(r"^anh_sp_([1-9]|10)\.(png|jpg|jpeg|webp)$")  # 1..MAX_PRODUCT_IMAGES
 LOCAL_HOSTS = {"127.0.0.1", "localhost"}
 
 # demo.py exit codes (EXIT_REVOICE_FAILED, EXIT_NOT_READY; travel: 5 wrong number, 6 stale facts)
@@ -587,7 +587,7 @@ def _replace_image(folder: Path, stem: str, ext: str, data: bytes) -> str:
 @router.post("/videos/{folder}/image", dependencies=[Depends(require_studio)])
 async def upload_image(folder: str, target: str, index: int, request: Request):
     """Raw image bytes in the body. target=scene: index = scene (segment) index, saved as canh_{index+1}.
-    target=product: index = product image slot 0-2, saved as anh_sp_{index+1} and set in product.json."""
+    target=product: index = product image slot 0-9, saved as anh_sp_{index+1} and set in product.json."""
     path = _folder_or_404(folder)
     _editable_or_409(path)
     if studio_travel.is_travel(path):

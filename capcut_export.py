@@ -17,6 +17,7 @@ from pathlib import Path
 # Keep in step with demo.py render_video so CapCut timing matches video.mp4.
 GAP = 0.25
 END_HOLD = 0.8
+MAX_PRODUCT_IMAGES = 10  # same as demo.py
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp")
 
 YELLOW = "#FFE14D"
@@ -82,7 +83,7 @@ def build_spec(out_dir: Path) -> dict:
     if no_duration:
         raise ExportError(f"Cảnh {no_duration} chưa có thời lượng giọng đọc (script.json).")
 
-    images = [im for im in (_image_for(s, out_dir, i) for i, s in enumerate((product.get("images") or [])[:3])) if im]
+    images = [im for im in (_image_for(s, out_dir, i) for i, s in enumerate((product.get("images") or [])[:MAX_PRODUCT_IMAGES])) if im]
     first = images[0] if images else None
     price = _price_text(product.get("price"))
     hook = script.get("hook")

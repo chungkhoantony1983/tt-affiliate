@@ -717,8 +717,13 @@ function paintSheetSelect() {
   sel.innerHTML = opts.join("");
 }
 
+const MAX_PRODUCT_IMAGES = 10;  // keep in step with demo.MAX_PRODUCT_IMAGES and api/studio.py
+
 function createSlotsMarkup() {
-  const labels = ["Ảnh 1 (Ảnh chính)", "Ảnh 2", "Ảnh 3"];
+  const labels = createState.slots.map((_, k) => (k === 0 ? "Ảnh 1 (Ảnh chính)" : `Ảnh ${k + 1}`));
+  const addCard = createState.slots.length < MAX_PRODUCT_IMAGES
+    ? `<div class="slot-card"><div class="slot-title">Thêm ảnh</div><div class="thumb">+</div>
+        <div class="acts"><button type="button" class="btn small" data-c-add="1">+ Thêm ô ảnh</button></div></div>` : "";
   return labels.map((title, k) => {
     const slot = createState.slots[k];
     if (!slot) {
@@ -740,7 +745,7 @@ function createSlotsMarkup() {
         <button type="button" class="btn small" data-c-del="${k}">Xoá</button>
       </div>
     </div>`;
-  }).join("");
+  }).join("") + addCard;
 }
 
 function renderCreate() {
@@ -786,8 +791,8 @@ function renderCreate() {
         <input type="text" id="c-price" inputmode="numeric" placeholder="Ví dụ: 189.000 (hoặc nhập 0 nếu muốn ẩn giá)" value="${esc(createState.priceRaw)}">
         <div id="c-price-preview">${pricePreviewMarkup(createState.priceRaw, { allowEmpty: true })}</div>
 
-        <label class="f" style="margin-top:16px">Ảnh sản phẩm (tối đa 3 ảnh)</label>
-        <div class="hint" style="margin-top:0;margin-bottom:10px">Nên có đủ 3 ảnh rõ nét. Ảnh 1 quan trọng nhất vì sẽ xuất hiện ở cảnh mở đầu và cảnh kêu gọi mua.</div>
+        <label class="f" style="margin-top:16px">Ảnh sản phẩm (tối đa 10 ảnh)</label>
+        <div class="hint" style="margin-top:0;margin-bottom:10px">Nên có từ 3 ảnh rõ nét trở lên, bấm "+ Thêm ô ảnh" nếu cần thêm. Ảnh 1 quan trọng nhất vì sẽ xuất hiện ở cảnh mở đầu và cảnh kêu gọi mua; các ảnh còn lại xoay vòng ở những cảnh giữa.</div>
         <div class="pimgs" id="c-slots">${createSlotsMarkup()}</div>
       </div>
 
@@ -916,6 +921,13 @@ function bindCreateSlotEvents() {
   root.querySelectorAll("[data-c-del]").forEach((b) =>
     b.addEventListener("click", () => removeStagingImage(+b.dataset.cDel))
   );
+  root.querySelectorAll("[data-c-add]").forEach((b) =>
+    b.addEventListener("click", () => {
+      if (createState.slots.length < MAX_PRODUCT_IMAGES) createState.slots.push(null);
+      root.innerHTML = createSlotsMarkup();
+      bindCreateSlotEvents();
+    })
+  );
 }
 
 async function fetchProductPreview() {
@@ -944,7 +956,7 @@ async function fetchProductPreview() {
       createState.priceRaw = res.price ? formatVndDots(res.price) : (createState.priceRaw || "");
     }
     const imgs = res.images || [];
-    createState.slots = [0, 1, 2].map((k) =>
+    createState.slots = Array.from({ length: Math.max(3, Math.min(imgs.length, MAX_PRODUCT_IMAGES)) }, (_, k) =>
       imgs[k] ? { url: imgs[k], source: imgs[k], uploaded: false } : null
     );
     if (res.selling_points) createState.sellingPoints = res.selling_points;
@@ -1111,7 +1123,7 @@ function render() {
     </div>
     ${v.kind === "travel" ? travelCards(v) : `<div class="card">
       <h3>Ảnh sản phẩm</h3>
-      <p class="sub">Video dùng tối đa 3 ảnh. Ảnh đầu tiên dùng cho cảnh mở đầu và cảnh kêu gọi mua.</p>
+      <p class="sub">Video dùng tối đa 10 ảnh. Ảnh đầu tiên dùng cho cảnh mở đầu và cảnh kêu gọi mua.</p>
       <div class="pimgs">${productImagesMarkup()}</div>
     </div>`}
   </div></div>`;
@@ -1156,7 +1168,7 @@ function productImagesMarkup() {
   const slots = imgs.map((p) => `<div class="pimg">
       ${p.url ? `<img class="thumb" src="${esc(p.url)}" alt="Ảnh sản phẩm ${p.slot + 1}">` : `<div class="thumb">Ảnh trên máy</div>`}
       <button class="btn small" data-upload="product" data-index="${p.slot}">Thay ảnh ${p.slot + 1}</button></div>`);
-  if (imgs.length < 3) slots.push(`<div class="pimg"><div class="thumb">Trống</div>
+  if (imgs.length < MAX_PRODUCT_IMAGES) slots.push(`<div class="pimg"><div class="thumb">Trống</div>
       <button class="btn small" data-upload="product" data-index="${imgs.length}">Thêm ảnh</button></div>`);
   return slots.join("");
 }

@@ -178,3 +178,7 @@ Tự bấm Export trong CapCut; dùng giọng TTS của CapCut; video du lịch 
 ## 13. Liên quan
 
 Issue #36 · DR-0001 (Studio), DR-0007 (tạo video mới), DR-0012 (sổ đếm Gemini) · `pycapcut` 0.0.4
+
+## Bổ sung: nâng giới hạn ảnh sản phẩm (Q-5 / C-0013-4)
+
+Người dùng hỏi vì sao Studio chỉ nhận 3 ảnh. Giới hạn 3 là lựa chọn của DR-0007 (C-0007-3). Nay nâng lên **10 ảnh** (`MAX_PRODUCT_IMAGES`), Studio có nút "+ Thêm ô ảnh"; thay thế phần giới hạn của C-0007-3. Các cảnh giữa xoay vòng qua tất cả ảnh; cả `demo.py` và xuất CapCut dùng cùng hằng số.

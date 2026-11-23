@@ -28,7 +28,7 @@
 | 1 | Tìm sản phẩm | ⬜ | — | Quy trình lấy sản phẩm từ TikTok Shop + tín hiệu trend |
 | 2 | Chấm điểm & chọn | ⬜ | — | Tiêu chí chấm điểm, file `products.csv` |
 | 3 | Script gen | ✅ | `demo.py`: prompt TikTok Shop (hook style, key_points, CTA giỏ hàng, caption), đọc `products.csv`; đã test với Groq thật | — |
-| 4 | TTS + Video | ✅ | `demo.py`: edge-tts + hook → 1 cảnh/ảnh sản phẩm (tối đa 3) → CTA, zoom chậm, chữ tránh vùng UI TikTok | Chưa dùng clip video sản phẩm (chỉ ảnh) |
+| 4 | TTS + Video | ✅ | `demo.py`: edge-tts + hook → 1 cảnh/ảnh sản phẩm (tối đa 10) → CTA, zoom chậm, chữ tránh vùng UI TikTok | Chưa dùng clip video sản phẩm (chỉ ảnh) |
 | 5 | Duyệt thủ công | ✅ | Trang **Studio** `http://127.0.0.1:8000/studio` (DR-0001, DR-0007): tạo video sản phẩm mới (từ link TikTok hoặc dòng Google Sheet, thêm ảnh, nhập/sửa giá có đọc chữ tiếng Việt), xem, sửa caption/hook/giá/lời đọc/ảnh, dựng lại, duyệt. `APPROVAL_MODE=terminal` giữ cách y/n cũ | — |
 | 6 | Đăng + gắn giỏ hàng | 🟡 | Đăng tay: `post.txt` (caption + checklist) cạnh mỗi video · `tiktok_service.py` cho API sau này | API chờ TikTok duyệt. Gắn sản phẩm làm tay trong app (xem §5) |
 | 7 | Analytics | ⬜ | `get_video_stats()` trong `tiktok_service.py` | Chưa thu thập; tạm ghi tay ở §4 |

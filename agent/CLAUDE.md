@@ -92,9 +92,9 @@ input (Sheet / CSV / CLI)
 
 ### Studio (DR-0001, DR-0007)
 
-- Trang `http://127.0.0.1:8000/studio`, tiếng Việt, cho người vận hành: **tạo video sản phẩm mới** (`+ Tạo video mới` từ link TikTok Shop hoặc dòng Google Sheet `>= 2`, xem trước thông tin, sửa giá có đọc số bằng chữ tiếng Việt, tải tối đa 3 ảnh sản phẩm đầu vào) và **duyệt / sửa video**. **Không** đụng `app.html` (đang xét duyệt).
+- Trang `http://127.0.0.1:8000/studio`, tiếng Việt, cho người vận hành: **tạo video sản phẩm mới** (`+ Tạo video mới` từ link TikTok Shop hoặc dòng Google Sheet `>= 2`, xem trước thông tin, sửa giá có đọc số bằng chữ tiếng Việt, tải tối đa 10 ảnh sản phẩm đầu vào, nút "+ Thêm ô ảnh") và **duyệt / sửa video**. **Không** đụng `app.html` (đang xét duyệt).
 - `api/studio.py` chỉ đọc/ghi JSON, ảnh, rồi chạy `demo.py --create-json` / `--render-only` / `--approve` bằng subprocess (C-0001-2). Một job một lúc; log ở `storage/studio-logs/`, ảnh chuẩn bị tạo mới ở `storage/studio-logs/staging/`.
-- Giá & ảnh người dùng nhập/tải trên Studio luôn ưu tiên hơn dữ liệu tự đọc từ Sheet/TikTok (C-0007-1); chỉ nhận giá `0` (ẩn giá) hoặc `>= 1000` VND (C-0007-2); ảnh sản phẩm tải lên lưu thành `anh_sp_{1..3}.<ext>` trong thư mục video (C-0007-3).
+- Giá & ảnh người dùng nhập/tải trên Studio luôn ưu tiên hơn dữ liệu tự đọc từ Sheet/TikTok (C-0007-1); chỉ nhận giá `0` (ẩn giá) hoặc `>= 1000` VND (C-0007-2); ảnh sản phẩm tải lên lưu thành `anh_sp_{1..10}.<ext>` trong thư mục video (C-0007-3).
 - Sửa lời đọc: chỉ đọc lại câu có `line != audio_line`, bằng `script.json → tts_provider` của video. Lỗi thì không đổi audio nào (exit 3), Studio đưa lựa chọn `--revoice-all edge`. Không trộn 2 bộ giọng (C-0001-1).
 - API ghi bắt buộc header `X-Studio: 1`, không mở qua CORS (C-0001-3). Thư mục không có `product.json` → "Chỉ xem".
 - Chi tiết: `docs/specs/architecture/capabilities/video-render.md` § Studio.
