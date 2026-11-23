@@ -347,6 +347,7 @@ function emptyCreateState() {
     priceRaw: "",
     slots: [null, null, null],
     style: "simple",
+    voice: "",
     sellingPoints: "",
     category: "Nhà cửa",
     notes: "",
@@ -683,6 +684,8 @@ function syncCreateDomToState() {
   if ($("#c-notes")) createState.notes = $("#c-notes").value;
   const st = document.querySelector('input[name="c-style"]:checked');
   if (st) createState.style = st.value;
+  const vo = document.querySelector('input[name="c-voice"]:checked');
+  if (vo) createState.voice = vo.value;
 }
 
 function sheetRowValidationMessage() {
@@ -803,6 +806,18 @@ function renderCreate() {
           <label class="style-choice">
             <input type="radio" name="c-style" value="simple" ${createState.style === "simple" ? "checked" : ""}>
             <div><b>Giới thiệu ngắn gọn</b><span>Chỉ dùng ảnh sản phẩm và giọng người dẫn, dựng nhanh.</span></div>
+          </label>
+        </div>
+
+        <label class="f">Giọng đọc</label>
+        <div class="style-choices">
+          <label class="style-choice">
+            <input type="radio" name="c-voice" value="" ${createState.voice !== "edge" ? "checked" : ""}>
+            <div><b>Giọng Gemini</b><span>Tự nhiên hơn, tốn lượt Gemini trong ngày (hết lượt thì tự chuyển giọng miễn phí).</span></div>
+          </label>
+          <label class="style-choice">
+            <input type="radio" name="c-voice" value="edge" ${createState.voice === "edge" ? "checked" : ""}>
+            <div><b>Giọng miễn phí</b><span>Không tốn lượt Gemini. Hợp khi bạn định chỉnh tiếp trong CapCut.</span></div>
           </label>
         </div>
 
@@ -1034,6 +1049,7 @@ async function startCreate() {
     category: createState.category.trim() || "Nhà cửa",
     selling_points: createState.sellingPoints.trim() || null,
     notes: createState.notes.trim() || null,
+    voice: createState.voice || null,
   };
   try {
     await api("/create", { method: "POST", json: payload });
@@ -1258,10 +1274,19 @@ function updateBar() {
   bar.innerHTML = `<span class="why">${esc(why)}</span>
     <button class="btn" id="b-save" ${!dirty || busy || priceInvalid ? "disabled" : ""}>Lưu thay đổi</button>
     <button class="btn ${needsRender && !busy && !priceInvalid ? "primary" : ""}" id="b-render" ${busy || priceInvalid ? "disabled" : ""}>Dựng lại video</button>
+    ${v.kind !== "travel" ? `<button class="btn" id="b-capcut" ${busy || dirty || v.needs_render ? "disabled" : ""} title="${v.capcut ? "Đã xuất: " + esc(v.capcut.draft_name || "") : "Tạo dự án CapCut từ video này để chỉnh tiếp"}">${v.capcut ? "Xuất lại sang CapCut" : "Xuất sang CapCut"}</button>` : ""}
     <button class="btn ${canApprove ? "primary" : ""}" id="b-approve" ${canApprove ? "" : "disabled"}>${stale ? "Cần làm mới nguồn trước" : "Duyệt &amp; lưu"}</button>`;
   $("#b-save").onclick = () => save().then(() => { showBanner("ok", "Đã lưu."); render(); }).catch((e) => showBanner("bad", e.message));
   $("#b-render").onclick = () => startRender();
   $("#b-approve").onclick = () => askApprove();
+  if ($("#b-capcut")) $("#b-capcut").onclick = () => startCapcut();
+}
+
+async function startCapcut() {
+  try {
+    await api(`/videos/${encodeURIComponent(current.folder)}/capcut`, { method: "POST" });
+    watchJob();
+  } catch (e) { showBanner("bad", e.message); }
 }
 
 async function save() {
@@ -1340,6 +1365,7 @@ function watchJob() {
     if (job.state === "running") {
       let what;
       if (job.action === "approve") what = "Đang duyệt.";
+      else if (job.action === "capcut") what = "Đang tạo dự án CapCut, chỉ mất vài giây.";
       else if (job.action === "create") what = "Đang tạo video mới, thường mất 2–3 phút.";
       else what = "Đang dựng lại video, thường mất 1–2 phút.";
       banner = { kind: "job", html: `<span class="spinner"></span>${what} ${esc(stepText(job))}` };
@@ -1367,6 +1393,18 @@ async function jobFinished(job) {
       await openVideo(videos[0].folder, true);
     }
     say("Đã tạo xong video mới");
+  } else if (job.action === "capcut") {
+    const logText = job.log.join("\n");
+    if (job.state === "done") {
+      const m = logText.match(/"draft_name":\s*"([^"]+)"/);
+      banner = { kind: "ok", html: `Đã tạo dự án CapCut <b>${esc(m ? m[1] : "")}</b>. Thoát hẳn CapCut (Cmd+Q) rồi mở lại để thấy dự án.` };
+      say("Đã xuất sang CapCut");
+    } else if (/capcut-mcp/.test(logText)) {
+      banner = { kind: "bad", html: "Máy chưa cài công cụ CapCut. Mở Terminal trong thư mục dự án và chạy: <code>.venv/bin/pip install -e tools/capcut-mcp</code>" + log };
+    } else {
+      banner = { kind: "bad", html: "Chưa xuất sang CapCut được. Video trên Studio vẫn nguyên, bạn vẫn dùng được video.mp4." + log };
+    }
+    await openVideo(job.folder, true);
   } else if (job.state === "done" && job.action === "render") {
     banner = { kind: "ok", html: "Đã dựng xong. Xem lại video." };
     await openVideo(job.folder, true);

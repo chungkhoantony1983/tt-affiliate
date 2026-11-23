@@ -464,6 +464,7 @@ def video_detail(folder: str):
         "voice_engine": engine,
         "voice_engine_known": known,
         "needs_render": bool(script.get("needs_render")),
+        "capcut": _read_json(path / "capcut.json") or None,  # DR-0013
     }
     if studio_travel.is_travel(path):
         result.update(studio_travel.travel_detail(path, script))
@@ -642,6 +643,18 @@ def render(folder: str, req: RenderRequest = RenderRequest()):
     return _start_job("render", path, args)
 
 
+@router.post("/videos/{folder}/capcut", dependencies=[Depends(require_studio)])
+def export_capcut(folder: str):
+    """DR-0013: build a CapCut draft from the folder's existing files (no AI calls, C-0013-1)."""
+    path = _folder_or_404(folder)
+    _editable_or_409(path)
+    if not (path / "product.json").is_file():
+        raise HTTPException(status_code=409, detail="Chỉ xuất được video sản phẩm sang CapCut")
+    if _read_json(path / "script.json").get("needs_render"):
+        raise HTTPException(status_code=409, detail="Bạn đã sửa video, hãy bấm Dựng lại video trước khi xuất CapCut")
+    return _start_job("capcut", path, ["--capcut"])
+
+
 @router.post("/videos/{folder}/approve", dependencies=[Depends(require_studio)])
 def approve(folder: str):
     path = _folder_or_404(folder)
@@ -675,6 +688,7 @@ class CreateVideoRequest(BaseModel):
     selling_points: Optional[str] = None
     notes: Optional[str] = None
     tab: str = "Tiktok"
+    voice: Optional[str] = None  # DR-0013: None = default engine, "edge" = free voice (no Gemini)
 
 
 @router.get("/sheet-rows")
@@ -941,6 +955,8 @@ def create_video(req: CreateVideoRequest):
     _no_job_or_409()
     if req.style not in ("story", "simple"):
         raise HTTPException(status_code=400, detail="Kiểu video phải là story hoặc simple")
+    if req.voice not in (None, "", "gemini", "edge"):
+        raise HTTPException(status_code=400, detail="Giọng đọc phải là Gemini hoặc miễn phí (edge-tts)")
     _validate_price(req.price)
 
     url = (req.product_url or "").strip()
@@ -1035,6 +1051,7 @@ def create_video(req: CreateVideoRequest):
         "category": (req.category or "").strip() or None,
         "selling_points": points or None,
         "notes": (req.notes or "").strip() or None,
+        "voice": req.voice or None,
         "output_dir": str(_videos_root()),
     }
     return _start_create_job(spec)

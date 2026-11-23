@@ -252,10 +252,15 @@ DELIVERY = {
 # so "Máy trợ thính" in category "Sức khỏe" stays female.
 PERSONA_KEYWORDS = {
     "nu_nam": ["suc khoe", "y te", "gia dinh", "me va be", "me be", "tre em", "em be", "nguoi gia",
-               "nguoi lon tuoi", "cham soc", "qua tang", "tinh cam", "tinh yeu", "cha me", "bo me"],
+               "nguoi lon tuoi", "cham soc", "qua tang", "tinh cam", "tinh yeu", "cha me", "bo me",
+               # DR-0013 Q-4: cooking, beauty, fashion -> female (checked before "may" in nam_bac)
+               "nau an", "nha bep", "bep", "do an", "an vat", "thuc pham", "banh", "lam dep", "my pham",
+               "trang diem", "duong da", "cham soc da", "thoi trang", "quan ao", "giay dep", "tui xach",
+               "trang suc", "phu kien thoi trang"],
     "nam_bac": ["dien tu", "cong nghe", "dien thoai", "may tinh", "laptop", "tai nghe bluetooth", "thiet bi",
                 "may moc", "may", "dung cu", "phu kien o to", "o to", "xe may", "xe", "the thao", "the hinh",
-                "tap luyen", "luyen tap", "gym", "fitness", "camera", "loa", "sac du phong"],
+                "tap luyen", "luyen tap", "gym", "fitness", "camera", "loa", "sac du phong",
+                "tra", "am tra", "tra dao", "tra xanh", "tra o long"],  # DR-0013 Q-4: tea -> male
 }
 
 
@@ -1717,6 +1722,8 @@ def run_create(spec: dict, base_dir: Path, default_style: str, skip_approval: bo
         product["images"] = list(user_images)
     if spec.get("style"):
         product["style"] = spec["style"].strip().lower()
+    if (spec.get("voice") or "").strip():
+        product["voice"] = spec["voice"].strip().lower()
 
     result = run_one(product, base_dir, style, skip_approval)
     if sheet is not None and row is not None:
@@ -1743,7 +1750,9 @@ def run_one(product: dict, base_dir: Path, style: str, skip_approval: bool) -> d
 
     script = generate_script(product, style)
     script["voice_persona"] = choose_persona(product)
-    script["tts_provider"] = generate_voiceovers(script["segments"], out_dir, script["voice_persona"])
+    voice = (product.get("voice") or "").strip().lower() or None  # DR-0013: "edge" skips Gemini
+    script["tts_provider"] = generate_voiceovers(script["segments"], out_dir, script["voice_persona"],
+                                                 provider=voice if voice in ("edge", "gemini") else None)
     generate_story_images(script["segments"], out_dir, seed=zlib.crc32(product["name"].encode()) % 100000)
     save_script(out_dir, script)
     (out_dir / "product.json").write_text(json.dumps(product, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -1769,10 +1778,29 @@ def render_and_check(out_dir: Path, script: dict, product: dict) -> list:
     script.pop("needs_render", None)  # set by the Studio page when an edit needs a new render
     save_script(out_dir, script)
     missing = write_image_prompts(script["segments"], out_dir)
+    if not missing:
+        auto_export_capcut(out_dir)
     if missing:
         print(f"\n🖼️  Cần ảnh nhân vật cho cảnh {missing} → làm theo {out_dir / 'prompts.txt'}")
         print("   (video.mp4 hiện là bản nháp, dùng ảnh sản phẩm thay cho cảnh nhân vật)")
     return missing
+
+
+def auto_export_capcut(out_dir: Path) -> None:
+    """DR-0013 Q-3: after a render (voice is final), refresh the CapCut draft. Never fails the video."""
+    import capcut_export
+    if not capcut_export.auto_export_enabled() or not (out_dir / "product.json").is_file():
+        return
+    try:
+        import capcut_mcp  # noqa: F401
+    except ImportError:
+        print("   ℹ️  CapCut: chưa cài capcut-mcp (.venv/bin/pip install -e tools/capcut-mcp), bỏ qua xuất CapCut")
+        return
+    try:
+        rec = capcut_export.export_folder(out_dir)
+        print(f"🎞️  CapCut: đã tạo dự án \"{rec['draft_name']}\" (thoát hẳn CapCut rồi mở lại để thấy)")
+    except capcut_export.ExportError as e:
+        print(f"   ⚠️  CapCut: không xuất được ({e}). video.mp4 vẫn dùng bình thường.")
 
 
 def finish(out_dir: Path, script: dict, product: dict, skip_approval: bool) -> dict:
@@ -1901,6 +1929,10 @@ def main():
                         help="Re-voice edited lines and re-render a folder; no approval, no Drive (Studio)")
     parser.add_argument("--revoice-all", choices=["edge", "gemini"],
                         help="With --render-only: re-voice every line with this engine")
+    parser.add_argument("--capcut", metavar="DIR",
+                        help="Export an existing product video folder to a CapCut draft (DR-0013), no AI calls")
+    parser.add_argument("--voice", choices=["gemini", "edge"],
+                        help="Voice engine for new videos (default: TTS_PROVIDER / Gemini when a key is set)")
     parser.add_argument("--approve", metavar="DIR",
                         help="Approve a rendered folder: post.txt → Drive → sheet status=done (Studio)")
     parser.add_argument("--product", help="Product name")
@@ -1938,6 +1970,8 @@ def main():
     global KEEP_LOCAL
     KEEP_LOCAL = args.keep_local
     load_env()
+    if args.voice:  # DR-0013: --voice edge makes every new video skip Gemini
+        os.environ["TTS_PROVIDER"] = args.voice
     if args.tts_status:
         # Reads the local ledger only: no network call, nothing written (C-0012-3).
         print(json.dumps(quota_status(), ensure_ascii=False))
@@ -1957,6 +1991,15 @@ def main():
     if args.travel or args.refresh_facts:
         import travel
         sys.exit(travel.main_new(args))
+    if args.capcut:
+        import capcut_export
+        try:
+            rec = capcut_export.export_folder(Path(args.capcut))
+        except capcut_export.ExportError as e:
+            print(f"❌ {e}")
+            sys.exit(e.exit_code)
+        print(json.dumps(rec, ensure_ascii=False))
+        return
     if args.revoice_all and not args.render_only:
         parser.error("--revoice-all needs --render-only DIR")
     if args.render_only or args.approve:
