@@ -40,6 +40,8 @@ cp .env.example .env                       # bắt buộc: GROQ_API_KEY
 .venv/bin/python demo.py --rerender storage/videos/<thư mục>   # sau khi thêm canh_N.png; không gọi lại AI
 .venv/bin/python demo.py --render-only storage/videos/<thư mục> [--revoice-all edge]  # Studio: đọc lại câu đã sửa + dựng
 .venv/bin/python demo.py --approve storage/videos/<thư mục>     # Studio: post.txt → Drive → status=done
+.venv/bin/python demo.py --capcut storage/videos/<thư mục>       # xuất video sản phẩm sang dự án CapCut (không gọi AI; DR-0013)
+# --voice edge|gemini chọn giọng cho video mới (edge = miễn phí, không tốn lượt Gemini)
 # Cờ khác: --skip-approval, --keep-local, --tab <tên tab>, --output-dir <dir>, --url, --notes
 
 # Video du lịch Việt Nam tiếng Anh (tab Travel, không bán hàng; DR-0002, DR-0008)
@@ -103,6 +105,12 @@ input (Sheet / CSV / CLI)
 - Mã thoát: 3 đọc lại giọng lỗi · 4 chưa sẵn sàng · **5** số không khớp nguồn (`fact_check`) · **6** dữ kiện dễ đổi quá 30 ngày (`facts_stale`, chạy `--refresh-facts`) · **7** tải Drive lỗi (`drive_failed`, không `done`, thư mục còn).
 - Studio hiện thư mục travel (nguồn, ảnh/bản quyền, checklist); chỉ edge-tts (không tốn Gemini); không tải `clip_*` / `img_*` lên Drive.
 - Chi tiết: `docs/specs/architecture/capabilities/travel-content.md`, `DR-0002`, `DR-0008`.
+
+### CapCut (`capcut_export.py`, `tools/capcut-mcp/`, capability `capcut-edit`, DR-0013)
+
+- Xuất video **sản phẩm** (có `product.json`) sang dự án nháp CapCut, giữ giọng đọc đã có; không gọi Groq/Gemini (C-0013-1). Tự chạy sau khi dựng nếu `CAPCUT_AUTO_EXPORT=1` và đã `pip install -e tools/capcut-mcp`; lỗi chỉ cảnh báo. Studio có nút "Xuất sang CapCut".
+- `tools/capcut-mcp` là MCP server cho Claude Desktop (hiệu ứng chọn theo danh mục, edge-tts theo cảnh, công cụ `affiliate_*` đọc `TT_AFFILIATE_DIR`). Khung dự án CapCut 9.8 (`skeleton_v9`) **không commit** (repo công khai), để ở `~/.capcut-mcp/skeleton_v9`.
+- Chi tiết: `docs/specs/architecture/capabilities/capcut-edit.md`.
 
 ### TikTok
 
