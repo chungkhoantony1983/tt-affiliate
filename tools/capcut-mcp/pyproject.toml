@@ -8,6 +8,8 @@ dependencies = [
   "pycapcut==0.0.4",
   "Pillow>=10",
   "imageio-ffmpeg>=0.5",  # Homebrew ffmpeg lacks drawtext
+  "edge-tts>=6",
+  "mutagen",
 ]
 
 [project.scripts]

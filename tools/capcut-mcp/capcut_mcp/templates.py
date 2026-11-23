@@ -51,6 +51,7 @@ def product_spec(
     style: str = "energetic", aspect: str = "9:16", music: str | None = None,
     voiceover: str | None = None, theme: dict[str, str] | None = None,
     font: str | None = None, draft_name: str | None = None,
+    category: str = "", look: str = "auto", narrations: list[str] | None = None,
 ) -> dict[str, Any]:
     if not images:
         raise ValueError("Cần ít nhất 1 ảnh/video sản phẩm")
@@ -104,8 +105,17 @@ def product_spec(
                           "size": 8, "color": th["accent"], "start": 0.4, **f})
     scenes.append({"media": img(0), "duration": 3.2, "motion": "zoom_out", "texts": cta_texts})
 
+    roles = ["hook"] + ["point"] * len(selling_points[:6]) + (["price"] if price not in (None, "") else []) + ["cta"]
+    for sc, role in zip(scenes, roles):
+        sc["role"] = role
+    # Narration lines in scene order (hook, points..., price, cta). A scene without a line stays silent.
+    for sc, line in zip(scenes, narrations or []):
+        if (line or "").strip():
+            sc["narration"] = line.strip()
+
     spec: dict[str, Any] = {"name": draft_name or f"QC - {product_name}", "aspect": aspect,
-                            "theme": th, "scenes": scenes}
+                            "theme": th, "scenes": scenes, "category": category,
+                            "product_name": product_name, "look": look}
     if music:
         spec["music"] = {"path": music, "volume": 0.35 if voiceover else 0.6}
     if voiceover:

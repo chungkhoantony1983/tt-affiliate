@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import difflib
 import json
+import os
 import shutil
 import time
 import uuid
@@ -14,8 +15,9 @@ import pycapcut as cc
 from pycapcut import (ClipSettings, KeyframeProperty, TextBackground, TextBorder,
                       TextShadow, TextStyle, TrackType)
 
+from .prepare import prepare_spec
 from .common import (ASPECTS, POSITIONS, fetch_media, get_drafts_folder, hex_to_rgb01,
-                     is_video, normalise_spec, safe_name, solid_color_png)
+                     is_video, safe_name, solid_color_png)
 
 SEC = 1_000_000
 
@@ -60,6 +62,14 @@ def resolve(kind: str, name: str | None):
     raise ValueError(f"Không có {kind} tên '{name}'. Gợi ý: {close}. Dùng tool list_effects để tra.")
 
 
+def resolve_soft(kind: str, name: str | None):
+    """Like resolve, but an unknown name from a look is skipped instead of failing the draft."""
+    try:
+        return resolve(kind, name)
+    except ValueError:
+        return None
+
+
 def list_effect_names(kind: str, query: str = "", limit: int = 80) -> dict[str, Any]:
     enum = ENUMS[kind]
     names = [n for n in enum.__members__ if query.lower() in n.lower()]
@@ -82,7 +92,18 @@ def _write_meta(draft_dir: Path, name: str, duration_us: int, root: Path) -> Non
     meta_path.write_text(json.dumps(meta, ensure_ascii=False), "utf-8")
 
 
-SKELETON = Path(__file__).parent / "skeleton_v9"
+def find_skeleton() -> Path:
+    """The empty CapCut 9.8 draft used as a template. Kept out of git (public repo), so look in
+    CAPCUT_SKELETON_DIR, ~/.capcut-mcp/skeleton_v9, then the package folder."""
+    import os
+    cands = [os.environ.get("CAPCUT_SKELETON_DIR"), Path.home() / ".capcut-mcp" / "skeleton_v9",
+             Path(__file__).parent / "skeleton_v9"]
+    for c in cands:
+        if c and (Path(c) / "draft_info.json").is_file():
+            return Path(c)
+    raise FileNotFoundError(
+        "Không thấy khung dự án CapCut (skeleton_v9). Chép nó vào ~/.capcut-mcp/skeleton_v9 "
+        "hoặc đặt CAPCUT_SKELETON_DIR trong .env.")
 
 
 def _to_v9_layout(draft_dir: Path, name: str, duration_us: int, root: Path) -> None:
@@ -91,6 +112,7 @@ def _to_v9_layout(draft_dir: Path, name: str, duration_us: int, root: Path) -> N
     pycapcut writes the older draft_content.json layout; wrap it in the skeleton of an
     empty draft saved by CapCut 9.8 and keep draft_content.json for older versions.
     """
+    SKELETON = find_skeleton()
     shutil.copytree(SKELETON, draft_dir, dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns("_timeline"))
     ref = json.loads((SKELETON / "draft_info.json").read_text("utf-8"))
@@ -172,12 +194,14 @@ def _text_segment(t: dict[str, Any], start_us: int, scene_dur_us: int, aspect: s
 
 def build_capcut_draft(spec: dict[str, Any], *, overwrite: bool = True,
                        drafts_folder: str | None = None) -> dict[str, Any]:
-    spec = normalise_spec(spec)
+    spec = prepare_spec(spec)
     root = Path(drafts_folder) if drafts_folder else get_drafts_folder()
     if root is None or not root.is_dir():
         raise FileNotFoundError(
             "Không tìm thấy thư mục draft của CapCut. Hãy mở CapCut, tạo 1 dự án trống, "
             "hoặc gọi tool set_drafts_folder với đường dẫn đúng.")
+    if os.environ.get("CAPCUT_LEGACY_LAYOUT") != "1":
+        find_skeleton()  # fail before any file is written
     width, height = ASPECTS[spec["aspect"]]
     name = safe_name(spec["name"])
     folder = cc.DraftFolder(str(root))
@@ -189,6 +213,10 @@ def build_capcut_draft(spec: dict[str, Any], *, overwrite: bool = True,
     max_texts = max((len(sc["texts"]) for sc in spec["scenes"]), default=0)
     for i in range(max_texts):
         script.add_track(TrackType.text, f"text_{i}")
+    if any(sc.get("scene_effect") for sc in spec["scenes"]):
+        script.add_track(TrackType.effect, "fx")
+    if any(sc.get("audio") for sc in spec["scenes"]):
+        script.add_track(TrackType.audio, "narration")
 
     cursor = 0
     segments: list[cc.VideoSegment] = []
@@ -207,13 +235,28 @@ def build_capcut_draft(spec: dict[str, Any], *, overwrite: bool = True,
             seg = cc.VideoSegment(material, cc.Timerange(cursor, dur))
             _motion(seg, sc["motion"], dur)
         seg.add_background_filling("blur", 0.375)
-        if sc.get("clip_in"):
-            seg.add_animation(resolve("clip_in", sc["clip_in"]))
-        if sc.get("filter"):
-            seg.add_filter(resolve("filter", sc["filter"]), float(sc.get("filter_intensity", 80)))
-        if sc.get("transition") and i < len(spec["scenes"]) - 1:
-            seg.add_transition(resolve("transition", sc["transition"]))
+        user = set(sc.get("_user_keys") or [])
+
+        def pick(kind: str, key: str):
+            return resolve(kind, sc[key]) if key in user else resolve_soft(kind, sc.get(key))
+
+        anim = pick("clip_in", "clip_in") if sc.get("clip_in") else None
+        if anim is not None:
+            seg.add_animation(anim)
+        flt = pick("filter", "filter") if sc.get("filter") else None
+        if flt is not None:
+            seg.add_filter(flt, float(sc.get("filter_intensity", 80)))
+        tr = pick("transition", "transition") if sc.get("transition") and i < len(spec["scenes"]) - 1 else None
+        if tr is not None:
+            seg.add_transition(tr)
         script.add_segment(seg, "main")
+        fx = pick("scene_effect", "scene_effect") if sc.get("scene_effect") else None
+        if fx is not None:
+            script.add_effect(fx, cc.Timerange(cursor, dur), "fx")
+        if sc.get("audio"):
+            amat_scene = cc.AudioMaterial(str(_copy_in(fetch_media(sc["audio"]), assets, 50 + i)))
+            script.add_segment(cc.AudioSegment(amat_scene, cc.Timerange(cursor, min(amat_scene.duration, dur)),
+                                               volume=float(sc.get("audio_volume", 1.0))), "narration")
         segments.append(seg)
         for j, t in enumerate(sc["texts"]):
             script.add_segment(_text_segment(t, cursor, dur, spec["aspect"]), f"text_{j}")
@@ -229,6 +272,8 @@ def build_capcut_draft(spec: dict[str, Any], *, overwrite: bool = True,
         apath = _copy_in(fetch_media(audio["path"]), assets, 90 if key == "music" else 91)
         amat = cc.AudioMaterial(str(apath))
         script.add_track(TrackType.audio, track_name)
+        if key == "music" and any(sc.get("audio") for sc in spec["scenes"]):
+            audio = {**audio, "volume": min(float(audio.get("volume", 0.35)), 0.15)}  # duck under narration
         vol = float(audio.get("volume", 0.35 if key == "music" else 1.0))
         pos = 0
         first = True
@@ -245,6 +290,7 @@ def build_capcut_draft(spec: dict[str, Any], *, overwrite: bool = True,
 
     script.save()
     _write_meta(draft_dir, name, total, root)
-    _to_v9_layout(draft_dir, name, total, root)
+    if os.environ.get("CAPCUT_LEGACY_LAYOUT") != "1":  # 1 = older CapCut / tests without the skeleton
+        _to_v9_layout(draft_dir, name, total, root)
     return {"draft_name": name, "draft_path": str(draft_dir), "duration_s": round(total / SEC, 2),
             "scenes": len(spec["scenes"]), "size": f"{width}x{height}"}

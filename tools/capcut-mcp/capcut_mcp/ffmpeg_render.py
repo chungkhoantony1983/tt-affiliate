@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from .common import (ASPECTS, OUTPUT_DIR, POSITIONS, fetch_media, find_ffmpeg, find_font,
-                     is_video, normalise_spec, safe_name)
+                     is_video, safe_name)
+from .prepare import prepare_spec
 
 XFADE = {
     "dissolve": "fade", "fade": "fade", "叠化": "fade", "slide_left": "slideleft", "向左": "slideleft",
@@ -103,7 +104,7 @@ def _scene_clip(sc: dict[str, Any], i: int, W: int, H: int, fps: int, tmp: Path,
 
 
 def render_mp4(spec: dict[str, Any], output: str | None = None) -> dict[str, Any]:
-    spec = normalise_spec(spec)
+    spec = prepare_spec(spec)
     # xfade overlaps neighbours; extend each clip by its overlap so the MP4 is as long as the
     # CapCut draft and a voiceover timed to the spec is not cut off.
     last_i = len(spec["scenes"]) - 1
@@ -124,11 +125,13 @@ def render_mp4(spec: dict[str, Any], output: str | None = None) -> dict[str, Any
         for c in clips:
             inputs += ["-i", str(c)]
         parts, last, offset = [], "[0:v]", 0.0
+        starts = [0.0]  # when each scene begins in the final video (for per-scene narration)
         for k in range(1, len(clips)):
             prev = spec["scenes"][k - 1]
             tr = prev.get("transition")
             dur = 0.4 if tr else 0.04
             offset += prev["duration"] - dur
+            starts.append(offset)
             label = f"[x{k}]"
             parts.append(f"{last}[{k}:v]xfade=transition={XFADE.get(tr or 'fade', 'fade')}:"
                          f"duration={dur}:offset={offset:.3f}{label}")
@@ -139,6 +142,17 @@ def render_mp4(spec: dict[str, Any], output: str | None = None) -> dict[str, Any
 
         audio_inputs, afilters, amix = [], [], []
         n = len(clips)
+        narr = []
+        for k, sc in enumerate(spec["scenes"]):
+            if sc.get("audio"):
+                audio_inputs += ["-i", str(fetch_media(sc["audio"]))]
+                ms = int(starts[k] * 1000)
+                afilters.append(f"[{n}:a]adelay={ms}|{ms},volume={float(sc.get('audio_volume', 1.0))}[n{k}]")
+                narr.append(f"[n{k}]")
+                n += 1
+        if narr:
+            afilters.append("".join(narr) + f"amix=inputs={len(narr)}:duration=longest:normalize=0,"
+                            f"atrim=0:{total:.3f}[av0]")
         for key in ("music", "voiceover"):
             a = spec.get(key)
             if not a:
@@ -147,6 +161,8 @@ def render_mp4(spec: dict[str, Any], output: str | None = None) -> dict[str, Any
                 a = {"path": a}
             path = fetch_media(a["path"])
             vol = float(a.get("volume", 0.35 if key == "music" else 1.0))
+            if key == "music" and narr:
+                vol = min(vol, 0.15)  # duck under narration
             if key == "music":
                 audio_inputs += ["-stream_loop", "-1", "-i", str(path)]
                 afilters.append(f"[{n}:a]atrim=0:{total:.3f},volume={vol},afade=t=in:d=0.5,"
@@ -161,8 +177,10 @@ def render_mp4(spec: dict[str, Any], output: str | None = None) -> dict[str, Any
         maps = ["-map", vout]
         if amix:
             graph += ";" + ";".join(afilters)
-            if len(amix) == 2:
-                graph += ";[am][av]amix=inputs=2:duration=first:normalize=0[aout]"
+            if narr:
+                amix.append("[av0]")
+            if len(amix) >= 2:
+                graph += ";" + "".join(amix) + f"amix=inputs={len(amix)}:duration=first:normalize=0[aout]"
                 maps += ["-map", "[aout]"]
             else:
                 maps += ["-map", amix[0]]

@@ -174,6 +174,12 @@ giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thi�
 - [ ] P2: đăng 10–15 video, ghi % người xem US / CA / AU vào §4
 - [ ] P3 (DR riêng): tự tìm chủ đề xu hướng (YouTube Data API, Google Trends)
 
+### M2e — Xuất sang CapCut (DR-0013, issue #36, 2026-11-23)
+
+- ✅ Code: `capcut_export.py`, `demo.py --capcut` / `--voice`, nút Studio "Xuất sang CapCut", chọn giọng khi tạo, `tools/capcut-mcp` (hiệu ứng theo bối cảnh, giọng edge-tts theo cảnh, công cụ `affiliate_*`)
+- ⬜ Chờ người dùng thử trên CapCut thật (Mac, CapCut 9.8): mở dự án có tiếng, ảnh, chữ, hiệu ứng (E2E-3)
+- Khung dự án CapCut 9.8 (`skeleton_v9`) để ngoài git: `~/.capcut-mcp/skeleton_v9`
+
 ### M3 — Đăng & học từ dữ liệu
 - [ ] Đăng tay 10 video đầu, gắn sản phẩm, ghi kết quả vào §4
 - [ ] Sau 2 tuần: rút ra ngách / kiểu hook / thời lượng thắng → cập nhật tiêu chí chấm điểm ở M1

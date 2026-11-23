@@ -186,7 +186,13 @@ def normalise_spec(spec: dict[str, Any]) -> dict[str, Any]:
     """Fill defaults and validate a video spec. See README for the format."""
     if not spec.get("scenes"):
         raise ValueError("spec cần ít nhất 1 scene")
+    from .looks import apply_look
     s = dict(spec)
+    s["scenes"] = [dict(sc, texts=[dict(t) if isinstance(t, dict) else t for t in (sc.get("texts") or [])])
+                   for sc in s["scenes"]]
+    for sc in s["scenes"]:  # remember which effects came from the look, so unknown names there are skipped
+        sc["_user_keys"] = [k for k in ("motion", "transition", "clip_in", "filter", "scene_effect") if sc.get(k)]
+    apply_look(s)
     s.setdefault("name", "video")
     s.setdefault("aspect", "9:16")
     if s["aspect"] not in ASPECTS:
