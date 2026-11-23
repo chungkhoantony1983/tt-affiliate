@@ -1,0 +1,24 @@
+[project]
+name = "capcut-mcp"
+version = "0.1.0"
+description = "MCP server: Claude tạo video quảng cáo sản phẩm (affiliate) trên CapCut"
+requires-python = ">=3.10"
+dependencies = [
+  "mcp>=1.10,<2",
+  "pycapcut==0.0.4",
+  "Pillow>=10",
+  "imageio-ffmpeg>=0.5",  # Homebrew ffmpeg lacks drawtext
+]
+
+[project.scripts]
+capcut-mcp = "capcut_mcp.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["capcut_mcp"]
+
+[tool.setuptools.package-data]
+capcut_mcp = ["skeleton_v9/*", "skeleton_v9/*/*", "skeleton_v9/*/*/*", "skeleton_v9/*/*/*/*"]
