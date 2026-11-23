@@ -8,7 +8,10 @@ import subprocess
 from pathlib import Path
 from typing import Any, Literal
 
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError as _e:  # draft export / rendering work without the MCP package
+    raise SystemExit("Máy chủ MCP cần Python 3.10+ và gói mcp: pip install -e 'tools/capcut-mcp[mcp]'") from _e
 
 from . import common
 from .templates import STYLES, caption, product_spec

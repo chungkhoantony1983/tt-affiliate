@@ -18,7 +18,7 @@ echo "==> Tạo môi trường Python tại $VENV"
 mkdir -p "$HOME_DIR"
 "$PY" -m venv "$VENV"
 "$VENV/bin/pip" install -q --upgrade pip
-"$VENV/bin/pip" install -q -e "$DIR"  # editable: code edits here apply without reinstall
+"$VENV/bin/pip" install -q -e "$DIR[mcp]"  # editable: code edits here apply without reinstall
 mkdir -p "$HOME/Movies/CapCut-MCP"
 
 echo "==> Đăng ký MCP với Claude Desktop"
