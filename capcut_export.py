@@ -125,6 +125,11 @@ def build_spec(out_dir: Path) -> dict:
         scenes.append({"media": media, "duration": round(dur, 3), "role": role, "texts": texts,
                        "audio": str(out_dir / f"audio_{i}.mp3"), "background": "#111111"})
 
+    if not any(sc["media"] for sc in scenes):
+        raise ExportError("Video này chưa có ảnh nào (không có ảnh sản phẩm, cũng không có ảnh nhân vật canh_N). "
+                          "Thêm ảnh sản phẩm trên Studio rồi Dựng lại, sau đó xuất CapCut. "
+                          "Nếu xuất bây giờ, CapCut chỉ có nền đen.")
+
     stamp = out_dir.name[:13]  # YYYYmmdd_HHMM… keeps re-exports of one folder on one draft
     return {
         "name": f"TT - {product.get('name', 'video')} {stamp}".strip(),
