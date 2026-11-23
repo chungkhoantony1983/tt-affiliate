@@ -146,18 +146,37 @@ def fetch_media(src: str) -> Path:
 
 
 def _normalise_image(p: Path) -> Path:
-    """CapCut does not reliably accept webp/gif stills: convert them to PNG when Pillow exists."""
-    if p.suffix.lower() not in {".webp"}:
+    """CapCut needs real, plainly-encoded stills. Re-encode to PNG when the content is not a clean
+    JPEG/PNG matching its extension (webp/gif/avif, webp bytes named .jpg, EXIF-rotated, CMYK...).
+    Raises ValueError for an image file that cannot be decoded at all."""
+    if p.suffix.lower() not in IMAGE_EXT:
         return p
     try:
-        from PIL import Image  # type: ignore
+        from PIL import Image, ImageOps  # type: ignore
     except Exception:
         return p
-    out = CACHE_DIR / (hashlib.sha1(str(p).encode()).hexdigest()[:16] + ".png")
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if not out.exists():
-        Image.open(p).convert("RGBA").save(out)
-    return out
+    try:
+        with Image.open(p) as im:
+            fmt = (im.format or "").upper()
+            exif_rot = False
+            try:
+                exif_rot = im.getexif().get(0x0112, 1) not in (1, None)
+            except Exception:
+                pass
+            ext_ok = (fmt == "JPEG" and p.suffix.lower() in {".jpg", ".jpeg"}) or (fmt == "PNG" and p.suffix.lower() == ".png")
+            if ext_ok and not exif_rot and im.mode in ("RGB", "RGBA", "L"):
+                return p
+            im.load()
+            im = ImageOps.exif_transpose(im)
+            im = im.convert("RGBA" if "A" in im.getbands() else "RGB")
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            key = hashlib.sha1((str(p) + str(p.stat().st_mtime_ns)).encode()).hexdigest()[:16]
+            out = CACHE_DIR / (key + ".png")
+            if not out.exists():
+                im.save(out)
+            return out
+    except Exception as e:
+        raise ValueError(f"Không đọc được ảnh {p.name}: {type(e).__name__}: {e}") from e
 
 
 def is_video(p: Path) -> bool:
