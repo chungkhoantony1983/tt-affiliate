@@ -149,7 +149,7 @@ http://127.0.0.1:8000/studio → bấm "+ Tạo video mới"
   → Bước 1: Chọn sản phẩm ("Dán link TikTok Shop" hoặc "Chọn dòng trên Google Sheet", dòng >= 2)
            → bấm "Lấy thông tin sản phẩm" (POST /api/studio/product-preview, $0)
   → Bước 2: Kiểm tra/sửa Giá sản phẩm (0 = ẩn giá, hoặc >= 1000 VND; có chữ đọc tiền tiếng Việt)
-           & Tải/thay/xoá tối đa 3 Ảnh sản phẩm (POST/DELETE /api/studio/staging-image?slot=0..2)
+           & Tải/thay/xoá tối đa 10 Ảnh sản phẩm (POST/DELETE /api/studio/staging-image?slot=0..9)
   → Bước 3: Kiểm tra Tên sản phẩm, Kiểu video (story | simple), Điểm nổi bật, Danh mục, Ghi chú
            → bấm "Tạo video" (POST /api/studio/create → demo.py --create-json FILE)
                   │
