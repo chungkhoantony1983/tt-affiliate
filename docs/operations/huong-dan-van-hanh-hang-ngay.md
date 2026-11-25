@@ -134,7 +134,7 @@ Lưu ý:
    - *(Nếu TikTok tạm chặn đọc tự động từ link đó, trang sẽ hiện thông báo màu vàng hướng dẫn bạn tự điền Tên sản phẩm, Giá bán và tải Ảnh sản phẩm ở ngay bên dưới — không cần chạy lại).*
 3. **Bước 2: Kiểm tra giá & Ảnh sản phẩm**:
    - **Giá sản phẩm hiện trên video (đồng)**: gõ hoặc dán giá (ví dụ `189000` hoặc `189.000`). Nhìn dòng chữ ngay bên dưới ô giá (ví dụ: *Sẽ hiện trên video: 189.000đ (Một trăm tám mươi chín nghìn đồng)*) để chắc chắn không gõ thừa hay thiếu số `0`. Nếu muốn **ẩn giá** trên video, nhập **`0`** (*Không hiện giá trên video*). Nếu tạo từ dòng Google Sheet và bạn sửa lại giá ở đây, máy sẽ tự cập nhật giá mới lên đúng dòng đó trên Google Sheet.
-   - **Ảnh sản phẩm (tối đa 3 ảnh)**: kiểm tra 3 ô **Ảnh 1 (Ảnh chính)**, **Ảnh 2**, **Ảnh 3** (*Ảnh 1 quan trọng nhất vì sẽ xuất hiện ở cảnh mở đầu và cảnh kêu gọi mua*). Ở mỗi ô, bạn có thể bấm **+ Tải ảnh lên** (hoặc **Đổi ảnh** / **Xoá**) để chọn ảnh PNG, JPG, WEBP từ máy tính/điện thoại làm ảnh đầu vào cho video.
+   - **Ảnh sản phẩm (tối đa 10 ảnh)**: mặc định có 3 ô, bấm **+ Thêm ô ảnh** nếu cần thêm. Kiểm tra các ô **Ảnh 1 (Ảnh chính)**, **Ảnh 2**, **Ảnh 3** (*Ảnh 1 quan trọng nhất vì sẽ xuất hiện ở cảnh mở đầu và cảnh kêu gọi mua*). Ở mỗi ô, bạn có thể bấm **+ Tải ảnh lên** (hoặc **Đổi ảnh** / **Xoá**) để chọn ảnh PNG, JPG, WEBP từ máy tính/điện thoại làm ảnh đầu vào cho video.
 4. **Bước 3: Thông tin chi tiết & Kiểu video**:
    - Kiểm tra lại **Tên sản phẩm**, **Điểm nổi bật (mỗi ý 1 dòng)**, **Danh mục** và **Ghi chú / Lưu ý khi viết kịch bản** (bắt buộc xoá những ý quảng cáo quá lời của người bán nếu có).
    - Chọn **Kiểu video**:

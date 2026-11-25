@@ -9,3 +9,4 @@ pydantic-settings
 httpx
 gspread
 google-auth
+# CapCut export (DR-0013): pip install -e tools/capcut-mcp

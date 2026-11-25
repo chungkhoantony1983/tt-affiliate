@@ -40,6 +40,8 @@ cp .env.example .env                       # bắt buộc: GROQ_API_KEY
 .venv/bin/python demo.py --rerender storage/videos/<thư mục>   # sau khi thêm canh_N.png; không gọi lại AI
 .venv/bin/python demo.py --render-only storage/videos/<thư mục> [--revoice-all edge]  # Studio: đọc lại câu đã sửa + dựng
 .venv/bin/python demo.py --approve storage/videos/<thư mục>     # Studio: post.txt → Drive → status=done
+.venv/bin/python demo.py --capcut storage/videos/<thư mục>       # xuất video sản phẩm sang dự án CapCut (không gọi AI; DR-0013)
+# --voice edge|gemini chọn giọng cho video mới (edge = miễn phí, không tốn lượt Gemini)
 # Cờ khác: --skip-approval, --keep-local, --tab <tên tab>, --output-dir <dir>, --url, --notes
 
 # Video du lịch Việt Nam tiếng Anh (tab Travel, không bán hàng; DR-0002, DR-0008)
@@ -90,9 +92,9 @@ input (Sheet / CSV / CLI)
 
 ### Studio (DR-0001, DR-0007)
 
-- Trang `http://127.0.0.1:8000/studio`, tiếng Việt, cho người vận hành: **tạo video sản phẩm mới** (`+ Tạo video mới` từ link TikTok Shop hoặc dòng Google Sheet `>= 2`, xem trước thông tin, sửa giá có đọc số bằng chữ tiếng Việt, tải tối đa 3 ảnh sản phẩm đầu vào) và **duyệt / sửa video**. **Không** đụng `app.html` (đang xét duyệt).
+- Trang `http://127.0.0.1:8000/studio`, tiếng Việt, cho người vận hành: **tạo video sản phẩm mới** (`+ Tạo video mới` từ link TikTok Shop hoặc dòng Google Sheet `>= 2`, xem trước thông tin, sửa giá có đọc số bằng chữ tiếng Việt, tải tối đa 10 ảnh sản phẩm đầu vào, nút "+ Thêm ô ảnh") và **duyệt / sửa video**. **Không** đụng `app.html` (đang xét duyệt).
 - `api/studio.py` chỉ đọc/ghi JSON, ảnh, rồi chạy `demo.py --create-json` / `--render-only` / `--approve` bằng subprocess (C-0001-2). Một job một lúc; log ở `storage/studio-logs/`, ảnh chuẩn bị tạo mới ở `storage/studio-logs/staging/`.
-- Giá & ảnh người dùng nhập/tải trên Studio luôn ưu tiên hơn dữ liệu tự đọc từ Sheet/TikTok (C-0007-1); chỉ nhận giá `0` (ẩn giá) hoặc `>= 1000` VND (C-0007-2); ảnh sản phẩm tải lên lưu thành `anh_sp_{1..3}.<ext>` trong thư mục video (C-0007-3).
+- Giá & ảnh người dùng nhập/tải trên Studio luôn ưu tiên hơn dữ liệu tự đọc từ Sheet/TikTok (C-0007-1); chỉ nhận giá `0` (ẩn giá) hoặc `>= 1000` VND (C-0007-2); ảnh sản phẩm tải lên lưu thành `anh_sp_{1..10}.<ext>` trong thư mục video (C-0007-3).
 - Sửa lời đọc: chỉ đọc lại câu có `line != audio_line`, bằng `script.json → tts_provider` của video. Lỗi thì không đổi audio nào (exit 3), Studio đưa lựa chọn `--revoice-all edge`. Không trộn 2 bộ giọng (C-0001-1).
 - API ghi bắt buộc header `X-Studio: 1`, không mở qua CORS (C-0001-3). Thư mục không có `product.json` → "Chỉ xem".
 - Chi tiết: `docs/specs/architecture/capabilities/video-render.md` § Studio.
@@ -104,9 +106,12 @@ input (Sheet / CSV / CLI)
 - Studio hiện thư mục travel (nguồn, ảnh/bản quyền, checklist); chỉ edge-tts (không tốn Gemini); không tải `clip_*` / `img_*` lên Drive.
 - Chi tiết: `docs/specs/architecture/capabilities/travel-content.md`, `DR-0002`, `DR-0008`.
 
-### CapCut MCP (`tools/capcut_mcp/`)
+### CapCut (`capcut_export.py`, `tools/capcut-mcp/`, capability `capcut-edit`, DR-0013)
 
-- MCP server riêng (không import `demo.py`/`backend/`), dựng draft CapCut desktop để người dùng mở và xuất trong CapCut. Test: `cd tools/capcut_mcp && python -m pytest -q` (cần `pip install -e '.[test]'`). Cài cho Claude Desktop/Code: `tools/capcut_mcp/README.md`.
+- Xuất video **sản phẩm** (có `product.json`) sang dự án nháp CapCut, giữ giọng đọc đã có; không gọi Groq/Gemini (C-0013-1). Tự chạy sau khi dựng nếu `CAPCUT_AUTO_EXPORT=1` và đã `pip install -e tools/capcut-mcp`; lỗi chỉ cảnh báo. Studio có nút "Xuất sang CapCut".
+- `tools/capcut-mcp` là MCP server cho Claude Desktop (hiệu ứng chọn theo danh mục, edge-tts theo cảnh, công cụ `affiliate_*` đọc `TT_AFFILIATE_DIR`). Khung dự án CapCut 9.8 (`skeleton_v9`) **không commit** (repo công khai), để ở `~/.capcut-mcp/skeleton_v9`.
+- Chi tiết: `docs/specs/architecture/capabilities/capcut-edit.md`.
+- `tools/capcut_mcp/` (PR #35, khác `tools/capcut-mcp/` ở trên): MCP server riêng (không import `demo.py`/`backend/`), dựng draft CapCut desktop để người dùng mở và xuất trong CapCut. Test: `cd tools/capcut_mcp && python -m pytest -q` (cần `pip install -e '.[test]'`). Cài cho Claude Desktop/Code: `tools/capcut_mcp/README.md`.
 
 ### TikTok
 

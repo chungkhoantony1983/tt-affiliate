@@ -28,7 +28,7 @@
 | 1 | Tìm sản phẩm | ⬜ | — | Quy trình lấy sản phẩm từ TikTok Shop + tín hiệu trend |
 | 2 | Chấm điểm & chọn | ⬜ | — | Tiêu chí chấm điểm, file `products.csv` |
 | 3 | Script gen | ✅ | `demo.py`: prompt TikTok Shop (hook style, key_points, CTA giỏ hàng, caption), đọc `products.csv`; đã test với Groq thật | — |
-| 4 | TTS + Video | ✅ | `demo.py`: edge-tts + hook → 1 cảnh/ảnh sản phẩm (tối đa 3) → CTA, zoom chậm, chữ tránh vùng UI TikTok | Chưa dùng clip video sản phẩm (chỉ ảnh) |
+| 4 | TTS + Video | ✅ | `demo.py`: edge-tts + hook → 1 cảnh/ảnh sản phẩm (tối đa 10) → CTA, zoom chậm, chữ tránh vùng UI TikTok | Chưa dùng clip video sản phẩm (chỉ ảnh) |
 | 5 | Duyệt thủ công | ✅ | Trang **Studio** `http://127.0.0.1:8000/studio` (DR-0001, DR-0007): tạo video sản phẩm mới (từ link TikTok hoặc dòng Google Sheet, thêm ảnh, nhập/sửa giá có đọc chữ tiếng Việt), xem, sửa caption/hook/giá/lời đọc/ảnh, dựng lại, duyệt. `APPROVAL_MODE=terminal` giữ cách y/n cũ | — |
 | 6 | Đăng + gắn giỏ hàng | 🟡 | Đăng tay: `post.txt` (caption + checklist) cạnh mỗi video · `tiktok_service.py` cho API sau này | API chờ TikTok duyệt. Gắn sản phẩm làm tay trong app (xem §5) |
 | 7 | Analytics | ⬜ | `get_video_stats()` trong `tiktok_service.py` | Chưa thu thập; tạm ghi tay ở §4 |
@@ -169,10 +169,16 @@ giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thi�
 - [x] Thiết kế mở rộng: thêm nước / chủ đề / đối tượng = thêm hồ sơ JSON, không sửa code (C-0002-5, 2026-11-15)
 - [x] P1 (code): `travel.py` (research → check nguồn → script EN/VI → Pixabay/Pexels/Wikimedia → edge-tts en-US → dựng), Studio nhận thư mục travel, `--refresh-facts [--confirm]`, mã thoát 5/6/7. Reviewer cuối 0 Chặn / 0 Nên sửa, Tester cuối toàn PASS (2026-11-17), kết quả chi tiết ở DR-0008 § Kết quả. P1 chưa đóng hẳn: còn chờ bạn chạy dữ liệu thật (dòng **[Bạn]** bên dưới)
 - [x] Merge `feat/travel-p1` (PR #17) và `feat/gemini-quota` (PR #24) vào `main`. Hai DR trùng số 0002 đã đổi số: clip-trim → DR-0009, gemini-quota → DR-0012 (kiểm 2026-11-19). `feat/studio-create-video` (DR-0007) đã merge (PR #26). Việc kiểm sau merge: DR-0008 § Kết quả
-- [x] **V-0 nghe thử model Gemini phụ (DR-0012, 2026-11-20, người dùng nghe):** `gemini-3.1-flash-tts-preview`: không đọc chỉ dẫn, giọng Bắc đúng, đổi chữ nhỏ nhưng giữ ý, phân biệt mẹ/con rõ, vai mẹ "quá AI"; câu 5 chưa so với model chính. **Giữ trong mặc định.** `gemini-2.5-flash-preview-tts`: đọc sai chữ khi kịch bản đúng ("liên tục" → "liên túc"). **Đã gỡ khỏi `DEFAULT_TTS_FALLBACK_MODELS`** (PR chore/v0-fallback-models). Còn mở: so 3.1 với model chính (câu 5), chưa nghe giọng nữ Sài Gòn
+- [x] **V-0 nghe thử model Gemini phụ (DR-0012, 2026-11-20, người dùng nghe):** `gemini-3.1-flash-tts-preview`: không đọc chỉ dẫn, giọng Bắc đúng, đổi chữ nhỏ nhưng giữ ý, phân biệt mẹ/con rõ, vai mẹ "quá AI"; câu 5: người dùng thấy khác giọng chính (chưa nghe so trực tiếp), nhưng **chọn giữ** làm giọng phụ vì một video chỉ dùng một model (C-0012-1) và giọng giống người hơn; Studio vẫn ghi "Gemini phụ" trước khi duyệt. **Giữ trong mặc định.** `gemini-2.5-flash-preview-tts`: đọc sai chữ khi kịch bản đúng ("liên tục" → "liên túc"). **Đã gỡ khỏi `DEFAULT_TTS_FALLBACK_MODELS`** (PR chore/v0-fallback-models). Còn mở: chưa nghe giọng nữ Sài Gòn
 - [ ] **[Bạn]** Việc còn lại để P1 xong: dán `seed-questions.csv` vào tab `Travel`; đặt `PEXELS_API_KEY` trong `.env` nếu muốn (tuỳ chọn); nghe phát âm trên video phở; dán `facts_manual` cho video visa người Mỹ; chạy video thật đầu tiên (`demo.py --travel --sheet`)
 - [ ] P2: đăng 10–15 video, ghi % người xem US / CA / AU vào §4
 - [ ] P3 (DR riêng): tự tìm chủ đề xu hướng (YouTube Data API, Google Trends)
+
+### M2e — Xuất sang CapCut (DR-0013, issue #36, 2026-11-23)
+
+- ✅ Code: `capcut_export.py`, `demo.py --capcut` / `--voice`, nút Studio "Xuất sang CapCut", chọn giọng khi tạo, `tools/capcut-mcp` (hiệu ứng theo bối cảnh, giọng edge-tts theo cảnh, công cụ `affiliate_*`)
+- ⬜ Chờ người dùng thử trên CapCut thật (Mac, CapCut 9.8): mở dự án có tiếng, ảnh, chữ, hiệu ứng (E2E-3)
+- Khung dự án CapCut 9.8 (`skeleton_v9`) để ngoài git: `~/.capcut-mcp/skeleton_v9`
 
 ### M3 — Đăng & học từ dữ liệu
 - [ ] Đăng tay 10 video đầu, gắn sản phẩm, ghi kết quả vào §4

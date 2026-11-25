@@ -42,6 +42,7 @@ from pathlib import Path
 
 W, H = 1080, 1920
 FPS = 25
+MAX_PRODUCT_IMAGES = 10   # DR-0013 Q-5: was 3; product scenes cycle through all of them
 GAP = 0.25          # silence between spoken segments (s)
 END_HOLD = 0.8      # extra hold on the last scene (s)
 
@@ -252,10 +253,15 @@ DELIVERY = {
 # so "Máy trợ thính" in category "Sức khỏe" stays female.
 PERSONA_KEYWORDS = {
     "nu_nam": ["suc khoe", "y te", "gia dinh", "me va be", "me be", "tre em", "em be", "nguoi gia",
-               "nguoi lon tuoi", "cham soc", "qua tang", "tinh cam", "tinh yeu", "cha me", "bo me"],
+               "nguoi lon tuoi", "cham soc", "qua tang", "tinh cam", "tinh yeu", "cha me", "bo me",
+               # DR-0013 Q-4: cooking, beauty, fashion -> female (checked before "may" in nam_bac)
+               "nau an", "nha bep", "bep", "do an", "an vat", "thuc pham", "banh", "lam dep", "my pham",
+               "trang diem", "duong da", "cham soc da", "thoi trang", "quan ao", "giay dep", "tui xach",
+               "trang suc", "phu kien thoi trang"],
     "nam_bac": ["dien tu", "cong nghe", "dien thoai", "may tinh", "laptop", "tai nghe bluetooth", "thiet bi",
                 "may moc", "may", "dung cu", "phu kien o to", "o to", "xe may", "xe", "the thao", "the hinh",
-                "tap luyen", "luyen tap", "gym", "fitness", "camera", "loa", "sac du phong"],
+                "tap luyen", "luyen tap", "gym", "fitness", "camera", "loa", "sac du phong",
+                "tra", "am tra", "tra dao", "tra xanh", "tra o long"],  # DR-0013 Q-4: tea -> male
 }
 
 
@@ -1278,7 +1284,7 @@ def _load_image(src: str, out_dir: Path, idx: int):
 def render_video(script: dict, product: dict, output_path: str) -> str:
     """One scene per segment; each scene lasts exactly as long as its spoken line."""
     out_dir = Path(output_path).parent
-    images = [im for im in (_load_image(s, out_dir, i) for i, s in enumerate(product["images"][:3])) if im]
+    images = [im for im in (_load_image(s, out_dir, i) for i, s in enumerate(product["images"][:MAX_PRODUCT_IMAGES])) if im]
     segments = script["segments"]
     print(f"🎬 Rendering video (1080x1920, {len(segments)} scenes, {len(images)} product image(s))...")
 
@@ -1492,7 +1498,7 @@ def autofill_row(row: dict) -> dict:
     found = {
         "name": info["title"],
         "price": str(info["price"]) if info["price"] else "",
-        "images": "|".join(info["images"][:3]),
+        "images": "|".join(info["images"][:MAX_PRODUCT_IMAGES]),
         "sold_count": str(info["sold_count"]) if info["sold_count"] else "",
     }
     if any(not row.get(k, "").strip() for k in ("category", "selling_points", "notes")) and (
@@ -1571,12 +1577,12 @@ PIL_EXT_MAP = {"PNG": ".png", "JPEG": ".jpg", "MPO": ".jpg", "WEBP": ".webp"}
 
 
 def _materialize_product_images(product: dict, out_dir: Path) -> None:
-    """Copy local/staging product images into <out_dir>/anh_sp_{1..3}.<ext> and record relative names (C-0007-3)."""
+    """Copy local/staging product images into <out_dir>/anh_sp_{1..MAX_PRODUCT_IMAGES}.<ext> and record relative names (C-0007-3)."""
     from PIL import Image
 
     staging_dir = out_dir.parent.parent / "studio-logs" / "staging"
     out_images = []
-    for i, raw in enumerate((product.get("images") or [])[:3]):
+    for i, raw in enumerate((product.get("images") or [])[:MAX_PRODUCT_IMAGES]):
         src = str(raw or "").strip()
         if not src:
             continue
@@ -1621,7 +1627,7 @@ def run_create(spec: dict, base_dir: Path, default_style: str, skip_approval: bo
     user_price = spec.get("price")
     user_images = spec.get("images")
     if isinstance(user_images, list):
-        user_images = [str(x).strip() for x in user_images if str(x).strip()][:3]
+        user_images = [str(x).strip() for x in user_images if str(x).strip()][:MAX_PRODUCT_IMAGES]
     else:
         user_images = None
     user_points = spec.get("selling_points")
@@ -1717,6 +1723,8 @@ def run_create(spec: dict, base_dir: Path, default_style: str, skip_approval: bo
         product["images"] = list(user_images)
     if spec.get("style"):
         product["style"] = spec["style"].strip().lower()
+    if (spec.get("voice") or "").strip():
+        product["voice"] = spec["voice"].strip().lower()
 
     result = run_one(product, base_dir, style, skip_approval)
     if sheet is not None and row is not None:
@@ -1743,7 +1751,9 @@ def run_one(product: dict, base_dir: Path, style: str, skip_approval: bool) -> d
 
     script = generate_script(product, style)
     script["voice_persona"] = choose_persona(product)
-    script["tts_provider"] = generate_voiceovers(script["segments"], out_dir, script["voice_persona"])
+    voice = (product.get("voice") or "").strip().lower() or None  # DR-0013: "edge" skips Gemini
+    script["tts_provider"] = generate_voiceovers(script["segments"], out_dir, script["voice_persona"],
+                                                 provider=voice if voice in ("edge", "gemini") else None)
     generate_story_images(script["segments"], out_dir, seed=zlib.crc32(product["name"].encode()) % 100000)
     save_script(out_dir, script)
     (out_dir / "product.json").write_text(json.dumps(product, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -1769,10 +1779,29 @@ def render_and_check(out_dir: Path, script: dict, product: dict) -> list:
     script.pop("needs_render", None)  # set by the Studio page when an edit needs a new render
     save_script(out_dir, script)
     missing = write_image_prompts(script["segments"], out_dir)
+    if not missing:
+        auto_export_capcut(out_dir)
     if missing:
         print(f"\n🖼️  Cần ảnh nhân vật cho cảnh {missing} → làm theo {out_dir / 'prompts.txt'}")
         print("   (video.mp4 hiện là bản nháp, dùng ảnh sản phẩm thay cho cảnh nhân vật)")
     return missing
+
+
+def auto_export_capcut(out_dir: Path) -> None:
+    """DR-0013 Q-3: after a render (voice is final), refresh the CapCut draft. Never fails the video."""
+    import capcut_export
+    if not capcut_export.auto_export_enabled() or not (out_dir / "product.json").is_file():
+        return
+    try:
+        import capcut_mcp  # noqa: F401
+    except ImportError:
+        print("   ℹ️  CapCut: chưa cài capcut-mcp (.venv/bin/pip install -e tools/capcut-mcp), bỏ qua xuất CapCut")
+        return
+    try:
+        rec = capcut_export.export_folder(out_dir)
+        print(f"🎞️  CapCut: đã tạo dự án \"{rec['draft_name']}\" (thoát hẳn CapCut rồi mở lại để thấy)")
+    except capcut_export.ExportError as e:
+        print(f"   ⚠️  CapCut: không xuất được ({e}). video.mp4 vẫn dùng bình thường.")
 
 
 def finish(out_dir: Path, script: dict, product: dict, skip_approval: bool) -> dict:
@@ -1901,12 +1930,16 @@ def main():
                         help="Re-voice edited lines and re-render a folder; no approval, no Drive (Studio)")
     parser.add_argument("--revoice-all", choices=["edge", "gemini"],
                         help="With --render-only: re-voice every line with this engine")
+    parser.add_argument("--capcut", metavar="DIR",
+                        help="Export an existing product video folder to a CapCut draft (DR-0013), no AI calls")
+    parser.add_argument("--voice", choices=["gemini", "edge"],
+                        help="Voice engine for new videos (default: TTS_PROVIDER / Gemini when a key is set)")
     parser.add_argument("--approve", metavar="DIR",
                         help="Approve a rendered folder: post.txt → Drive → sheet status=done (Studio)")
     parser.add_argument("--product", help="Product name")
     parser.add_argument("--price", type=int, help="Price in VND")
     parser.add_argument("--category", default="Nhà cửa", help="Product category")
-    parser.add_argument("--images", default="", help="Comma-separated image paths or URLs (max 3 used)")
+    parser.add_argument("--images", default="", help="Comma-separated image paths or URLs (max 10 used)")
     parser.add_argument("--points", default="", help="Selling points, |-separated")
     parser.add_argument("--url", default="", help="TikTok Shop product URL (for post.txt)")
     parser.add_argument("--notes", default="", help="Constraints / target customer for the script")
@@ -1938,6 +1971,8 @@ def main():
     global KEEP_LOCAL
     KEEP_LOCAL = args.keep_local
     load_env()
+    if args.voice:  # DR-0013: --voice edge makes every new video skip Gemini
+        os.environ["TTS_PROVIDER"] = args.voice
     if args.tts_status:
         # Reads the local ledger only: no network call, nothing written (C-0012-3).
         print(json.dumps(quota_status(), ensure_ascii=False))
@@ -1957,6 +1992,15 @@ def main():
     if args.travel or args.refresh_facts:
         import travel
         sys.exit(travel.main_new(args))
+    if args.capcut:
+        import capcut_export
+        try:
+            rec = capcut_export.export_folder(Path(args.capcut))
+        except capcut_export.ExportError as e:
+            print(f"❌ {e}")
+            sys.exit(e.exit_code)
+        print(json.dumps(rec, ensure_ascii=False))
+        return
     if args.revoice_all and not args.render_only:
         parser.error("--revoice-all needs --render-only DIR")
     if args.render_only or args.approve:
