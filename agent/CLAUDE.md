@@ -111,6 +111,7 @@ input (Sheet / CSV / CLI)
 - Xuất video **sản phẩm** (có `product.json`) sang dự án nháp CapCut, giữ giọng đọc đã có; không gọi Groq/Gemini (C-0013-1). Tự chạy sau khi dựng nếu `CAPCUT_AUTO_EXPORT=1` và đã `pip install -e tools/capcut-mcp`; lỗi chỉ cảnh báo. Studio có nút "Xuất sang CapCut".
 - `tools/capcut-mcp` là MCP server cho Claude Desktop (hiệu ứng chọn theo danh mục, edge-tts theo cảnh, công cụ `affiliate_*` đọc `TT_AFFILIATE_DIR`). Khung dự án CapCut 9.8 (`skeleton_v9`) **không commit** (repo công khai), để ở `~/.capcut-mcp/skeleton_v9`.
 - Chi tiết: `docs/specs/architecture/capabilities/capcut-edit.md`.
+- `tools/capcut_mcp/` (PR #35, khác `tools/capcut-mcp/` ở trên): MCP server riêng (không import `demo.py`/`backend/`), dựng draft CapCut desktop để người dùng mở và xuất trong CapCut. Test: `cd tools/capcut_mcp && python -m pytest -q` (cần `pip install -e '.[test]'`). Cài cho Claude Desktop/Code: `tools/capcut_mcp/README.md`.
 
 ### TikTok
 
