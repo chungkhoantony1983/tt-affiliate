@@ -8,7 +8,7 @@ oolong tea video, scene 2 added "... bán có 120 ngàn một túi").
   $PY scripts/transcript_check.py storage/videos/<folder> --scenes 2    # only scene 2 (audio_1.mp3)
 
 For each selected scene N (1-based, audio_{N-1}.mp3): one POST to
-https://api.groq.com/openai/v1/audio/transcriptions (model whisper-large-v3, language vi,
+https://api.groq.com/openai/v1/audio/transcriptions (model whisper-large-v3, language vi or en,
 temperature 0). The transcript is compared with `audio_line` (else `line`) after normalising both:
 lower case, accents removed (NFD, đ -> d), "%" -> "phần trăm" (one token, never a number),
 punctuation removed, numbers turned into one token with
@@ -39,8 +39,12 @@ Groq free plan limits, from the official docs (fetched 2026-11-16):
 This script waits --interval seconds (default 3.5, i.e. under 20/minute) between calls and stores
 the x-ratelimit-* response headers of the last call in transcript.json to confirm the real limits.
 
-Vietnamese only: a travel folder (topic.json, English voice) is refused before any Groq call, since
-the language sent to Whisper is fixed to "vi" and the comparison rules are Vietnamese.
+Language: Vietnamese by default; a travel folder (topic.json, English voice, DR-0002) uses English:
+Whisper is called with language en and the English rules apply: lower case, accents removed
+("phở" -> "pho"), apostrophes dropped ("what's" -> "whats"), "%"/"per cent" -> "percent", "$5" ->
+"#5 dollar", digits ("1,200", "2.5") and number words ("twenty-five", "one hundred and twenty") ->
+"#<value>"; a lone "zero".."nine" or ordinal ("first") is weak (matches a digit, never flagged:
+"one of the best"); "1st"/"2nd" -> "#1"/"#2". --language vi|en overrides the choice.
 HTTP 429 and 5xx are retried once after retry-after (default 2 s; not retried when the server asks
 for more than 20 s). Every request, retries included, is counted in groq_calls.
 
@@ -52,7 +56,7 @@ sandbox_render.py --keep), with "sandbox": true in the JSON. The video folder is
 --out-dir inside it or inside any storage/videos/ is refused (C-0004-5).
 
 Exit codes: 0 = transcribed (flags are in the output); 1 = error (no key, invalid key, HTTP 429 or
-5xx after the retry, network, missing audio file, travel folder, bad --out-dir, bad args).
+5xx after the retry, network, missing audio file, bad --out-dir, bad args).
 """
 import argparse
 import difflib
@@ -179,14 +183,94 @@ def scan(text: str) -> list:
     return out
 
 
-def tokens(text: str) -> list:
-    return [t for t, *_ in scan(text)]
+EN_ONES = {w: i for i, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
+    "sixteen seventeen eighteen nineteen".split())}
+EN_TENS = {w: 10 * (i + 2) for i, w in enumerate("twenty thirty forty fifty sixty seventy eighty ninety".split())}
+EN_SCALES = {"thousand": 1000, "million": 1_000_000, "billion": 1_000_000_000}
+EN_ORDINALS = {w: i + 1 for i, w in enumerate(
+    "first second third fourth fifth sixth seventh eighth ninth tenth".split())}
+EN_NUMBER_WORDS = set(EN_ONES) | set(EN_TENS) | set(EN_SCALES) | {"hundred"}
+EN_CURRENCY = {"dollar": "dollar", "dollars": "dollar", "usd": "dollar", "dong": "dong", "vnd": "dong"}
 
 
-def compare(reference: str, heard: str, extra_words: int = 4, missing_words: int = 4) -> dict:
+def raw_tokens_en(text: str) -> list:
+    t = strip_accents(text).lower().replace("’", "").replace("'", "")
+    t = re.sub(r"\bper\s+cent\b", " percent ", t.replace("%", " percent "))
+    t = re.sub(r"\$\s*(\d[\d,]*(?:\.\d+)?)", r" \1 dollar ", t)        # "$5" is read "five dollars"
+    t = re.sub(r"(?<=\d),(?=\d{3}(?!\d))", "", t)                     # 1,200 -> 1200
+    t = re.sub(r"(?<=\d)(st|nd|rd|th)\b", "", t)                       # 1st -> 1
+    t = re.sub(r"(?<=\d)(?=[a-z])|(?<=[a-z])(?=\d)", " ", t)            # 10am -> 10 am
+    return re.findall(r"\d+(?:\.\d+)?|[a-z]+", t)
+
+
+def _en_value(words: list) -> float:
+    total, group = 0, 0
+    for w in words:
+        if w == "and":
+            continue
+        if w in EN_ONES:
+            group += EN_ONES[w]
+        elif w in EN_TENS:
+            group += EN_TENS[w]
+        elif w == "hundred":
+            group = (group or 1) * 100
+        elif w in EN_SCALES:
+            total += (group or 1) * EN_SCALES[w]
+            group = 0
+    return total + group
+
+
+def _fmt(v) -> str:
+    return f"#{int(v)}" if float(v).is_integer() else f"#{v}"
+
+
+def scan_en(text: str) -> list:
+    """English version of scan(): same (token, strong, shown) triples."""
+    raw, out, i = raw_tokens_en(text), [], 0
+    while i < len(raw):
+        w = raw[i]
+        if re.fullmatch(r"\d+(?:\.\d+)?", w):
+            out.append((_fmt(float(w)), True, w))
+            i += 1
+        elif w in EN_NUMBER_WORDS:
+            j = i
+            while j < len(raw) and (raw[j] in EN_NUMBER_WORDS
+                                    or (raw[j] == "and" and j + 1 < len(raw) and raw[j + 1] in EN_NUMBER_WORDS
+                                        and j > i and raw[j - 1] in ("hundred", *EN_SCALES))):
+                # "twenty one" is one number, "one two" / "five six" are two
+                if j > i and raw[j] in EN_ONES and raw[j - 1] in EN_ONES:
+                    break
+                j += 1
+            span = raw[i:j]
+            v = _en_value(span)
+            strong = len(span) > 1 or v >= 10
+            out.append((_fmt(v), strong, " ".join(span)))
+            i = j
+        elif w in EN_ORDINALS:
+            out.append((f"#{EN_ORDINALS[w]}", False, w))
+            i += 1
+        elif w == "a" and i + 1 < len(raw) and raw[i + 1] in ("hundred", "thousand", "million"):
+            i += 1   # "a hundred" = "one hundred" = 100
+            continue
+        else:
+            out.append((EN_CURRENCY.get(w, w), False, w))
+            i += 1
+        if out and out[-1][1] and i < len(raw) and raw[i] in EN_CURRENCY:
+            out.append((EN_CURRENCY[raw[i]], False, raw[i]))
+            i += 1
+    return out
+
+
+def tokens(text: str, lang: str = "vi") -> list:
+    return [t for t, *_ in (scan_en(text) if lang == "en" else scan(text))]
+
+
+def compare(reference: str, heard: str, extra_words: int = 4, missing_words: int = 4, lang: str = "vi") -> dict:
     """Align line vs transcript. Returns extra / missing runs (as the normalised words that were
     read / written, without accents) and unexpected numbers (values)."""
-    ref_scan, heard_scan = scan(reference), scan(heard)
+    scanner = scan_en if lang == "en" else scan
+    ref_scan, heard_scan = scanner(reference), scanner(heard)
     ref, hyp = [t for t, *_ in ref_scan], [t for t, *_ in heard_scan]
     sm = difflib.SequenceMatcher(a=ref, b=hyp, autojunk=False)
     extra, missing = [], []
@@ -257,10 +341,10 @@ def _retry_wait(headers) -> float:
     return max(wait, 0.0) if wait <= RETRY_MAX_WAIT_S else None
 
 
-def transcribe(path: Path, key: str, model: str, stats: dict) -> tuple:
+def transcribe(path: Path, key: str, model: str, stats: dict, lang: str = "vi") -> tuple:
     """(text, x-ratelimit headers). One retry for HTTP 429 / 5xx. stats["requests"] counts every POST.
     Raises CheckError with a message that never contains the key."""
-    body, ctype = _multipart({"model": model, "language": "vi", "temperature": "0",
+    body, ctype = _multipart({"model": model, "language": lang, "temperature": "0",
                               "response_format": "json"}, "file", path)
 
     def clean(s: str) -> str:
@@ -372,6 +456,8 @@ def main() -> int:
                     help="flag a run of at least this many line words not heard (default 4)")
     ap.add_argument("--interval", type=float, default=3.5,
                     help="seconds between Groq calls (default 3.5; free plan allows 20/min)")
+    ap.add_argument("--language", choices=("vi", "en"),
+                    help="voice language (default: en for a travel folder with topic.json, else vi)")
     ap.add_argument("--out-dir", help="where to write transcript.json (default storage/review-frames/<folder>/, "
                                       "or <folder>__sandbox/ for a copy outside storage/videos/; never inside "
                                       "a storage/videos/ tree)")
@@ -386,10 +472,7 @@ def main() -> int:
     dest = out_dir / "transcript.json"
     stats, rows, limits = {"requests": 0}, [], {}
     try:
-        if (folder / "topic.json").is_file():
-            raise CheckError(f"{folder.name} is a travel folder (topic.json): transcript_check only handles "
-                             f"Vietnamese voice (Whisper language is fixed to vi), English travel videos "
-                             f"are not supported")
+        lang = args.language or ("en" if (folder / "topic.json").is_file() else "vi")
         if not (folder / "script.json").is_file():
             raise CheckError(f"No script.json in {folder}")
         segments = json.loads((folder / "script.json").read_text(encoding="utf-8")).get("segments") or []
@@ -408,10 +491,10 @@ def main() -> int:
             seg = segments[i]
             path = folder / f"audio_{i}.mp3"
             print(f"Groq call {n + 1}/{len(picked)}: scene {i + 1} ({path.name})", file=sys.stderr, flush=True)
-            heard, limits = transcribe(path, key, args.model, stats)
+            heard, limits = transcribe(path, key, args.model, stats, lang)
             reference = seg.get("audio_line") or seg.get("line") or ""
             rows.append({"scene": i + 1, "file": path.name, "line": reference, "transcript": heard,
-                         **compare(reference, heard, args.extra_words, args.missing_words)})
+                         **compare(reference, heard, args.extra_words, args.missing_words, lang)})
     except (CheckError, json.JSONDecodeError) as e:
         if dest.is_file():
             dest.unlink()
@@ -423,7 +506,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     flagged = [r["scene"] for r in rows if r["flags"]]
     report = {"folder": str(folder), "sandbox": sandbox, "source": "copy" if sandbox else "storage/videos",
-              "model": args.model, "groq_calls": calls,
+              "model": args.model, "language": lang, "groq_calls": calls,
               "extra_words": args.extra_words, "missing_words": args.missing_words,
               "flagged_scenes": flagged, "rows": rows, "ratelimit_headers": limits,
               "note": "Signal only (C-0004-3): flagged scenes need a human listen; Whisper can mishear."}

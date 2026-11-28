@@ -34,7 +34,7 @@ Xem mọi khung hình. Đọc `script.json`, `topic.json`, `facts.json`, `credit
 | T5 | **Bản quyền hình** (C-0002-3) | Mỗi clip/ảnh trong `credits.txt` có `provider` (pixabay / pexels / wikimedia), `page`, `author`, `license` trong danh sách cho phép. Ảnh CC BY / BY-SA có ghi công trên khung. Không có logo, watermark, người nổi tiếng |
 | T6 | **Đúng địa danh / món** | Clip khớp nội dung đang nói (Hạ Long là Hạ Long, phở là phở), không phải cảnh nước khác. Nghi ngờ thì ghi "Cần người kiểm" kèm khung hình |
 | T7 | **Tiếng Anh** | Đúng ngữ pháp, giọng văn tự nhiên với người Mỹ/Canada/Úc, câu ≤ 15 từ, không dịch word-by-word từ tiếng Việt, không giọng quảng cáo |
-| T8 | **Tên tiếng Việt** | Chữ trên màn hình giữ dấu (Phở, Hội An). Chữ gửi TTS đã qua `content/travel_pronunciations.json` (xem log hoặc `audio_line`). Phát âm thật: "Cần người kiểm" |
+| T8 | **Tên tiếng Việt** | Chữ trên màn hình giữ dấu (Phở, Hội An). Chữ gửi TTS đã qua `content/travel_pronunciations.json` (xem log hoặc `audio_line`). Bản chép lời tiếng Anh của `audio-check` có thể giúp phát hiện tên đọc sai nhưng chỉ là tín hiệu: phát âm thật vẫn cần "Cần người kiểm" |
 | T9 | **Phụ đề Việt** | `line_vi` đúng nghĩa câu EN, đúng chính tả có dấu, không dài hơn khung; phụ đề EN + VI nằm trong vùng an toàn (không trong 350 px dưới cùng của khung 1920) |
 | T10 | **Giá trị cho người xem** (P01) | Người xem học được điều cụ thể dùng được ngay (thủ tục, cách ăn, phép lịch sự). Văn hoá Việt được trình bày tôn trọng, không rập khuôn, không chê vùng miền |
 | T11 | **Kỹ thuật** | MP4, H.264, AAC, 1080×1920, 15–60 giây (`facts.json` của review_frames) |

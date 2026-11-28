@@ -11,7 +11,7 @@ Skill này là **sổ tay tự kiểm của agent `dev`**. Dùng sau mỗi việ
 
 **Dựng lại một thư mục video có sẵn** (`--rerender`, `--render-only`, video bài tập) thì luôn dùng skill `sandbox-render` (`$PY $WT/scripts/sandbox_render.py <thư mục> [--revoice-all-edge] [--keep]`), không tự copy và chạy `demo.py` bằng tay: khối biến môi trường dưới đây không chặn được Gemini khi `script.json` có câu đã sửa, cũng không chặn ghi giáo trình bài tập.
 
-**Ngoại lệ: video du lịch** (thư mục có `topic.json`): sandbox-render chưa hỗ trợ travel (xem `TODO.md`), script từ chối với exit 2. Với travel, dùng khối biến môi trường ở § Chuẩn bị trên bản sao trong `$T`, thêm `GROQ_API_KEY= PIXABAY_API_KEY= IMAGE_PROVIDER=manual`, rồi chạy `cd "$T" && $PY $WT/demo.py --render-only "$T/storage/videos/<thư mục>"` (travel chỉ dùng edge-tts). Tự so hash thư mục gốc trước/sau. Chi tiết: `sandbox-render` § Video du lịch.
+**Video du lịch** (thư mục có `topic.json`): `sandbox-render` nay đã hỗ trợ trực tiếp (chạy `--render-only` trong môi trường an toàn, hỗ trợ cả `--revoice-all-edge`, travel chỉ dùng edge-tts). Chi tiết: `sandbox-render` § Video du lịch.
 
 ## Chuẩn bị (lớp API, giao diện, tạo video mới)
 

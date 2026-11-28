@@ -9,7 +9,7 @@ What it guarantees (C-0004-2):
     The original folder is hashed before and after (`original_unchanged` in the output).
   - The render runs with cwd = T: there is no .env and no google-credentials.json there, so no key
     is loaded and the sheet is never touched. The child environment also sets
-    GEMINI_API_KEY= GROQ_API_KEY= PIXABAY_API_KEY= DRIVE_FOLDER_ID= SPREADSHEET_ID= TTS_PROVIDER=edge
+    GEMINI_API_KEY= GROQ_API_KEY= PIXABAY_API_KEY= PEXELS_API_KEY= DRIVE_FOLDER_ID= SPREADSHEET_ID= TTS_PROVIDER=edge
     APPROVAL_MODE=web IMAGE_PROVIDER=manual (no Gemini, Groq, Pixabay or image API call).
   - No Gemini call: `demo.revoice_changed()` re-voices edited lines with `script.json -> tts_provider`,
     not with TTS_PROVIDER (DR-0004 R-3). So a product folder with an edited line
@@ -25,8 +25,13 @@ Product video (folder has product.json):
   Note: a folder without `tts_provider` counts as Gemini in `clean_gemini_audio`, which may re-trim
   the copy's audio locally (ffmpeg only, no network), so `audio_changed` can list files.
 
-Travel video (topic.json, no product.json): refused (exit 2). Not supported by sandbox-render yet
-(see TODO.md); use the environment block of the dev-selfcheck skill on a manual copy instead.
+Travel video (topic.json, no product.json):
+  Runs `demo.py --render-only <copy>` as a subprocess, like a product video (demo.py hands the folder
+  to travel.render_only). travel.py only voices with edge-tts (edited lines and --revoice-all-edge
+  alike), never Gemini, so edited lines are not refused. Clips/images (clip_*, img_*) and the profile
+  snapshot (topic.json) are inside the folder: no media search or download. The Sheet is never
+  reached (SPREADSHEET_ID empty, no google-credentials.json in T). Expected status: "review".
+  Exit 5 (fact check) or 1 means the copy did not render; stale facts only warn on --render-only.
 
 Exercise video (no product.json, script.json has series_id):
   Copies content/exercise_curriculum.json (this checkout first, else the folder's repo) and
@@ -51,7 +56,7 @@ Bash tool limit) together with its whole process group (ffmpeg children included
 Exit codes: 0 = rendered with the expected status, no post.txt written and the original unchanged;
             1 = render failed or timed out, unexpected status, post.txt written, or the original changed;
             2 = refused before running (bad path, no script.json, edited lines without
-                --revoice-all-edge, travel folder, read-only folder, unsupported option).
+                --revoice-all-edge, read-only folder, unsupported option).
 """
 import argparse
 import contextlib
@@ -68,7 +73,7 @@ import threading
 from pathlib import Path
 
 CODE_ROOT = Path(__file__).resolve().parent.parent   # checkout whose demo.py / exercise.py are tested
-SAFE_ENV = {"GEMINI_API_KEY": "", "GROQ_API_KEY": "", "PIXABAY_API_KEY": "",
+SAFE_ENV = {"GEMINI_API_KEY": "", "GROQ_API_KEY": "", "PIXABAY_API_KEY": "", "PEXELS_API_KEY": "",
             "DRIVE_FOLDER_ID": "", "SPREADSHEET_ID": "", "TTS_PROVIDER": "edge", "APPROVAL_MODE": "web",
             "IMAGE_PROVIDER": "manual", "PYTHONDONTWRITEBYTECODE": "1", "PYTHONUNBUFFERED": "1"}
 EXIT_OK, EXIT_FAILED, EXIT_REFUSED = 0, 1, 2
@@ -297,7 +302,7 @@ def main() -> int:
                     "no curriculum write. Prints one JSON object on stdout.")
     ap.add_argument("folder", help="video folder, e.g. storage/videos/<folder> (only read, never modified)")
     ap.add_argument("--revoice-all-edge", action="store_true",
-                    help="product video: re-voice every line with edge-tts (needed when a line was edited)")
+                    help="product / travel video: re-voice every line with edge-tts (needed for an edited product line)")
     ap.add_argument("--keep", action="store_true", help="keep the temp dir (path in sandbox_dir)")
     args = ap.parse_args()
     signal.signal(signal.SIGTERM, _on_signal)
@@ -312,14 +317,11 @@ def main() -> int:
             raise Refused(f"No script.json in {folder}")
         script = json.loads((folder / "script.json").read_text(encoding="utf-8"))
         is_product = (folder / "product.json").is_file()
-        if not is_product and (folder / "topic.json").is_file():
-            raise Refused(f"{folder.name}: travel folder (topic.json) is not supported by sandbox-render yet "
-                          f"(see TODO.md). Use the environment block of the dev-selfcheck skill on a copy "
-                          f"in a temp dir instead.")
-        if not is_product and not script.get("series_id"):
+        is_travel = not is_product and (folder / "topic.json").is_file()
+        if not is_product and not is_travel and not script.get("series_id"):
             raise Refused(f"{folder.name}: no product.json and no series_id in script.json (read-only folder)")
-        if not is_product and args.revoice_all_edge:
-            raise Refused("--revoice-all-edge is only for product videos (exercise videos keep their voice)")
+        if not is_product and not is_travel and args.revoice_all_edge:
+            raise Refused("--revoice-all-edge is only for product and travel videos (exercise videos keep their voice)")
         edited = edited_scenes(script)
         if is_product and edited and not args.revoice_all_edge:
             raise Refused(f"Scenes {edited} have an edited line (line != audio_line). Re-voicing them would use "
@@ -335,7 +337,8 @@ def main() -> int:
     src_root = source_root(folder)
     sandbox = Path(tempfile.mkdtemp(prefix="sandbox_render_"))
     try:
-        out = render_in_sandbox(folder, script, is_product, src_root, sandbox, original_before, args)
+        kind = "product" if is_product else ("travel" if is_travel else "exercise")
+        out = render_in_sandbox(folder, script, kind, src_root, sandbox, original_before, args)
     finally:  # also on Ctrl-C or an unexpected error
         if not args.keep:
             shutil.rmtree(sandbox, ignore_errors=True)
@@ -344,7 +347,7 @@ def main() -> int:
     return out["exit_code"]
 
 
-def render_in_sandbox(folder: Path, script: dict, is_product: bool, src_root: Path, sandbox: Path,
+def render_in_sandbox(folder: Path, script: dict, kind: str, src_root: Path, sandbox: Path,
                       original_before: dict, args) -> dict:
     copy = sandbox / "storage" / "videos" / folder.name
     shutil.copytree(folder, copy)
@@ -353,15 +356,16 @@ def render_in_sandbox(folder: Path, script: dict, is_product: bool, src_root: Pa
     audio_before = audio_hashes(copy)
     post_before = file_hash(copy / "post.txt")   # an exercise folder may already hold an approved post.txt
 
-    out = {"kind": "product" if is_product else "exercise", "source": str(folder),
+    out = {"kind": kind, "source": str(folder),
            "sandbox_dir": str(sandbox), "kept": args.keep, "copy": str(copy)}
-    if is_product:
-        product = json.loads((folder / "product.json").read_text(encoding="utf-8"))
-        out["images_copied"] = copy_product_images(product, src_root, sandbox, folder)
+    if kind in ("product", "travel"):
+        if kind == "product":
+            product = json.loads((folder / "product.json").read_text(encoding="utf-8"))
+            out["images_copied"] = copy_product_images(product, src_root, sandbox, folder)
         code, status, timed_out = run_product(copy, args.revoice_all_edge, sandbox, log_path)
         out.update({"status": "timeout" if timed_out else (status if code == 0 else (status or "error")),
                     "demo_exit_code": code, "timed_out": timed_out})
-        expected = {"review", "needs_images"}
+        expected = {"review", "needs_images"} if kind == "product" else {"review"}
     else:
         out.update(run_exercise(copy, script, src_root, sandbox, log_path))
         expected = {"rejected"}
