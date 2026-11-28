@@ -195,7 +195,7 @@ Cột `status` trên Sheet thêm giá trị `review` (đã dựng, chờ duyệt
 
 | Method | Path | Việc |
 |--------|------|------|
-| GET | `/videos` | Danh sách thư mục có `video.mp4`, nhãn `review` / `needs_images` / `approved` / `view_only` |
+| GET | `/videos` | Danh sách thư mục có `video.mp4` hoặc đang soạn bố cục (`script.json → stage`), nhãn `layout` ("Đang soạn bố cục") / `review` ("Chờ duyệt đăng") / `needs_images` / `approved` / `view_only` |
 | GET | `/videos/{folder}` | Chi tiết: caption, hook, giá, từng cảnh, ảnh, bộ giọng, `needs_render` |
 | GET | `/videos/{folder}/video`, `/files/{name}` | Phát video; ảnh `canh_N`, `anh_sp_N`, `img_N` |
 | PUT | `/videos/{folder}` | Lưu sửa vào JSON, không dựng (kiểm tra giá theo C-0007-2) |
@@ -208,12 +208,50 @@ Cột `status` trên Sheet thêm giá trị `review` (đã dựng, chờ duyệt
 | DELETE | `/staging-image?slot=0..2` | Xoá ảnh ở ô `slot` trong `staging/` |
 | GET | `/staging-image/{name}` | Xem trước ảnh `anh_sp_{1..3}.<ext>` trong `staging/` |
 | POST | `/create` | Ghi `storage/studio-logs/create-input.json` và chạy nền `demo.py --create-json` để tạo video sản phẩm mới |
-| GET | `/job` | `idle` / `running` / `done` / `error` (`error_kind`: `revoice`, `not_ready`, `failed`) + `folder` (đọc từ `Studio folder:` khi `action="create"`) + log |
+| GET | `/job` | `idle` / `running` / `done` / `error` (`error_kind`: `revoice` 3, `not_ready` 4, `fact_check` 5, `facts_stale` 6, `drive_failed` 7, `layout_not_ready` 9, `rewrite_failed` 12, `failed`) + `folder` (đọc từ `Studio folder:` khi `action="create"`) + log |
+| PUT | `/videos/{folder}/layout` | DR-0014. Lưu bố cục (danh sách cảnh `{sid?, kind, brief, line, text, image_slot?}` + hook/caption/hashtag). Không nhận giá. Kiểm bằng `layout_rules.py`, cấp `sid` cho cảnh mới. Chỉ ghi JSON |
+| POST | `/videos/{folder}/layout/open` | "Sửa bố cục" trên video đã dựng, chưa duyệt: lưu `script.before-layout.json`, cấp `sid` cho thư mục cũ, đặt `stage` |
+| POST | `/videos/{folder}/layout/cancel` | "Bỏ các chỗ vừa sửa": chép lại bản sao lưu. 409 khi bản sao lưu đã bị `--continue` xoá |
+| POST | `/videos/{folder}/rewrite` | Body `{"scenes": ["s2"] \| "all", "instruction": "…"}`. Ghi `rewrite_request`, chạy `demo.py --rewrite` nền |
+| POST | `/videos/{folder}/continue` | Body `{"revoice_all": null \| "edge"}`. Chạy `demo.py --continue [--revoice-all edge]` nền |
 
-- Mỗi lúc chỉ một job. Job thứ hai, hoặc sửa/tải ảnh/xem trước khi job đang chạy → 409.
+- Mỗi lúc chỉ một job. Job thứ hai, hoặc sửa/tải ảnh/xem trước khi job đang chạy → 409 ("Đang có một việc khác chạy (<tên việc>)…"). Kiểm job và ghi file nằm trong cùng `_job_lock` (C-0014-14).
 - API ghi bắt buộc header `X-Studio: 1` và Host là `127.0.0.1`/`localhost` (C-0001-3). Header này không nằm trong CORS `allow_headers`.
 - Thư mục không có `product.json` hoặc `segments` (video bài tập làm ngoài repo) → `view_only`, API ghi trả 409.
 - `api/studio.py` không xử lý video (C-0001-2): chỉ đọc/ghi JSON, ảnh và chạy `demo.py` bằng `sys.executable`, cwd = repo root.
+
+### Soạn bố cục trước khi dựng & video chủ đề — DR-0014
+
+> Quyết định, luật đầy đủ và kết quả test: `docs/decision-records/DR-0014-studio-chu-de-khac-va-bo-cuc.md`. Làm phần cổng kịch bản (`script_review`) của DR-0011 cho video **tạo từ Studio**; CLI (`--sheet`, `--csv`, `--product`, `--exercise`, `--travel`) chạy như cũ.
+
+```
+"+ Tạo video mới" → ô "Sản phẩm TikTok Shop" | "Bài tập, mẹo, kiến thức" | "Du lịch Việt Nam" (mờ, PR sau)
+  → "Viết kịch bản" (POST /create, kind=product|topic) → demo.py --create-json: chỉ Groq, 0 TTS, không dựng
+  → script.json stage=script_review → nhãn "Đang soạn bố cục"
+       sửa / + Thêm cảnh ở đây / Xoá cảnh / ↑ ↓ (PUT layout, trang tự lưu trước mọi thao tác chạy)
+       "AI viết lại cảnh này" / "AI viết lại cả kịch bản" (POST rewrite → demo.py --rewrite)
+  → "Dựng video theo bố cục này" (POST continue → demo.py --continue): đọc giọng cảnh mới/đổi lời → đổi tên file → dựng
+  → "Chờ duyệt đăng" → "Duyệt & lưu" (--approve)
+     └ "Sửa bố cục" (layout/open) quay lại bước soạn; "Bỏ các chỗ vừa sửa" (layout/cancel) về video cũ
+```
+
+| Trường / file | Ý nghĩa |
+|---------------|---------|
+| `script.json` → `stage` | `"script_review"` khi đang soạn bố cục; `--continue` xoá khi dựng xong |
+| `segments[i].sid`, `next_sid` | Mã cảnh `s1…` (`^s[1-9]\d{0,3}$`), chỉ máy cấp, không dùng lại (C-0014-12) |
+| `segments[i].brief` | Ý cảnh (để AI hiểu, không hiện trong video) |
+| `segments[i].image_slot` | Ảnh minh hoạ chọn cho cảnh (0–9); không có = xoay vòng. `render_video` dùng trường này |
+| `segments[i].audio_path` | Bản đồ cảnh → file: sau mỗi lệnh thành công `basename(audio_path) == audio_{i}.mp3` và `canh_{i+1}.*` thuộc cảnh `i` (C-0014-1). Chỉ `demo.py` ghi |
+| `rewrite_request` | Studio ghi trước `--rewrite`; `demo.py` xoá khi thành công. Sau mã 12 còn lại, Studio xoá ở lần Lưu bố cục kế tiếp |
+| `script.before-layout.json` | Bản sao lưu khi "Sửa bố cục"; `--continue` xoá trước khi đổi tên file đầu tiên (C-0014-10) |
+| `_rename_plan.json` | Nhật ký đổi tên 2 pha (`phase`, `moves`, `removed`, `final`, `meta`, `tts_provider`); lần `--continue` sau làm tiếp khi bị ngắt (C-0014-11). Khi còn nhật ký, Studio khoá sửa bố cục (409), chỉ cho Dựng |
+| `_bo_audio_<k>.mp3`, `_bo_canh_<k>.<ext>` | File của cảnh bị xoá; `--approve` xoá; không tải Drive |
+| `product.json` → `kind: "topic"` | Video chủ đề: `price 0`, cảnh `topic` + `outro` cuối, không giỏ hàng / "link tiếp thị", `post.txt` không bước gắn sản phẩm, không xuất CapCut (C-0014-7) |
+
+- Luật bố cục (`layout_rules.py`, dùng chung Studio và `demo.py`): 2–12 cảnh; lời đọc 1–300 ký tự (so sánh qua `norm_line`); sản phẩm: đúng 1 cảnh `cta` ở cuối (khoá); chủ đề: đúng 1 `outro` ở cuối (khoá).
+- Giọng: chỉ cảnh mới hoặc đổi lời được đọc (Gemini 1 lượt/cảnh); đổi chỗ, xoá = 0 lượt. Lỗi giọng → không đổi gì, exit 3; lối ra `--continue --revoice-all edge` (chỉ nhận `edge`). Chủ đề mặc định giọng miễn phí.
+- Khi có `stage`: `--render-only`, `--approve`, `--rerender`, `--capcut` exit 9; API `render`, `approve`, `capcut`, `PUT /videos/{f}`, tải ảnh cảnh và ảnh sản phẩm → 409.
+- Drive bỏ qua mọi file tên bắt đầu bằng `_` và `script.before-layout.json`.
 
 ---
 

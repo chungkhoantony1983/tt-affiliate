@@ -24,7 +24,8 @@ TOKEN_FILE = "google-drive-token.json"
 API = "https://www.googleapis.com/drive/v3"
 UPLOAD_API = "https://www.googleapis.com/upload/drive/v3"
 FOLDER_MIME = "application/vnd.google-apps.folder"
-SKIP_PREFIXES = ("_scene_",)  # render temp files
+SKIP_PREFIXES = ("_",)  # render / layout temp files and backups (_scene_, _bo_, _mv_, _new_audio_, _rename_plan.json)
+SKIP_NAMES = ("script.before-layout.json",)  # layout backup (DR-0014 C-0014-4)
 
 
 def _session():
@@ -115,7 +116,8 @@ def upload_video_folder(out_dir: Path, product_name: str, path=None, skip_prefix
     run_folder = _find_or_create_folder(s, out_dir.name, parent)
 
     skip = SKIP_PREFIXES + tuple(skip_prefixes)
-    files = sorted(p for p in out_dir.iterdir() if p.is_file() and not p.name.startswith(skip))
+    files = sorted(p for p in out_dir.iterdir() if p.is_file() and not p.name.startswith(skip)
+                   and p.name not in SKIP_NAMES)
     print(f"☁️  Uploading {len(files)} file(s) to Drive: {'/'.join(names)}/{out_dir.name}")
     for p in files:
         existing = _find_file(s, p.name, run_folder) if replace_existing else None

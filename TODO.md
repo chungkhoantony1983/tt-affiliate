@@ -180,6 +180,13 @@ giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thi�
 - ⬜ Chờ người dùng thử trên CapCut thật (Mac, CapCut 9.8): mở dự án có tiếng, ảnh, chữ, hiệu ứng (E2E-3)
 - Khung dự án CapCut 9.8 (`skeleton_v9`) để ngoài git: `~/.capcut-mcp/skeleton_v9`
 
+### M2f — Studio: video chủ đề + soạn bố cục trước khi dựng (DR-0014, issue #38, 2026-11-25)
+
+- ✅ PR 1 (sản phẩm + chủ đề chung), nhánh `feat/issue-38-studio-topic-layout`: video tạo từ Studio dừng ở "Đang soạn bố cục" (0 lượt giọng), sửa/thêm/xoá/đổi chỗ cảnh, AI viết lại một cảnh hoặc cả kịch bản, "Dựng video theo bố cục này" chỉ đọc giọng cảnh mới/đổi lời; "Sửa bố cục" quay lại từ video đã dựng. Ô mới "Bài tập, mẹo, kiến thức" (`kind: topic`, chỉ ảnh, không giỏ hàng, giọng miễn phí mặc định). Lệnh mới `demo.py --continue`, `--rewrite`; mã thoát 9, 12; `layout_rules.py`. Tester: không FAIL (2 vòng sửa), kết quả ở DR-0014 § 12
+- ⬜ **[Bạn]** tự kiểm trên máy: giao diện thật + điện thoại 390 px; nghe giọng một video chủ đề thật; video story có ảnh nhân vật rồi dời cảnh (D-11)
+- ⬜ PR 2: tạo video du lịch từ Studio + bố cục du lịch (D-3, D-15, D-17, V-3)
+- ⬜ Q-2 chưa trả lời: "bát thủ cầm" có phải Bát Đoạn Cẩm không; tạm làm theo mặc định (video chủ đề chỉ dùng ảnh, giáo trình giữ nguyên)
+
 ### M3 — Đăng & học từ dữ liệu
 - [ ] Đăng tay 10 video đầu, gắn sản phẩm, ghi kết quả vào §4
 - [ ] Sau 2 tuần: rút ra ngách / kiểu hook / thời lượng thắng → cập nhật tiêu chí chấm điểm ở M1
@@ -244,4 +251,13 @@ giọng Mỹ + phụ đề tiếng Việt, mọi câu có nguồn uy tín. Thi�
   - [ ] Nợ kỹ thuật: renderer ghi `scene_start` / `scene_dur` vào `script.json` để `audio_seams.py` khỏi tự dựng lại mốc cảnh; gộp các hàm `parse_scenes` đang trùng
   - [ ] Nợ kỹ thuật: `transcript_check.py` hỗ trợ tiếng Anh cho video travel
   - [ ] Bug cần ghi issue riêng qua `/bug` (chưa tạo): (1) edge-tts không có timeout cho từng lần thử (vòng thử trong `demo.py`, dòng 806–815 sau khi rebase lên 4e348dc), mạng treo thì lệnh treo; (2) `--revoice-all edge` hỏng giữa chừng để lại thư mục trộn giọng cũ và mới, trái C-0001-1
+- **Studio chủ đề khác + sửa bố cục (DR-0014, issue #38, 2026-11-25, PR 1 xong):** nợ kỹ thuật chưa làm trong #38:
+  - [ ] Phần du lịch từ Studio (DR-0014 Q-5): PR sau
+  - [ ] Hoãn (2026-11-25): giọng ElevenLabs có cảm xúc làm lựa chọn thứ 3 khi tạo video. Gói Free chỉ phi thương mại + phải ghi nguồn; cần gói trả phí (Starter, giá xem trang chính thức) mới đăng video thật. Làm khi người vận hành mua gói và chốt vai trò (lựa chọn thứ 3 hay thay Gemini) + cách thêm cảm xúc (AI viết ở bước kịch bản hay thẻ theo cảnh)
+  - [ ] Bug [#39](https://github.com/chungkhoantony1983/tt-affiliate/issues/39): `demo.py --csv` (hàng loạt) chỉ bỏ qua `done`/`skip`, nên dòng `script_review`/`review` bị làm lại (`load_products_csv`); `--sheet` không bị. Có từ trước, không do #38
+  - [ ] Nợ kỹ thuật (Tech Lead #7): tải ảnh lên Studio đọc cả body (tối đa 15 MB) vào bộ nhớ một lần; nên đọc theo luồng
+  - [ ] Nợ kỹ thuật: lần đọc giọng **đầu tiên** của `--continue` bị ngắt đúng sau khi đọc giọng ra file tạm và trước khi ghi nhật ký (cửa sổ rất hẹp) thì lần sau đọc lại các câu đó, tốn lại lượt Gemini (techlead đo được: 2 câu = 2 lượt)
+  - [ ] Nợ kỹ thuật (Tester N-5): sổ lượt Gemini (`storage/gemini-tts-usage.json`) tính theo đường dẫn của `demo.py`, test chạy từ thư mục tạm vẫn ghi vào sổ thật
+  - [ ] Nợ kỹ thuật: job tạo lỗi để lại thư mục Studio không thấy (vd `storage/videos/20261119_232612_ten-san-pham/`: `audio_3.mp3` 0 byte, không có `script.json`); thư mục "Đang soạn bố cục" bỏ dở tăng mãi (mỗi thư mục tối đa 10 ảnh × 15 MB). Cần nút "Bỏ video" (DR-0011 Q5, người dùng để sau) và nhãn "Tạo lỗi" trên Studio
+  - [ ] Nợ kỹ thuật: `api/studio.py` chạy `Popen` không giới hạn thời gian, không có nút huỷ; Groq/edge-tts treo mạng thì job "đang chạy" mãi, mọi nút trả 409. Cần nút "Dừng việc đang chạy" (SIGTERM, dọn dở theo nhật ký đổi tên của DR-0014 C-0014-11)
 - `.env.example` vẫn liệt kê `OPENAI_API_KEY`, `ELEVENLABS_API_KEY` (phương án C). Giai đoạn này chỉ cần Groq.

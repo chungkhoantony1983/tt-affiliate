@@ -37,6 +37,15 @@
 [Output: script JSON → gửi cho video-render]
 ```
 
+> Sơ đồ trên là thiết kế backend (đang hoãn). MVP thật nằm trong `demo.py` (`generate_script`, Groq `GROQ_MODEL`, thử tối đa 3 lần).
+
+### MVP: sườn → kịch bản, AI viết lại (DR-0014)
+
+- **Video sản phẩm**: `generate_script` trả thêm `brief` (ý cảnh) cho mỗi cảnh. Tạo từ Studio thì dừng ở bước soạn bố cục (`script.json → stage = script_review`), chưa đọc giọng.
+- **Video chủ đề** (`--create-json` với `kind: "topic"`, Studio ô "Bài tập, mẹo, kiến thức"): đầu vào là `name`, `audience`, `outline` (2–12 dòng, mỗi dòng ≤ 200 ký tự, một dòng = một cảnh; dòng đầu mở video, dòng cuối kết), `notes`. `layout_rules.clean_outline` bỏ chữ đầu dòng (`1.`, `-`, `Cảnh 2:`). Groq giữ đúng số cảnh và thứ tự, viết `line` / `text` / `brief` + `hook`, `caption`, `hashtags`; cảnh cuối là `outro` (không kêu gọi mua). Groq được gọi trước khi tạo thư mục, nên lỗi không để thư mục rác.
+- **AI viết lại** (`demo.py --rewrite DIR`, đọc `script.json → rewrite_request {scenes: [sid…] | "all", instruction}`): prompt gửi kèm `sid`, nhận `{sid: {line, text}}` và ghép theo `sid`; chỉ đổi `line`, `text` (cả kịch bản: thêm `hook`, `caption`, `hashtags`), không đổi số cảnh, thứ tự, `sid`, `brief`, `kind` (C-0014-5). Trả thiếu/lạ `sid` hoặc sai giới hạn = 1 lần thử hỏng; hết 3 lần → exit **12** (`rewrite_failed`), kịch bản không đổi.
+- Sườn, ý cảnh, yêu cầu cho AI là chỉ dẫn, không phải nguồn dữ kiện; prompt cấm thêm số liệu, công dụng, cam kết không có trong đầu vào (C-0014-6).
+
 ---
 
 ## Prompt Templates

@@ -36,9 +36,12 @@ cp .env.example .env                       # bắt buộc: GROQ_API_KEY
 .venv/bin/python demo.py --csv products.csv
 .venv/bin/python demo.py --product "Tên SP" --price 189000 --images a.jpg,b.jpg \
                          --points "Ý 1|Ý 2|Ý 3" --style simple
-.venv/bin/python demo.py --create-json storage/studio-logs/create-input.json  # Studio: tạo video sản phẩm mới
+.venv/bin/python demo.py --create-json storage/studio-logs/create-input.json  # Studio: viết kịch bản video mới (kind product|topic), dừng ở bước soạn bố cục
 .venv/bin/python demo.py --rerender storage/videos/<thư mục>   # sau khi thêm canh_N.png; không gọi lại AI
 .venv/bin/python demo.py --render-only storage/videos/<thư mục> [--revoice-all edge]  # Studio: đọc lại câu đã sửa + dựng
+.venv/bin/python demo.py --continue storage/videos/<thư mục> [--revoice-all edge]  # Studio (DR-0014): dựng theo bố cục đã soạn; chỉ đọc giọng cảnh mới/đổi lời
+.venv/bin/python demo.py --rewrite storage/videos/<thư mục>     # Studio (DR-0014): AI viết lại theo script.json → rewrite_request
+.venv/bin/python scripts/selfcheck_layout.py                    # tự kiểm luật bố cục + đổi tên file (Groq/TTS giả)
 .venv/bin/python demo.py --approve storage/videos/<thư mục>     # Studio: post.txt → Drive → status=done
 .venv/bin/python demo.py --capcut storage/videos/<thư mục>       # xuất video sản phẩm sang dự án CapCut (không gọi AI; DR-0013)
 # --voice edge|gemini chọn giọng cho video mới (edge = miễn phí, không tốn lượt Gemini)
@@ -90,14 +93,18 @@ input (Sheet / CSV / CLI)
 - **Lưu ý**: `api/creator.py` chỉ liệt kê thư mục trong `storage/videos/` có `video.mp4`. Khi bật Drive, thư mục đã duyệt bị xoá nên không còn hiện trên `app.html` (dùng `--keep-local` nếu cần).
 - **Prompt script** có ràng buộc chống bịa thông số, bịa trải nghiệm cá nhân. Ràng buộc riêng cho từng sản phẩm (vd sản phẩm sức khỏe) nằm ở cột `notes`.
 
-### Studio (DR-0001, DR-0007)
+### Studio (DR-0001, DR-0007, DR-0014)
 
 - Trang `http://127.0.0.1:8000/studio`, tiếng Việt, cho người vận hành: **tạo video sản phẩm mới** (`+ Tạo video mới` từ link TikTok Shop hoặc dòng Google Sheet `>= 2`, xem trước thông tin, sửa giá có đọc số bằng chữ tiếng Việt, tải tối đa 10 ảnh sản phẩm đầu vào, nút "+ Thêm ô ảnh") và **duyệt / sửa video**. **Không** đụng `app.html` (đang xét duyệt).
 - `api/studio.py` chỉ đọc/ghi JSON, ảnh, rồi chạy `demo.py --create-json` / `--render-only` / `--approve` bằng subprocess (C-0001-2). Một job một lúc; log ở `storage/studio-logs/`, ảnh chuẩn bị tạo mới ở `storage/studio-logs/staging/`.
 - Giá & ảnh người dùng nhập/tải trên Studio luôn ưu tiên hơn dữ liệu tự đọc từ Sheet/TikTok (C-0007-1); chỉ nhận giá `0` (ẩn giá) hoặc `>= 1000` VND (C-0007-2); ảnh sản phẩm tải lên lưu thành `anh_sp_{1..10}.<ext>` trong thư mục video (C-0007-3).
 - Sửa lời đọc: chỉ đọc lại câu có `line != audio_line`, bằng `script.json → tts_provider` của video. Lỗi thì không đổi audio nào (exit 3), Studio đưa lựa chọn `--revoice-all edge`. Không trộn 2 bộ giọng (C-0001-1).
 - API ghi bắt buộc header `X-Studio: 1`, không mở qua CORS (C-0001-3). Thư mục không có `product.json` → "Chỉ xem".
-- Chi tiết: `docs/specs/architecture/capabilities/video-render.md` § Studio.
+- **Soạn bố cục (DR-0014)**: video tạo từ Studio (`--create-json`, `kind` = `product` | `topic`) chỉ gọi Groq rồi dừng ở `script.json → stage = script_review` (nhãn "Đang soạn bố cục", 0 TTS, chưa dựng; Sheet ghi `script_review`). Người sửa/thêm/xoá/đổi chỗ cảnh (`PUT /layout`), AI viết lại (`--rewrite`, theo `sid`), rồi "Dựng video theo bố cục này" (`--continue`). Video đã dựng quay lại bằng "Sửa bố cục". CLI (`--sheet`, `--csv`, `--product`, `--travel`, `--exercise`) chạy như cũ, không dừng.
+- Bố cục: mỗi cảnh có `sid` (`^s[1-9]\d{0,3}$`, chỉ máy cấp) + `brief`; luật ở `layout_rules.py` (dùng chung Studio và `demo.py`). Sau mỗi lệnh thành công `basename(audio_path) == audio_{i}.mp3` và `canh_{i+1}.*` thuộc cảnh `i`; chỉ `demo.py` đổi tên file, theo nhật ký `_rename_plan.json` (bị ngắt thì `--continue` làm tiếp). Cảnh xoá → `_bo_*`, xoá khi `--approve`; Drive bỏ qua mọi file tên bắt đầu `_`.
+- Khi có `stage`: `--render-only`/`--approve`/`--rerender`/`--capcut` exit **9**; API render/approve/capcut/PUT video/tải ảnh → 409. `--rewrite` hết 3 lần thử → exit **12** (kịch bản không đổi).
+- Video chủ đề (`product.json → kind: "topic"`, ô "Bài tập, mẹo, kiến thức"): sườn 2–12 dòng = 2–12 cảnh, cảnh cuối `outro`, không giỏ hàng/giá, không xuất CapCut, giọng mặc định edge. Du lịch từ Studio: chưa làm (PR sau).
+- Chi tiết: `docs/specs/architecture/capabilities/video-render.md` § Studio, `DR-0014`.
 
 ### Du lịch (`travel.py`, capability `travel-content`)
 

@@ -16,7 +16,7 @@ Hệ thống hiện tại **không tự đăng video**. Máy lo phần viết k�
 | Dán link sản phẩm trên **Studio** (hoặc vào Google Sheet) | **Người** | Bấm **+ Tạo video mới** trên Studio hoặc điền Sheet "Tiktok" |
 | Điền tên, giá, ảnh, số đã bán, ý chính | Máy | Đọc từ trang sản phẩm TikTok Shop khi bấm **Lấy thông tin sản phẩm** |
 | Kiểm tra lại giá, ảnh sản phẩm và các ý máy điền | **Người** | Bắt buộc (ngay trên màn hình Tạo video của Studio) |
-| Viết kịch bản, caption, hashtag | Máy (AI) | Tự động khi bấm **Tạo video** |
+| Viết kịch bản, caption, hashtag | Máy (AI) | Tự động khi bấm **Viết kịch bản**; bạn xem và sửa bố cục trước khi dựng |
 | Đọc giọng | Máy (AI) | Tự động |
 | Ảnh nhân vật cho video kiểu tiểu phẩm | **Người**, dùng Gemini | Bỏ qua được nếu chọn video kiểu đơn giản |
 | Dựng video | Máy | Tự động |
@@ -126,7 +126,7 @@ Lưu ý:
 
 #### Cách 1: Tạo video ngay trên trang web Studio (khuyên dùng — không cần gõ lệnh)
 
-1. Mở trang Studio (`http://127.0.0.1:8000/studio`, đã bật ở mục 3). Ở đầu cột bên trái, bấm nút **+ Tạo video mới** (trên điện thoại nếu muốn quay lại danh sách thì bấm **← Danh sách**).
+1. Mở trang Studio (`http://127.0.0.1:8000/studio`, đã bật ở mục 3). Ở đầu cột bên trái, bấm nút **+ Tạo video mới** (trên điện thoại nếu muốn quay lại danh sách thì bấm **← Danh sách**). Chọn ô **Sản phẩm TikTok Shop** (video bài tập, mẹo, kiến thức: xem mục 4d).
 2. **Bước 1: Chọn sản phẩm** — chọn một trong hai cách:
    - **Dán link TikTok Shop**: dán link sản phẩm vào ô **Link sản phẩm TikTok Shop**.
    - **Chọn dòng trên Google Sheet**: chọn sản phẩm trong **Danh sách chọn nhanh từ Google Sheet** (ví dụ `Dòng 2 — Nồi chiên không dầu 5L (189.000đ) [Chưa tạo]`), hoặc gõ số dòng vào ô **Số dòng trên Google Sheet** (nhìn cột số bên trái bảng tính, bắt đầu từ **dòng 2**; dòng 1 là dòng tiêu đề cột).
@@ -140,8 +140,35 @@ Lưu ý:
    - Chọn **Kiểu video**:
      - **Tiểu phẩm câu chuyện**: có nhân vật đối thoại đời thường rồi giới thiệu sản phẩm (cần thêm ảnh nhân vật ở Bước 4).
      - **Giới thiệu ngắn gọn**: chỉ dùng ảnh sản phẩm và giọng người dẫn, dựng nhanh.
-5. Kiểm tra dòng nhắc lượt giọng đọc Gemini (~4 lượt cho 1 video mới, mỗi ngày có 10 lượt miễn phí), rồi bấm nút **Tạo video** ở thanh dưới cùng.
-6. Chờ 2–3 phút (trang hiện tiến độ: *Đang đọc thông tin sản phẩm… → Đang viết kịch bản… → Đang tạo giọng đọc… → Đang dựng hình…*). Khi dựng xong, Studio **tự động mở màn hình duyệt** của video vừa tạo.
+5. Chọn **Giọng đọc** (Gemini hoặc miễn phí), rồi bấm nút **Viết kịch bản** ở thanh dưới cùng. Bước này chỉ dùng AI viết chữ (miễn phí), **chưa tốn lượt giọng đọc**.
+6. Chờ máy viết xong. Bạn có thể đóng trang, video sẽ hiện trong danh sách với nhãn **Đang soạn bố cục**. Tiếp theo làm **Bước 3b**.
+
+#### Bước 3b. Soạn bố cục, rồi dựng video
+
+Video mới tạo trên Studio (sản phẩm hoặc bài tập/mẹo/kiến thức) chưa có giọng đọc và chưa có hình. Bạn xem và sửa **bố cục** (danh sách cảnh) trước, máy chỉ đọc giọng và dựng khi bạn bấm dựng.
+
+1. Chọn video có nhãn **Đang soạn bố cục** (thẻ ghi **Chưa dựng video**). Đầu màn hình có dải bước: **Soạn bố cục → Dựng và xem thử → Duyệt & lưu**.
+2. Mỗi cảnh là một thẻ (bấm vào để mở). Trong thẻ có:
+   - **Ý cảnh**: để AI hiểu cảnh này nói gì, không hiện trong video.
+   - **Lời đọc**: câu giọng sẽ đọc.
+   - **Chữ trên hình**: chữ lớn trên video.
+   - Chọn ảnh cho cảnh (video bài tập/mẹo/kiến thức): mặc định **Tự chọn**.
+3. Sửa bố cục:
+   - **+ Thêm cảnh ở đây** (giữa hai thẻ): thêm cảnh mới. Ghi **Ý cảnh**, rồi tự gõ **Lời đọc** hoặc bấm **AI viết lại cảnh này**.
+   - **↑ / ↓**: đổi chỗ cảnh. **Xoá cảnh**: bỏ cảnh (có hỏi lại).
+   - Cảnh cuối (lời kêu gọi mua của video sản phẩm, lời kết của video bài tập/mẹo) bị khoá, nút mờ, có ghi lý do.
+   - **AI viết lại cảnh này**: AI viết lại lời đọc và chữ trên hình của riêng cảnh đó (ô **Yêu cầu cho AI** để ghi thêm, ví dụ "ngắn hơn"). Không ưng thì bấm **Dùng lại câu cũ**.
+   - **AI viết lại cả kịch bản** (cuối trang): viết lại lời mọi cảnh, câu mở đầu, caption, hashtag. Số cảnh và thứ tự giữ nguyên. Không hoàn tác.
+4. Trang **tự lưu** trước khi chạy AI hoặc dựng. Muốn lưu giữa chừng thì bấm **Lưu bố cục**. Rời trang khi còn chỗ chưa lưu thì trang hỏi lại.
+5. Đọc dòng chi phí ở thanh dưới: số cảnh sẽ đọc giọng và số lượt Gemini hôm nay còn. Nếu trang báo **Không đủ lượt Gemini hôm nay**, chọn **Dùng giọng miễn phí cho cả video** hoặc **Để mai**.
+6. Bấm **Dựng video theo bố cục này**. Nút bị mờ nếu còn cảnh lỗi (ví dụ cảnh chưa có lời đọc); bấm vào dòng chữ cạnh nút để nhảy tới cảnh đó.
+7. Dựng xong, nhãn chuyển sang **Chờ duyệt đăng**: làm **Bước 5**.
+
+**Video đã dựng nhưng sai ý?** Không cần làm lại từ đầu. Ở video **Chờ duyệt đăng**, bấm **Sửa bố cục** (trang hỏi lại). Video cũ vẫn xem được; bạn chưa duyệt được cho tới khi dựng lại. Sửa xong bấm **Dựng video theo bố cục này**: máy chỉ đọc giọng các cảnh mới hoặc đổi lời (mỗi cảnh 1 lượt nếu giọng Gemini). Đổi chỗ hay xoá cảnh không tốn lượt. Đổi ý thì bấm **Bỏ các chỗ vừa sửa** để quay về video cũ, nhưng chỉ làm được **trước** khi bấm dựng. Video đã **Duyệt & lưu** thì không sửa bố cục được.
+
+Khi đang soạn bố cục, các nút **Dựng lại video**, **Duyệt & lưu**, **Xuất sang CapCut**, tải ảnh lên đều bị khoá. Giá sản phẩm sửa ở màn hình thường sau khi đã dựng.
+
+**Bản nháp tạo nhầm**: Studio chưa có nút xoá. Bản nháp cứ để trong danh sách, không ảnh hưởng video khác. Nếu tạo từ dòng Sheet, ghi `skip` vào ô `status` của dòng đó.
 
 #### Cách 2: Chạy hàng loạt bằng lệnh Terminal (cách phụ)
 
@@ -173,6 +200,7 @@ Máy tự ghi vào cột `status` trên Google Sheet:
 
 | Giá trị | Nghĩa |
 |---|---|
+| `script_review` | Tạo trên Studio, đang soạn bố cục, chưa dựng: làm bước 3b. Máy không chạy lại dòng này khi chạy `--sheet` |
 | `review` | Đã dựng xong, chờ bạn duyệt trên Studio: làm bước 5 |
 | `done` | Đã duyệt video, chờ đăng |
 | `needs_images` | Kiểu tiểu phẩm, đang chờ ảnh nhân vật: làm bước 4 |
@@ -186,7 +214,7 @@ Video có nhãn **Cần ảnh** trên Studio là video kiểu tiểu phẩm còn
 2. Mở [gemini.google.com](https://gemini.google.com), tạo **một** cuộc trò chuyện mới.
 3. Ở từng cảnh "Chưa có ảnh", bấm **Chép gợi ý tạo ảnh**, dán vào Gemini. Từ cảnh thứ 2, thêm câu: *"Giữ nguyên các nhân vật giống hệt ảnh trước."*
 4. Tải ảnh Gemini tạo về máy, quay lại Studio, bấm **Tải ảnh lên** ở đúng cảnh đó. Không cần đổi tên file.
-5. Đủ ảnh thì bấm **Dựng lại video**. Đợi 1–2 phút, nhãn chuyển sang **Chờ duyệt**.
+5. Đủ ảnh thì bấm **Dựng lại video**. Đợi 1–2 phút, nhãn chuyển sang **Chờ duyệt đăng**.
 
 Studio nhận ảnh PNG, JPG, WEBP, tối đa 15 MB. Ảnh iPhone dạng HEIC thì xuất sang JPG trước.
 
@@ -198,7 +226,7 @@ Làm xong video, máy **không hỏi gì trên Terminal** nữa mà dừng lại
 
 > **Nhờ AI marketing xem trước (không bắt buộc, miễn phí):** trong Claude Code, gõ `/video-review`. AI xem từng video đang chờ duyệt rồi ghi nhận xét vào file `marketing-review.md` trong thư mục video: câu mở đầu có giữ chân người xem không, có câu nào nói quá hay không có nguồn không, chữ có bị nút TikTok che không, caption và hashtag ổn chưa. AI chỉ đề xuất. Muốn áp dụng, bạn trả lời đề xuất nào cần sửa, AI sẽ sửa và dựng lại video, nhưng **không tự duyệt**. AI không nghe được giọng đọc, nên bạn vẫn phải tự nghe.
 
-1. Chọn video có nhãn **Chờ duyệt** ở danh sách bên trái.
+1. Chọn video có nhãn **Chờ duyệt đăng** ở danh sách bên trái. Video sai ý (sai cảnh, thiếu ý, thừa cảnh) thì bấm **Sửa bố cục** (xem Bước 3b) thay vì làm lại từ đầu.
 2. Xem hết video, nghe kỹ giọng đọc. Kiểm tra:
    - Lời nói đúng sự thật, không hứa quá mức, không bịa thông số.
    - Không sai chính tả trên màn hình.
@@ -377,6 +405,26 @@ Sửa chữ hoặc số thì bấm **Lưu**, rồi **Dựng lại video**, rồi
 
 ---
 
+## 4d. Video bài tập, mẹo, kiến thức tạo trên Studio (không bán hàng)
+
+Dùng khi muốn làm một video lẻ (ví dụ "Bát Đoạn Cẩm cho dân văn phòng", một mẹo nhà bếp) mà không cần gõ lệnh. AI viết lời đọc từ **kịch bản sườn** của bạn; video **chỉ dùng ảnh**, không dùng clip động tác. Chuỗi bài tập hằng ngày theo giáo trình (mục 4b) vẫn làm như cũ.
+
+1. Studio → **+ Tạo video mới** → ô **Bài tập, mẹo, kiến thức**.
+2. Điền:
+   - **Tên chủ đề** (bắt buộc).
+   - **Người xem là ai** (không bắt buộc), ví dụ "dân văn phòng hay mỏi vai".
+   - **Kịch bản sườn** (bắt buộc): **mỗi dòng là một cảnh**. Dòng đầu mở video, dòng cuối kết video. Viết ý, không cần viết lời đọc. Từ 2 đến 12 dòng; trang đếm "5 dòng = 5 cảnh".
+   - **Điều cần tránh / lưu ý**: tên hoặc sườn có chữ "tập" thì ô này điền sẵn "Bài vận động nhẹ, không phải phương pháp chữa bệnh." (sửa được). Máy làm đúng lưu ý này khi viết lời.
+   - **Ảnh minh hoạ** (không bắt buộc, tối đa 10). Không có ảnh thì video dùng nền trơn.
+   - **Giọng đọc**: Tự chọn / Nam / Nữ; **Giọng miễn phí** (mặc định, không tốn lượt) hoặc **Giọng Gemini** (tốn 1 lượt mỗi cảnh).
+3. Bấm **Viết kịch bản**, rồi làm **Bước 3b** (soạn bố cục, dựng) và **Bước 5** (duyệt) như video sản phẩm.
+
+Khác video sản phẩm: không có cảnh "bấm giỏ hàng", không có giá, `post.txt` không có bước gắn sản phẩm, không xuất CapCut. Khi đăng **không** gắn sản phẩm. Vẫn bật nhãn **"Nội dung do AI tạo"**.
+
+Ô **Du lịch Việt Nam** trên Studio đang mờ ("Sắp có trên Studio"). Video du lịch vẫn làm theo mục 4c.
+
+---
+
 ## 5. Lịch gợi ý
 
 | Khi nào | Việc |
@@ -396,10 +444,16 @@ Sửa chữ hoặc số thì bấm **Lưu**, rồi **Dựng lại video**, rồi
 | Trang web báo *"local … service is not running"* | Máy chủ chưa bật hoặc đã tắt: làm lại mục 3. Nếu máy chủ vẫn chạy: bấm biểu tượng bên trái thanh địa chỉ Chrome, cho phép truy cập mạng cục bộ, tải lại trang |
 | Danh sách video trống | Chưa có video nào được tạo: làm bước 3 |
 | Studio báo *Không kết nối được máy chủ Studio* | Cửa sổ Terminal của máy chủ đã bị đóng: bấm đúp lại `scripts/mo-studio.command` (mục 3) |
-| Studio báo *TikTok tạm chặn đọc tự động từ link này* | Tự điền **Tên sản phẩm**, **Giá sản phẩm hiện trên video (đồng)** và bấm **+ Tải ảnh lên** ở 3 ô Ảnh sản phẩm ngay bên dưới rồi bấm **Tạo video** như bình thường |
+| Studio báo *TikTok tạm chặn đọc tự động từ link này* | Tự điền **Tên sản phẩm**, **Giá sản phẩm hiện trên video (đồng)** và bấm **+ Tải ảnh lên** ở 3 ô Ảnh sản phẩm ngay bên dưới rồi bấm **Viết kịch bản** như bình thường |
 | Studio báo *Giá đang dưới 1.000đ* | Kiểm tra lại xem có gõ thiếu 3 số 0 không (ví dụ gõ `189.000` thay vì `189`), hoặc nhập `0` nếu muốn ẩn giá trên video |
 | Studio báo *Dòng 1 là dòng tiêu đề cột* | Nhìn cột số thứ tự bên trái bảng tính Google Sheet và chọn từ **dòng số 2** trở đi |
-| Studio báo *Đang có việc chạy* | Đang tạo, dựng hoặc duyệt một video khác. Đợi xong rồi bấm lại |
+| Studio báo *Đang có một việc khác chạy (…)* | Đang viết kịch bản, dựng, duyệt hoặc AI viết lại một video khác (tên việc ghi trong ngoặc). Đợi xong rồi bấm lại |
+| Studio báo *Video đang soạn bố cục. Hãy bấm Dựng video theo bố cục này trước* | Bạn đang ở bước soạn bố cục nên chưa dựng lại / duyệt / xuất CapCut / tải ảnh được. Bấm **Dựng video theo bố cục này** (hoặc **Bỏ các chỗ vừa sửa** nếu còn nút này) |
+| Studio báo *Chưa dựng được: …* (kèm số cảnh) | Bố cục chưa hợp lệ, ví dụ cảnh chưa có lời đọc. Sửa đúng cảnh được nêu rồi bấm lại |
+| Studio báo *AI đang bận hoặc trả lời lỗi, kịch bản chưa đổi* | AI viết lại không thành công, kịch bản giữ nguyên. Thử lại sau ít phút |
+| Studio báo *Đọc giọng bị lỗi, chưa đổi gì* | Hết lượt Gemini hoặc mạng lỗi; video và giọng cũ giữ nguyên. Thử lại sau, hoặc bấm **Dùng giọng miễn phí cho cả video** (giọng mọi cảnh sẽ đổi) |
+| Studio báo *Lần dựng trước bị ngắt giữa chừng* | Máy chủ bị tắt khi đang dựng. Bấm **Dựng video theo bố cục này** để máy làm tiếp, rồi mới sửa bố cục |
+| Không còn nút **Bỏ các chỗ vừa sửa** | Bạn đã bấm dựng một lần nên máy đã sắp lại file theo bố cục mới, không quay về video cũ được nữa. Bấm **Dựng video theo bố cục này** |
 | Nút **Duyệt & lưu** bị mờ | Đọc dòng chữ cạnh nút: có thay đổi chưa lưu, video chưa dựng lại, hoặc còn thiếu ảnh nhân vật |
 | Studio báo *Không đọc lại được câu đã sửa bằng giọng Gemini* | Hết 10 lượt Gemini trong ngày. Bấm **Đọc lại toàn bộ bằng giọng miễn phí**, hoặc để mai |
 | Studio báo *Dựng lại video bị lỗi* | Bấm **Xem chi tiết kỹ thuật**, chụp màn hình gửi người phụ trách kỹ thuật. Thư mục video không mất gì |

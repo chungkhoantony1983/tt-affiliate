@@ -259,6 +259,10 @@ Còn lại: MKTG đối chiếu checklist với video mẫu.
 
 Sau video thật đầu tiên (hình lạc đề, quá ngắn, giọng "mùi AI"), `docs/decision-records/DR-0010-travel-story-video.md` đề xuất phần 10a (chờ duyệt, chưa có code): video kể chuyện 4 nhịp 60–90 s (cột Sheet `series`, file `content/travel/series/pho-north-south.json`), thư viện cảnh quay riêng ở `BROLL_DIR` (chỉ mục cạnh clip, không trong git), kiểm khớp hình, thiếu cảnh quay thì dừng trước khi gọi AI (mã 8 `needs_broll`, `--resume`), loại cảnh `observe`, dissolve frame-exact giữa các nhịp, edge-tts cải tiến. Gemini TTS cho travel tách sang DR-0010b (sau khi `feat/gemini-quota` merge). Spec sẽ cập nhật chi tiết sau khi Dev xong.
 
+## Tạo từ Studio và soạn bố cục (DR-0014, chưa làm)
+
+DR-0014 đã duyệt phần du lịch (tạo từ Studio với câu hỏi, nguồn, các ý trả lời; dừng sau `write_and_check` ở `script_review`; luật bố cục hook đầu / outro cuối cố định, số cảnh trả lời theo `answer_segments`), nhưng **để PR sau** (người dùng chốt Q-5, 2026-11-25). Hiện tại: trên Studio ô "Du lịch Việt Nam" mờ, ghi "Sắp có trên Studio"; `POST /api/studio/create` với `kind: travel` trả 400; thư mục travel không mở được "Sửa bố cục" (409). Tạo video du lịch vẫn bằng lệnh `demo.py --travel --sheet`.
+
 ---
 
 ## Lộ trình
