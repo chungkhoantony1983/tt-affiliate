@@ -745,10 +745,23 @@ def batch_quota_line_vi():
     return f"Lượt Gemini còn đủ cho khoảng {videos} video. Các video sau sẽ dùng giọng miễn phí."
 
 
+def _tts_too_long(text: str, seconds: float) -> bool:
+    """A clip this long for its line means Gemini also read the director's notes aloud (issue #40).
+    Digits count as extra words because a number is read as several."""
+    words = len(text.split()) + sum(c.isdigit() for c in text)
+    # shortcut: duration only, so a short leak inside a long line (25+ words) can pass; transcribe if it does.
+    return seconds > 3.0 + 0.45 * words
+
+
+# Self-check on measured clips: the leaked one (8 words, 10.13s) and the slowest good one per word (5 words, 2.9s)
+assert _tts_too_long("w " * 8, 10.13) and not _tts_too_long("w " * 5, 2.9)
+
+
 def _gemini_tts(text: str, speaker: str, kind: str, output_path: str, persona: str = "nu_nam",
                 model: str = None) -> None:
-    """One Gemini TTS request → output_path (mp3). Does not touch the quota ledger: the caller
-    reserves and refunds. A per-minute 429 is waited out and retried once."""
+    """One Gemini TTS clip → output_path (mp3). The caller reserves and refunds one request; only the
+    single re-read of an abnormally long clip reserves another here. A per-minute 429 is waited out and
+    retried once. Raises GeminiTTSError, writing nothing, if no re-read is possible or it is still too long."""
     import wave
 
     key = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -761,22 +774,36 @@ def _gemini_tts(text: str, speaker: str, kind: str, output_path: str, persona: s
             "generationConfig": {"responseModalities": ["AUDIO"],
                                  "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
     url = f"{base_url}/models/{model}:generateContent"
-    try:
-        data = _gemini_tts_post(url, body, key)
-    except GeminiQuotaError as e:
-        if e.kind != "minute":
-            raise
-        wait = e.retry_after if e.retry_after is not None else 30.0
-        print(f"   ⏳ Gemini per-minute limit: waiting {wait:.0f}s, then one retry")
-        time.sleep(wait)
+
+    def request() -> bytes:
         try:
             data = _gemini_tts_post(url, body, key)
-        except GeminiQuotaError as again:
-            if again.kind == "daily":
+        except GeminiQuotaError as e:
+            if e.kind != "minute":
                 raise
-            raise GeminiQuotaError("unknown", None, "still 429 after waiting") from None
-    pcm = base64.b64decode(data["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
-    pcm = _trim_gemini_edges(pcm)
+            wait = e.retry_after if e.retry_after is not None else 30.0
+            print(f"   ⏳ Gemini per-minute limit: waiting {wait:.0f}s, then one retry")
+            time.sleep(wait)
+            try:
+                data = _gemini_tts_post(url, body, key)
+            except GeminiQuotaError as again:
+                if again.kind == "daily":
+                    raise
+                raise GeminiQuotaError("unknown", None, "still 429 after waiting") from None
+        pcm = base64.b64decode(data["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
+        return _trim_gemini_edges(pcm)
+
+    spoken = _clean_tts_text(text)
+    for attempt in (1, 2):
+        pcm = request()
+        seconds = len(pcm) / 2 / GEMINI_TTS_RATE
+        if not _tts_too_long(spoken, seconds):
+            break
+        problem = f"clip is {seconds:.1f}s for {len(spoken.split())} words (director's notes read aloud?)"
+        if attempt == 2 or not quota_reserve(model, 1):
+            raise GeminiTTSError(f"{problem}; clip rejected")
+        print(f"   ⚠️  {problem} → reading it once more (1 extra request)")
+        time.sleep(7)
 
     wav_path = str(Path(output_path).with_suffix(".wav"))
     with wave.open(wav_path, "wb") as w:

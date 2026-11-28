@@ -120,6 +120,7 @@ Việc cần làm:
 - [ ] Gemini TTS đôi khi đọc bịa thêm câu (trà ô long: "mình mới mua… 120 ngàn"): cân nhắc tự kiểm bằng
       Whisper (Groq) sau khi đọc giọng. DR-0004 thêm cách kiểm tay cho agent (`/audio-check`, `scripts/transcript_check.py`);
       tự chạy trong pipeline/Studio cần DR riêng (DR-0004 Q-5, mặc định: để sau)
+- [x] Bug #40 (2026-11-28): clip Gemini đọc cả phần chỉ dẫn → clip dài hơn 3,0 + 0,45 × số từ giây thì đọc lại 1 lần, vẫn dài thì loại. Chỉ đo độ dài, đoạn đọc thừa ngắn vẫn có thể lọt; thông báo khi loại clip còn ghi sai lý do. Chưa thử với Gemini thật
 
 ### M2c — Video bài tập hằng ngày, không bán hàng (2026-11-12)
 Khung mọi chuỗi bài: **mở đầu** (gợi tò mò, nguồn gốc, dành cho ai, 1–2 điểm nổi bật có nguồn, tập khi nào) → **mỗi ngày 1 động tác** → **tổng kết** ≤ 3 phút.
