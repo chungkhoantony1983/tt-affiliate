@@ -52,6 +52,7 @@ aside h2 { font-size: var(--fs-note); text-transform: uppercase; letter-spacing:
 .b-approved { background: var(--ok-bg); color: var(--ok); }
 .b-view_only { background: var(--soft); color: var(--muted); }
 .b-voice { background: var(--info-bg); color: var(--info); }
+.b-layout { background: var(--info-bg); color: var(--info); }
 main { padding: 20px 24px 120px; min-width: 0; }
 .empty { color: var(--muted); padding: 40px 0; text-align: center; }
 .back { display: none; }
@@ -142,6 +143,48 @@ button.chip { border: 0; cursor: pointer; }
 .banner { min-width: 0; overflow-wrap: anywhere; }
 .chip.stale { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
 .detail > * { min-width: 0; }
+.steps { display: flex; gap: 6px; flex-wrap: wrap; list-style: none; margin: 0 0 14px; padding: 0; font-size: var(--fs-small); }
+.steps li { padding: 4px 12px; border-radius: 99px; background: var(--soft); color: var(--muted); }
+.steps li.on { background: var(--info-bg); color: var(--info); font-weight: 700; }
+.tiles { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.tile { flex: 1 1 200px; text-align: left; border: 2px solid var(--line); background: var(--panel); border-radius: var(--radius);
+  padding: 14px; cursor: pointer; display: grid; gap: 4px; min-height: 84px; }
+.tile b { font-size: var(--fs-body); }
+.tile span { font-size: var(--fs-note); color: var(--muted); }
+.tile[aria-pressed="true"] { border-color: var(--focus); background: var(--info-bg); }
+.tile:disabled { opacity: .55; cursor: not-allowed; }
+.noplayer { aspect-ratio: 9 / 16; border-radius: var(--radius); background: var(--soft); border: 1px dashed var(--line);
+  display: grid; place-items: center; color: var(--muted); text-align: center; padding: 12px; }
+.lscene { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; background: var(--bg); }
+.lscene.open { border-color: var(--focus); }
+.lscene.bad { border-color: var(--bad); }
+.lhead { width: 100%; text-align: left; background: none; border: 0; padding: 10px 12px; cursor: pointer; display: flex;
+  gap: 8px; align-items: center; flex-wrap: wrap; border-radius: 10px; min-height: 44px; }
+.lhead .lsum { flex: 1 1 160px; min-width: 0; color: var(--muted); font-size: var(--fs-small); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.lhead .lsum.err { color: var(--bad); font-weight: 600; }
+.lbody { padding: 0 12px 12px; }
+.lbody small { font-weight: 400; color: var(--muted); }
+.lbody details { margin-top: 10px; }
+.lbody summary { cursor: pointer; font-size: var(--fs-small); font-weight: 600; min-height: 32px; }
+.ferr { color: var(--bad); font-size: var(--fs-small); margin-top: 4px; font-weight: 600; }
+.lacts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.lacts .btn { min-height: 44px; min-width: 44px; }
+.lscene .invalid { border-color: var(--bad); background: var(--bad-bg); }
+.add-here { display: block; width: 100%; margin: 0 0 8px; background: none; border: 1px dashed var(--line); border-radius: 10px;
+  color: var(--muted); min-height: 40px; cursor: pointer; font-weight: 600; }
+.add-here:hover:not(:disabled) { background: var(--soft); }
+.add-here:disabled { opacity: .45; cursor: not-allowed; }
+.imgpick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.imgpick label { display: grid; gap: 4px; justify-items: center; cursor: pointer; font-size: var(--fs-caption); border: 2px solid var(--line);
+  border-radius: 10px; padding: 4px; min-width: 64px; }
+.imgpick label:has(input:checked) { border-color: var(--focus); background: var(--info-bg); }
+.imgpick img, .imgpick .auto { width: 56px; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: var(--soft);
+  display: grid; place-items: center; font-size: var(--fs-caption); text-align: center; }
+.imgpick input { margin: 0; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--bad); text-decoration: underline; cursor: pointer; font: inherit; font-weight: 600; text-align: left; }
+.actionbar .quiet { margin-left: auto; color: var(--muted); }
+main.busy .lscene, main.busy .add-here { pointer-events: none; opacity: .6; }
 @media (max-width: 900px) {
   .detail { grid-template-columns: minmax(0, 1fr); }
   .player { position: static; max-width: 340px; margin: 0 auto; width: 100%; }
@@ -151,10 +194,12 @@ button.chip { border: 0; cursor: pointer; }
   aside { max-height: none; position: static; border-right: 0; }
   body.has-detail aside { display: none; }
   body:not(.has-detail) main { display: none; }
-  main { padding: 16px 16px 150px; }
+  main { padding: 16px 16px 240px; }
   .back { display: inline-flex; margin-bottom: 10px; }
   .actionbar { left: 0; padding: 10px 16px; }
   .actionbar .btn { flex: 1 1 auto; }
+  .actionbar .quiet { flex: 0 0 auto; }
+  .btn.small { min-height: 44px; }
   header { padding: 12px 16px; }
   .slot-card { max-width: none; }
 }
@@ -163,7 +208,7 @@ button.chip { border: 0; cursor: pointer; }
 <body>
 <header>
   <h1>Studio duyệt video</h1>
-  <p>Tạo video sản phẩm mới, xem và sửa chữ, dựng lại, rồi duyệt.</p>
+  <p>Tạo video mới, soạn bố cục, xem và sửa chữ, dựng lại, rồi duyệt.</p>
   <p class="quota" id="quota" role="status">Đang xem số lượt giọng Gemini…</p>
 </header>
 <div class="layout">
@@ -172,6 +217,7 @@ button.chip { border: 0; cursor: pointer; }
       <button class="btn primary" id="b-new-video">+ Tạo video mới</button>
     </div>
     <h2>Video trên máy</h2>
+    <p class="hint" id="counts" style="margin:0 16px 6px"></p>
     <ul class="vlist" id="list"><li class="empty">Đang tải…</li></ul>
   </aside>
   <main id="main"><p class="empty">Chọn một video ở danh sách bên trái hoặc bấm <b>+ Tạo video mới</b>.</p></main>
@@ -325,17 +371,22 @@ function travelErrorHtml(job) {
 <script>
 "use strict";
 const API = "/api/studio";
-const LABELS = { review: "Chờ duyệt", needs_images: "Cần ảnh", approved: "Đã duyệt", view_only: "Chỉ xem" };
+const LABELS = { layout: "Đang soạn bố cục", review: "Chờ duyệt đăng", needs_images: "Cần ảnh", approved: "Đã duyệt", view_only: "Chỉ xem" };
 const SPEAKERS = { narrator: "Người dẫn", con_gai: "Con gái", con_trai: "Con trai", me: "Mẹ", bo: "Bố", ba: "Bà", ong: "Ông" };
-const KINDS = { story: "Tiểu phẩm", product: "Sản phẩm", cta: "Kêu gọi mua" };
+const KINDS = { story: "Tiểu phẩm", product: "Sản phẩm", cta: "Kêu gọi mua", topic: "Nội dung", outro: "Kết" };
 const VOICE_BADGES = { free: "Giọng miễn phí", backup: "Gemini phụ" };
 const VOICE_NAMES = { main: "Gemini", backup: "Gemini phụ", free: "giọng miễn phí" };
 const VN_DIGITS = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
 
 let videos = [], drive = false, current = null, mode = null, dirty = false, polling = null, banner = null;
 
+function savedKind() {
+  try { return localStorage.getItem("studio.kind") === "topic" ? "topic" : "product"; } catch { return "product"; }
+}
 function emptyCreateState() {
   return {
+    kind: savedKind(),   // "product" | "topic" (last one used)
+    tName: "", tAudience: "", tOutline: "", tNotes: "", tNotesAuto: false, tVoice: "edge", tGender: "auto",
     source: "url",
     productUrl: "",
     sheetRow: "",
@@ -604,11 +655,14 @@ async function loadList() {
   const data = await api("/videos");
   videos = data.videos; drive = data.drive;
   const ul = $("#list");
+  const n = (l) => videos.filter((v) => v.label === l).length;
+  $("#counts").textContent = videos.length
+    ? `${n("layout")} đang soạn bố cục · ${n("review") + n("needs_images")} chờ duyệt đăng · ${n("approved")} đã duyệt` : "";
   if (!videos.length) { ul.innerHTML = '<li class="empty">Chưa có video nào trên máy.</li>'; return; }
   ul.innerHTML = videos.map((v) => `
     <li><button data-folder="${esc(v.folder)}" ${mode === "detail" && current && current.folder === v.folder ? 'aria-current="true"' : ""}>
       <span class="t">${esc(v.title)}</span>
-      <span class="m"><span class="badge b-${v.label}">${LABELS[v.label]}</span>${
+      <span class="m"><span class="badge b-${v.label}">${LABELS[v.label]}</span>${v.has_video === false ? '<span class="chip">Chưa dựng video</span>' : ""}${
         VOICE_BADGES[v.voice_role] ? `<span class="badge b-voice">${VOICE_BADGES[v.voice_role]}</span>` : ""}${esc(when(v.folder))}</span>
     </button></li>`).join("");
 }
@@ -622,6 +676,10 @@ $("#b-new-video").addEventListener("click", () => openCreate());
 
 function leaveOk() {
   if (!dirty) return Promise.resolve(true);
+  if (mode === "detail" && current && current.stage) {   // layout step: save instead of throwing the edits away
+    return ask({ title: "Bạn đã sửa chưa lưu", text: "Bạn đã sửa chưa lưu. Lưu rồi rời trang?",
+      yes: "Lưu rồi rời đi", no: "Ở lại" }).then((ok) => (ok ? layoutSave() : false));
+  }
   return ask({ title: "Bỏ thay đổi chưa lưu?", text: "Bạn có thay đổi chưa lưu. Bỏ các thay đổi đó?",
     yes: "Bỏ thay đổi", no: "Ở lại" });
 }
@@ -634,6 +692,7 @@ async function openVideo(folder, keepBanner = false) {
   mode = "detail";
   dirty = false;
   if (!keepBanner) banner = null;
+  if (current.stage) layoutFromDetail(current); else L = null;   // the layout copy follows what the server has
   history.replaceState(null, "", "#" + encodeURIComponent(folder));
   document.body.classList.add("has-detail");
   render();
@@ -675,6 +734,15 @@ async function loadSheetRows() {
 
 function syncCreateDomToState() {
   if (mode !== "create") return;
+  if ($("#t-name")) {
+    createState.tName = $("#t-name").value;
+    createState.tAudience = $("#t-audience").value;
+    createState.tOutline = $("#t-outline").value;
+    createState.tNotes = $("#t-notes").value;
+    createState.tGender = $("#t-gender").value;
+    const tv = document.querySelector('input[name="t-voice"]:checked');
+    if (tv) createState.tVoice = tv.value;
+  }
   if ($("#c-url")) createState.productUrl = $("#c-url").value;
   if ($("#c-sheet-row")) createState.sheetRow = $("#c-sheet-row").value;
   if ($("#c-name")) createState.name = $("#c-name").value;
@@ -748,6 +816,79 @@ function createSlotsMarkup() {
   }).join("") + addCard;
 }
 
+const NEXT_STEP_NOTE = "Bước tiếp theo: xem và sửa bố cục, rồi mới dựng video. Bước này chỉ dùng AI viết chữ (miễn phí), chưa tốn lượt giọng đọc.";
+const NOTES_SUGGEST = "Bài vận động nhẹ, không phải phương pháp chữa bệnh.";
+const OUTLINE_EXAMPLE = "Ngồi văn phòng cả ngày, vai gáy mỏi nhừ?\nHai tay nâng trời, giữ 3 nhịp thở\nKéo cung bắn chim, đổi bên\nLàm chậm, đau thì dừng\nLưu lại để tập mỗi sáng";
+
+function kindTilesMarkup() {
+  const t = (k, title, sub) => `<button type="button" class="tile" data-kind="${k}" aria-pressed="${createState.kind === k}"><b>${esc(title)}</b><span>${esc(sub)}</span></button>`;
+  return `<div class="tiles" role="group" aria-label="Loại video">
+    ${t("product", "Sản phẩm TikTok Shop", "Video giới thiệu một sản phẩm, có kêu gọi bấm giỏ hàng.")}
+    ${t("topic", "Bài tập, mẹo, kiến thức", "Không bán hàng. Bạn viết sườn, AI viết lời đọc.")}
+    <button type="button" class="tile" disabled><b>Du lịch Việt Nam</b><span>Nói tiếng Anh, có nguồn. Sắp có trên Studio.</span></button>
+  </div>`;
+}
+
+// Outline lines the way the server counts them (layout_rules.clean_outline)
+function outlineLines(raw) {
+  return String(raw || "").split("\n")
+    .map((l) => l.replace(/^\s*(?:(?:cảnh|canh)\s*\d+\s*[:.)\-]|\d+\s*[.)\-:]|[-*•])\s*/i, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+function outlineProblem(raw) {
+  const lines = outlineLines(raw), n = lines.length;
+  if (n < 2 || n > 12) {
+    return `Cần từ 2 đến 12 dòng. Bạn đang có ${n}. ${n > 12 ? `Xoá bớt ${n - 12} dòng.` : "Thêm ý cho đủ dòng."}`;
+  }
+  const long = lines.findIndex((l) => l.length > 200);
+  return long >= 0 ? `Dòng ${long + 1} dài quá 200 ký tự.` : "";
+}
+function outlineCountMarkup() {
+  const n = outlineLines(createState.tOutline).length, err = outlineProblem(createState.tOutline);
+  return err && n > 0 ? `<div class="price-preview bad-text">${esc(err)}</div>`
+    : `<div class="hint">${n} dòng = ${n} cảnh (tối thiểu 2, tối đa 12)</div>`;
+}
+
+function topicFormMarkup() {
+  const c = createState;
+  return `
+    <div class="card">
+      <h3>Chủ đề và sườn</h3>
+      <label class="f" for="t-name">Tên chủ đề</label>
+      <input type="text" id="t-name" maxlength="120" placeholder="Ví dụ: Bát Đoạn Cẩm cho dân văn phòng" value="${esc(c.tName)}">
+      <label class="f" for="t-audience">Người xem là ai (không bắt buộc)</label>
+      <input type="text" id="t-audience" maxlength="200" placeholder="Ví dụ: Người đi làm văn phòng, hay đau vai gáy" value="${esc(c.tAudience)}">
+      <label class="f" for="t-outline">Kịch bản sườn</label>
+      <textarea id="t-outline" rows="7" placeholder="${esc(OUTLINE_EXAMPLE)}">${esc(c.tOutline)}</textarea>
+      <div class="hint">Mỗi dòng là một cảnh. Dòng đầu mở video, dòng cuối kết video. Viết ý, không cần viết lời đọc.</div>
+      <div id="t-outline-msg">${outlineCountMarkup()}</div>
+      <label class="f" for="t-notes">Điều cần tránh / lưu ý</label>
+      <textarea id="t-notes" rows="2" maxlength="500" placeholder="Ví dụ: Không nói quá công dụng, không hứa chữa bệnh">${esc(c.tNotes)}</textarea>
+      <div class="hint" id="t-notes-hint">${c.tNotesAuto && c.tNotes === NOTES_SUGGEST ? "Đề xuất sẵn, sửa được." : "Máy sẽ làm đúng lưu ý này khi viết lời đọc."}</div>
+    </div>
+    <div class="card">
+      <h3>Ảnh minh hoạ</h3>
+      <div class="hint" style="margin-top:0;margin-bottom:10px">Không bắt buộc, tối đa 10 ảnh. Không có ảnh thì video dùng nền trơn. Các cảnh dùng ảnh xoay vòng, bạn chọn lại ảnh cho từng cảnh ở bước bố cục.</div>
+      <div class="pimgs" id="c-slots">${createSlotsMarkup()}</div>
+    </div>
+    <div class="card">
+      <h3>Giọng đọc</h3>
+      <label class="f" for="t-gender">Giọng</label>
+      <select id="t-gender">
+        <option value="auto" ${c.tGender === "auto" ? "selected" : ""}>Tự chọn</option>
+        <option value="nam_bac" ${c.tGender === "nam_bac" ? "selected" : ""}>Nam</option>
+        <option value="nu_nam" ${c.tGender === "nu_nam" ? "selected" : ""}>Nữ</option>
+      </select>
+      <div class="style-choices">
+        <label class="style-choice"><input type="radio" name="t-voice" value="edge" ${c.tVoice !== "gemini" ? "checked" : ""}>
+          <div><b>Giọng miễn phí</b><span>Không tốn lượt Gemini.</span></div></label>
+        <label class="style-choice"><input type="radio" name="t-voice" value="gemini" ${c.tVoice === "gemini" ? "checked" : ""}>
+          <div><b>Giọng Gemini</b><span>Tự nhiên hơn, tốn 1 lượt mỗi cảnh.</span></div></label>
+      </div>
+    </div>
+    <div class="banner info">${NEXT_STEP_NOTE}</div>`;
+}
+
 function renderCreate() {
   const main = $("#main");
   const isUrl = createState.source === "url";
@@ -756,9 +897,11 @@ function renderCreate() {
 
   main.innerHTML = `
     <button class="btn small back" id="back">← Danh sách</button>
-    <div class="title-row"><h2>Tạo video sản phẩm mới</h2></div>
+    <div class="title-row"><h2>Tạo video mới</h2></div>
     <div id="banner">${banner ? bannerMarkup() : ""}</div>
     <div class="create-wrap">
+      ${kindTilesMarkup()}
+      ${createState.kind === "topic" ? topicFormMarkup() : `
       <div class="card">
         <h3>Bước 1: Chọn sản phẩm</h3>
         <p class="sub">Dán link sản phẩm TikTok Shop hoặc chọn một dòng có sẵn trên Google Sheet.</p>
@@ -836,9 +979,7 @@ function renderCreate() {
         <textarea id="c-notes" rows="2" placeholder="Ví dụ: Không phải thiết bị y tế; khách hàng là người lớn tuổi...">${esc(createState.notes)}</textarea>
       </div>
 
-      <div class="banner info">
-        Tạo video mới sẽ dùng khoảng 4 lượt giọng đọc Gemini (mỗi ngày có 10 lượt miễn phí; hết lượt máy tự chuyển sang giọng miễn phí). Hãy kiểm tra kỹ Giá và Ảnh sản phẩm trước khi bấm.
-      </div>
+      <div class="banner info">${NEXT_STEP_NOTE}</div>`}
     </div>`;
 
   if (!isUrl) paintSheetSelect();
@@ -856,6 +997,31 @@ function bindCreateEvents() {
     $("#main").innerHTML = '<p class="empty">Chọn một video ở danh sách bên trái hoặc bấm <b>+ Tạo video mới</b>.</p>';
     loadList();
   });
+
+  $("#main").querySelectorAll("[data-kind]").forEach((b) => b.addEventListener("click", () => {
+    syncCreateDomToState();
+    if (createState.kind === b.dataset.kind) return;
+    createState.kind = b.dataset.kind;
+    try { localStorage.setItem("studio.kind", createState.kind); } catch { /* private mode: not remembered */ }
+    renderCreate();
+  }));
+  const tName = $("#t-name"), tOutline = $("#t-outline");
+  if (tName) {
+    const suggest = () => {   // health-style topics: a safe default the operator can see and edit
+      const notes = $("#t-notes");
+      if (/tập/i.test(tName.value + " " + tOutline.value) && !notes.value.trim()) {
+        notes.value = NOTES_SUGGEST; createState.tNotesAuto = true;
+        $("#t-notes-hint").textContent = "Đề xuất sẵn, sửa được.";
+      }
+    };
+    tName.addEventListener("input", suggest);
+    tOutline.addEventListener("input", () => {
+      suggest();
+      createState.tOutline = tOutline.value;
+      $("#t-outline-msg").innerHTML = outlineCountMarkup();
+    });
+    $("#t-notes").addEventListener("input", () => { $("#t-notes-hint").textContent = "Máy sẽ làm đúng lưu ý này khi viết lời đọc."; });
+  }
 
   $("#tab-url")?.addEventListener("click", () => {
     syncCreateDomToState();
@@ -1014,8 +1180,20 @@ async function removeStagingImage(slot) {
   } catch (e) { showBanner("bad", e.message); }
 }
 
+function updateTopicBar() {
+  const bar = $("#bar"), c = createState;
+  const busy = jobBusy();
+  const outErr = outlineProblem(c.tOutline), nameOk = c.tName.trim().length >= 1;
+  const can = !busy && !outErr && nameOk;
+  const why = busy ? "Đang xử lý, đợi một chút…" : !nameOk ? "Nhập tên chủ đề." : outErr ? outErr : NEXT_STEP_NOTE;
+  bar.hidden = false;
+  bar.innerHTML = `<span class="why">${esc(why)}</span><button class="btn primary" id="b-create" ${can ? "" : "disabled"}>Viết kịch bản</button>`;
+  $("#b-create").onclick = () => startCreate();
+}
+
 function updateCreateBar() {
   if (mode !== "create") return;
+  if (createState.kind === "topic") { updateTopicBar(); return; }
   const bar = $("#bar");
   const busy = jobBusy() || createState.loadingPreview;
   const p = parsePriceRaw(createState.priceRaw);
@@ -1029,17 +1207,31 @@ function updateCreateBar() {
   if (busy) why = "Đang xử lý, đợi một chút…";
   else if (rowErr) why = rowErr;
   else if (p.invalid) why = "Giá sản phẩm chưa hợp lệ (nhập từ 1.000đ trở lên, hoặc nhập 0 để ẩn giá).";
-  else if (!hasSource) why = "Chọn nguồn sản phẩm ở Bước 1, kiểm tra Giá & Ảnh ở Bước 2 rồi bấm Tạo video.";
-  else why = "Tạo video mới dùng ~4 lượt giọng Gemini (10 lượt miễn phí/ngày). Kiểm tra kỹ Giá & Ảnh trước khi bấm.";
+  else if (!hasSource) why = "Chọn nguồn sản phẩm ở Bước 1, kiểm tra Giá & Ảnh ở Bước 2 rồi bấm Viết kịch bản.";
+  else why = NEXT_STEP_NOTE;
 
   bar.hidden = false;
   bar.innerHTML = `<span class="why">${esc(why)}</span>
-    <button class="btn primary" id="b-create" ${canCreate ? "" : "disabled"}>Tạo video</button>`;
+    <button class="btn primary" id="b-create" ${canCreate ? "" : "disabled"}>Viết kịch bản</button>`;
   $("#b-create").onclick = () => startCreate();
+}
+
+async function startCreateTopic() {
+  const c = createState;
+  const err = outlineProblem(c.tOutline);
+  if (err) { showBanner("bad", err); $("#t-outline")?.focus(); return; }
+  try {
+    await api("/create", { method: "POST", json: {
+      kind: "topic", name: c.tName.trim(), audience: c.tAudience.trim() || null, outline: c.tOutline,
+      notes: c.tNotes.trim() || null, images: c.slots.filter(Boolean).map((x) => x.source),
+      voice: c.tVoice, voice_gender: c.tGender } });
+    watchJob();
+  } catch (e) { showBanner("bad", e.message); }
 }
 
 async function startCreate() {
   syncCreateDomToState();
+  if (createState.kind === "topic") { await startCreateTopic(); return; }
   const p = parsePriceRaw(createState.priceRaw);
   if (p.invalid) {
     showBanner("bad", "Giá đang dưới 1.000đ. Kiểm tra lại xem bạn có gõ thiếu 3 số 0 (ví dụ 189.000) không, hoặc nhập 0 nếu muốn ẩn giá.");
@@ -1073,11 +1265,19 @@ async function startCreate() {
 }
 
 // ---------------- detail ----------------
+function stepsMarkup(n) {
+  const li = (k, t) => `<li class="${n === k ? "on" : ""}"${n === k ? ' aria-current="step"' : ""}>${k} ${t}</li>`;
+  return `<ol class="steps">${li(1, "Soạn bố cục")}${li(2, "Dựng và xem thử")}${li(3, "Duyệt &amp; lưu")}</ol>`;
+}
+
 function render() {
   const v = current, main = $("#main");
+  main.classList.remove("busy");
+  if (v.stage === "script_review") { renderLayout(); return; }
   const head = `
     <button class="btn small back" id="back">← Danh sách</button>
     <div class="title-row"><h2>${esc(v.title)}</h2><span class="badge b-${v.label}">${LABELS[v.label]}</span></div>
+    ${v.label !== "view_only" && v.kind !== "travel" ? stepsMarkup(v.label === "approved" ? 3 : 2) : ""}
     <div id="banner">${banner ? bannerMarkup() : ""}</div>${v.kind === "travel" ? travelStaleBanner(v) : ""}
     <div id="voiceline"></div>`;
   const player = `<div class="player"><video id="vid" controls playsinline preload="metadata" src="${esc(v.video_url)}#t=0.1"></video></div>`;
@@ -1112,7 +1312,7 @@ function render() {
       <p class="sub">Sửa phần này xong cần bấm <b>Dựng lại video</b>.</p>
       ${v.kind === "travel" ? "" : `<label class="f" for="hook">Câu mở đầu (chữ lớn ở cảnh 1)</label>
       <input type="text" id="hook" value="${esc(v.hook)}">`}
-      ${v.kind === "travel" ? "" : `<label class="f" for="price">Giá hiện trên video (đồng)</label>
+      ${v.kind === "travel" || v.kind === "topic" ? "" : `<label class="f" for="price">Giá hiện trên video (đồng)</label>
       <input type="text" id="price" inputmode="numeric" value="${esc(initialPriceStr)}">
       <div id="price-preview">${pricePreviewMarkup(initialPriceStr, { allowEmpty: false, oldPrice: v.price })}</div>`}
     </div>
@@ -1122,8 +1322,8 @@ function render() {
       ${v.segments.map(sceneMarkup).join("")}
     </div>
     ${v.kind === "travel" ? travelCards(v) : `<div class="card">
-      <h3>Ảnh sản phẩm</h3>
-      <p class="sub">Video dùng tối đa 10 ảnh. Ảnh đầu tiên dùng cho cảnh mở đầu và cảnh kêu gọi mua.</p>
+      <h3>${v.kind === "topic" ? "Ảnh minh hoạ" : "Ảnh sản phẩm"}</h3>
+      <p class="sub">${v.kind === "topic" ? "Video dùng tối đa 10 ảnh, xoay vòng ở các cảnh." : "Video dùng tối đa 10 ảnh. Ảnh đầu tiên dùng cho cảnh mở đầu và cảnh kêu gọi mua."}</p>
       <div class="pimgs">${productImagesMarkup()}</div>
     </div>`}
   </div></div>`;
@@ -1142,7 +1342,7 @@ function sceneMarkup(s) {
   if (current.kind === "travel") return travelSceneMarkup(s);
   const first = s.index === 0;
   const tag = first ? "Mở đầu" : KINDS[s.kind] || "Cảnh";
-  const showText = s.kind === "product" && !first;
+  const showText = (s.kind === "product" || s.kind === "topic" || s.kind === "outro") && !first;
   let img = "";
   if (s.kind === "story") {
     const thumb = s.image_url ? `<img class="thumb" src="${esc(s.image_url)}" alt="Ảnh cảnh ${s.index + 1}">`
@@ -1238,6 +1438,7 @@ function updateBar() {
   const v = current, bar = $("#bar");
   if (mode === "create") { updateCreateBar(); return; }
   if (!v || v.label === "view_only") { bar.hidden = true; return; }
+  if (v.stage === "script_review") { updateLayoutBar(); return; }
   const changed = changedLines();
   document.querySelectorAll("[data-scene]").forEach((el) => {
     el.querySelector("[data-re]").hidden = !changed.includes(+el.dataset.scene);
@@ -1286,12 +1487,15 @@ function updateBar() {
   bar.innerHTML = `<span class="why">${esc(why)}</span>
     <button class="btn" id="b-save" ${!dirty || busy || priceInvalid ? "disabled" : ""}>Lưu thay đổi</button>
     <button class="btn ${needsRender && !busy && !priceInvalid ? "primary" : ""}" id="b-render" ${busy || priceInvalid ? "disabled" : ""}>Dựng lại video</button>
-    ${v.kind !== "travel" ? `<button class="btn" id="b-capcut" ${busy || dirty || v.needs_render ? "disabled" : ""} title="${v.capcut ? "Đã xuất: " + esc(v.capcut.draft_name || "") : "Tạo dự án CapCut từ video này để chỉnh tiếp"}">${v.capcut ? "Xuất lại sang CapCut" : "Xuất sang CapCut"}</button>` : ""}
+    ${v.kind === "travel" ? "" : v.label === "approved" ? '<span class="hint">Video đã duyệt, không sửa bố cục được</span>'
+      : `<button class="btn" id="b-layout" ${busy ? "disabled" : ""}>Sửa bố cục</button>`}
+    ${v.kind === "product" ? `<button class="btn" id="b-capcut" ${busy || dirty || v.needs_render ? "disabled" : ""} title="${v.capcut ? "Đã xuất: " + esc(v.capcut.draft_name || "") : "Tạo dự án CapCut từ video này để chỉnh tiếp"}">${v.capcut ? "Xuất lại sang CapCut" : "Xuất sang CapCut"}</button>` : ""}
     <button class="btn ${canApprove ? "primary" : ""}" id="b-approve" ${canApprove ? "" : "disabled"}>${stale ? "Cần làm mới nguồn trước" : "Duyệt &amp; lưu"}</button>`;
   $("#b-save").onclick = () => save().then(() => { showBanner("ok", "Đã lưu."); render(); }).catch((e) => showBanner("bad", e.message));
   $("#b-render").onclick = () => startRender();
   $("#b-approve").onclick = () => askApprove();
   if ($("#b-capcut")) $("#b-capcut").onclick = () => startCapcut();
+  if ($("#b-layout")) $("#b-layout").onclick = () => askOpenLayout();
 }
 
 async function startCapcut() {
@@ -1364,8 +1568,7 @@ function stepText(job) {
   if (job.action === "approve") return /Drive|Upload/i.test(log) ? "Đang tải lên Google Drive…" : "";
   if (/Rendering video|Scene \d/.test(log)) return "Đang dựng hình…";
   if (/voic/i.test(log)) return "Đang tạo giọng đọc…";
-  if (/Generating .* script/i.test(log)) return "Đang viết kịch bản…";
-  if (job.action === "create") return "Đang đọc thông tin sản phẩm…";
+  if (/Generating .* script|Writing .* script/i.test(log)) return "Đang viết kịch bản…";
   return "Đang chuẩn bị…";
 }
 
@@ -1378,7 +1581,9 @@ function watchJob() {
       let what;
       if (job.action === "approve") what = "Đang duyệt.";
       else if (job.action === "capcut") what = "Đang tạo dự án CapCut, chỉ mất vài giây.";
-      else if (job.action === "create") what = "Đang tạo video mới, thường mất 2–3 phút.";
+      else if (job.action === "create") what = "Đang viết kịch bản. Bạn có thể đóng trang này, video sẽ hiện trong danh sách khi xong.";
+      else if (job.action === "rewrite") what = "Đang viết lại (thường vài giây).";
+      else if (job.action === "continue") what = "Đang dựng video theo bố cục: đọc giọng rồi dựng hình.";
       else what = "Đang dựng lại video, thường mất 1–2 phút.";
       banner = { kind: "job", html: `<span class="spinner"></span>${what} ${esc(stepText(job))}` };
       paintBanner();
@@ -1396,8 +1601,9 @@ async function jobFinished(job) {
   const log = `<details><summary>Xem chi tiết kỹ thuật</summary><pre>${esc(job.log.join("\n"))}</pre></details>`;
   const driveLink = job.drive_link ? ` <a href="${esc(job.drive_link)}" target="_blank" rel="noopener">Mở thư mục Drive</a>` : "";
   await loadQuota();  // the job may have used Gemini requests, or learned that a voice ran out
+  if (job.action === "continue" || job.action === "rewrite") { await layoutJobFinished(job, log); return; }
   if (job.state === "done" && job.action === "create") {
-    banner = { kind: "ok", html: "Đã tạo xong video mới. Xem hết video và kiểm tra lời đọc trước khi bấm Duyệt & lưu." };
+    banner = { kind: "ok", html: "Đã viết xong kịch bản. Xem và sửa bố cục, rồi bấm Dựng video theo bố cục này." };
     await loadList();
     if (job.folder && videos.some((v) => v.folder === job.folder)) {
       await openVideo(job.folder, true);
@@ -1437,7 +1643,7 @@ async function jobFinished(job) {
   } else if (job.action === "create") {
     banner = {
       kind: "bad",
-      html: "Tạo video chưa thành công. Bạn hãy kiểm tra lại thông tin ở dưới rồi bấm Tạo video để thử lại." + log,
+      html: "Chưa viết được kịch bản. Bạn hãy kiểm tra lại thông tin ở dưới rồi bấm Viết kịch bản để thử lại." + log,
     };
     if (mode !== "create") {
       await openCreate(true);
@@ -1486,6 +1692,427 @@ async function jobFinished(job) {
       + " Thư mục video vẫn còn nguyên, có thể thử lại." + log };
     if (videos.some((v) => v.folder === job.folder)) await openVideo(job.folder, true); else paintBanner();
   }
+}
+
+// ---------------- layout step (DR-0014): edit the scene list before any voice or render ----------------
+// L = the editable copy of the scenes. The server is the only place that hands out sids and files;
+// every structural change is saved first (PUT) and the page then shows what the server answered.
+let L = null;
+const LAYOUT_MAX = 12, LAYOUT_MIN = 2;
+const enc = (f) => encodeURIComponent(f);
+const shorten = (t, n = 80) => (norm(t).length > n ? norm(t).slice(0, n) + "…" : norm(t));
+
+function layoutFromDetail(v) {
+  const old = L && L.folder === v.folder ? L : null;
+  const aiLine = old ? old.aiLine : {}, human = old ? old.human : new Set(), prev = old ? old.prev : {};
+  const scenes = v.segments.map((s) => ({
+    sid: s.sid, kind: s.kind, brief: s.brief || "", line: s.line || "", text: s.text || "",
+    image_slot: s.image_slot === undefined ? null : s.image_slot, locked: !!s.locked, locked_reason: s.locked_reason || "",
+    has_audio: !!s.has_audio, audio_line: s.audio_line || "",
+  }));
+  const after = old && old.afterRewrite;   // the AI just rewrote: remember what it replaced (D-44)
+  if (after) {
+    if (after.sid) { prev[after.sid] = after.before; const n = scenes.find((s) => s.sid === after.sid); if (n) aiLine[after.sid] = n.line; }
+    else { for (const k of Object.keys(prev)) delete prev[k]; for (const k of Object.keys(aiLine)) delete aiLine[k]; }
+  }
+  for (const s of scenes) if (!(s.sid in aiLine) && !human.has(s.sid)) aiLine[s.sid] = s.line;
+  L = { folder: v.folder, scenes, aiLine, human, prev, open: old ? Math.min(old.open, scenes.length - 1) : 0,
+        err: null, hook: v.hook || "", caption: v.caption || "", hashtags: v.hashtags || "", afterRewrite: null, pending: null };
+}
+
+const needsVoice = (s) => !s.has_audio || norm(s.line) !== norm(s.audio_line || s.line);
+const isHandmade = (s) => norm(s.line) !== "" && (s.sid && s.sid in L.aiLine ? norm(s.line) !== norm(L.aiLine[s.sid]) : true);
+
+function layoutProblems() {
+  const out = [], n = L.scenes.length;
+  if (n < LAYOUT_MIN || n > LAYOUT_MAX) out.push({ idx: -1, msg: `video cần từ ${LAYOUT_MIN} đến ${LAYOUT_MAX} cảnh, hiện có ${n}` });
+  L.scenes.forEach((s, i) => {
+    if (!norm(s.line)) out.push({ idx: i, msg: `cảnh ${i + 1} chưa có lời đọc` });
+    else if (norm(s.line).length > 300) out.push({ idx: i, msg: `cảnh ${i + 1}: lời đọc dài quá 300 ký tự` });
+    if ((s.text || "").trim().length > 60) out.push({ idx: i, msg: `cảnh ${i + 1}: chữ trên hình dài quá 60 ký tự` });
+  });
+  return out;
+}
+
+function syncLayoutFromDom() {
+  if (!L || !$("#l-hook")) return;
+  L.hook = $("#l-hook").value; L.caption = $("#l-caption").value; L.hashtags = $("#l-hashtags").value;
+  const s = L.scenes[L.open], line = $("#l-line");
+  if (!s || !line) return;
+  s.line = line.value; s.text = $("#l-text").value; s.brief = $("#l-brief").value;
+  const pick = document.querySelector('input[name="l-img"]:checked');
+  if (pick) s.image_slot = pick.value === "" ? null : +pick.value;
+}
+
+function layoutPayload() {
+  return { hook: L.hook, caption: L.caption, hashtags: L.hashtags,
+    scenes: L.scenes.map((s) => ({ sid: s.sid, kind: s.kind, brief: s.brief, line: s.line, text: s.text, image_slot: s.image_slot })) };
+}
+
+// PUT the screen as it is. Returns true on success; on failure the error is kept in L.err for the scene it names.
+async function layoutSave(readScreen = true) {
+  if (readScreen) syncLayoutFromDom();   // not after a move/add: the open scene on screen is then another one
+  const sent = L.scenes;
+  try {
+    const res = await api(`/videos/${enc(current.folder)}/layout`, { method: "PUT", json: layoutPayload() });
+    sent.forEach((s, i) => { if (!s.sid && res.segments[i]) L.human.add(res.segments[i].sid); });   // typed by hand, not by the AI
+    L.prev = {};   // "Dùng lại câu cũ" lasts until the next save
+    current = res; dirty = false;
+    layoutFromDetail(res);
+    return true;
+  } catch (e) {
+    const m = /Cảnh (\d+)/.exec(e.message);
+    L.err = { idx: m ? +m[1] - 1 : L.open, msg: e.message };
+    if (m && +m[1] - 1 < L.scenes.length) L.open = +m[1] - 1;
+    return false;
+  }
+}
+
+async function layoutOp(mutate) {
+  if (jobBusy()) return;
+  syncLayoutFromDom();
+  const snap = JSON.parse(JSON.stringify(L.scenes)), snapOpen = L.open;
+  mutate();
+  if (await layoutSave(false)) { banner = null; renderLayout(); say("Đã lưu bố cục"); return; }
+  const err = L.err;
+  L.scenes = snap; L.open = snapOpen;   // not saved: back to what was on screen
+  showBanner("bad", err.msg);
+  renderLayout();
+}
+
+const newScene = () => ({ sid: null, kind: current.kind === "topic" ? "topic" : "product", brief: "", line: "", text: "",
+  image_slot: null, locked: false, locked_reason: "", has_audio: false, audio_line: "" });
+
+function layoutAdd(pos) { layoutOp(() => { L.scenes.splice(pos, 0, newScene()); L.open = pos; dirty = true; }); }
+function layoutMove(i, d) {
+  layoutOp(() => { const j = i + d, t = L.scenes[i]; L.scenes[i] = L.scenes[j]; L.scenes[j] = t; L.open = j; dirty = true; });
+}
+async function layoutDelete(i) {
+  syncLayoutFromDom();
+  if (!(await ask({ title: `Xoá cảnh ${i + 1}?`, text: `Xoá cảnh ${i + 1}? Cảnh sẽ mất khỏi bố cục khi bạn bấm Lưu bố cục hoặc Dựng.` + (current.can_cancel_layout
+      ? " Muốn quay lại video cũ, bấm 'Bỏ các chỗ vừa sửa' trước khi dựng (nút đó bỏ cả bố cục vừa sửa, không chỉ cảnh này)." : ""), yes: "Xoá cảnh" }))) return;
+  layoutOp(() => { L.scenes.splice(i, 1); L.open = Math.min(i, L.scenes.length - 1); dirty = true; });
+}
+
+async function startLayoutJob(path, json, pending) {
+  try {
+    await api(path, { method: "POST", json });
+    L.pending = pending || null;
+    watchJob();
+  } catch (e) { showBanner("bad", e.message); }
+}
+
+async function layoutSaveOrShow() {
+  if (await layoutSave()) return true;
+  showBanner("bad", L.err.msg); renderLayout();
+  return false;
+}
+
+async function layoutRewrite(i) {
+  if (jobBusy()) return;
+  syncLayoutFromDom();
+  const s = L.scenes[i];
+  if (isHandmade(s) && !(await ask({ title: "Viết lại cảnh này?", yes: "Viết lại",
+    text: "Cảnh này bạn đã sửa tay. AI viết lại sẽ thay lời bạn gõ. Tiếp tục?" }))) return;
+  const before = { line: s.line, text: s.text }, instr = ($("#l-instr")?.value || "").trim();
+  if (!(await layoutSaveOrShow())) return;
+  const sid = L.scenes[i].sid;
+  banner = { kind: "job", html: `<span class="spinner"></span>Đang viết lại cảnh ${i + 1}… (thường vài giây)` };
+  renderLayout();
+  await startLayoutJob(`/videos/${enc(current.folder)}/rewrite`, { scenes: [sid], instruction: instr }, { sid, before });
+}
+
+async function layoutRewriteAll() {
+  if (jobBusy()) return;
+  syncLayoutFromDom();
+  if (!(await ask({ title: "Viết lại cả kịch bản?", yes: "Viết lại tất cả",
+    text: "Lời đọc, chữ trên hình, câu mở đầu, caption và hashtag của mọi cảnh sẽ được viết lại. Cảnh và thứ tự giữ nguyên. Không hoàn tác." }))) return;
+  const instr = ($("#l-instr-all")?.value || "").trim();
+  if (!(await layoutSaveOrShow())) return;
+  await startLayoutJob(`/videos/${enc(current.folder)}/rewrite`, { scenes: "all", instruction: instr }, { sid: null, before: null });
+}
+
+async function layoutContinue(freeVoice) {
+  if (jobBusy()) return;
+  syncLayoutFromDom();
+  const bad = layoutProblems();
+  if (bad.length && !current.interrupted) { layoutJump(bad[0].idx); return; }
+  if (!current.interrupted && !(await layoutSaveOrShow())) return;   // an interrupted build is finished as it is
+  await startLayoutJob(`/videos/${enc(current.folder)}/continue`, freeVoice ? { revoice_all: "edge" } : {});
+}
+
+function layoutJump(idx) {
+  if (idx < 0) return;
+  syncLayoutFromDom(); L.open = idx; renderLayout();
+  $(`[data-l="${idx}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function askOpenLayout() {
+  if (jobBusy()) return;
+  const ok = await ask({ title: "Sửa bố cục?", yes: "Mở sửa bố cục",
+    text: "Mở sửa bố cục. Video cũ vẫn giữ để xem. Bạn chưa duyệt đăng được cho tới khi dựng lại. Thêm hoặc đổi lời cảnh nào thì cảnh đó tốn 1 lượt đọc giọng." });
+  if (!ok) return;
+  try {
+    if (dirty) await save();
+    current = await api(`/videos/${enc(current.folder)}/layout/open`, { method: "POST" });
+    dirty = false; banner = null; L = null;
+    render(); loadList(); window.scrollTo(0, 0);
+  } catch (e) { showBanner("bad", e.message); }
+}
+
+async function askCancelLayout() {
+  if (jobBusy()) return;
+  const ok = await ask({ title: "Bỏ các chỗ vừa sửa?", yes: "Bỏ các chỗ vừa sửa",
+    text: "Bỏ mọi thay đổi bố cục và quay về video cũ? Không khôi phục được." });
+  if (!ok) return;
+  try {
+    current = await api(`/videos/${enc(current.folder)}/layout/cancel`, { method: "POST" });
+    dirty = false; L = null;
+    banner = { kind: "ok", html: "Đã bỏ các chỗ vừa sửa, quay về video cũ." };
+    render(); loadList();
+  } catch (e) { showBanner("bad", e.message); await openVideo(current.folder, true); }   // reload: the button may be gone
+}
+
+// Cost of the voice, shown next to the build button (DR-0014 4.4)
+function voiceCost() {
+  const need = L.scenes.filter(needsVoice).length, engine = current.voice_engine;
+  if (engine !== "gemini") return { text: "Giọng miễn phí, không tốn lượt.", short: false };
+  if (!need) return { text: "Không cần đọc giọng mới, không tốn lượt.", short: false };
+  if (!quota.available) return { text: `Sẽ đọc giọng ${need} cảnh, khoảng ${need} lượt Gemini (chưa xem được số lượt còn lại).`, short: false };
+  const first = !L.scenes.some((s) => s.has_audio);
+  const row = first ? (chain().find((m) => m.left >= need) || chain()[0]) : modelRow(current.voice_model);
+  const left = row ? row.left : 0;
+  if (left >= need) return { text: `Sẽ đọc giọng ${need} cảnh, khoảng ${need} lượt Gemini, hôm nay còn ${left}.`, short: false };
+  return { text: `Không đủ lượt Gemini hôm nay (cần ${need}, còn ${left}). Cả video sẽ dùng giọng miễn phí (giọng khác hẳn).`, short: true };
+}
+
+function updateLayoutBar() {
+  if (!L || !current || !current.stage) return;
+  syncLayoutFromDom();
+  const bar = $("#bar"), busy = jobBusy(), probs = layoutProblems(), cost = voiceCost(), locked = !!current.interrupted;
+  $("#main").classList.toggle("busy", busy || locked);   // an interrupted build: only "Dựng" may go on
+  let why;
+  if (busy) why = esc("Đang chạy, đợi một chút…");
+  else if (locked) why = esc("Lần dựng trước bị ngắt giữa chừng. Bấm Dựng video theo bố cục này để làm tiếp.");
+  else if (probs.length) {
+    why = `Chưa dựng được: <button type="button" class="linkbtn" data-l-jump="${probs[0].idx}">${esc(probs[0].msg)}</button>`;
+  } else why = esc((dirty ? "Có thay đổi chưa lưu (bấm Dựng sẽ tự lưu bố cục). " : "") + cost.text);
+  const shortActs = !busy && !locked && !probs.length && cost.short
+    ? `<button class="btn small" data-act="cont-edge">Dùng giọng miễn phí cho cả video</button><button class="btn small" data-act="later">Để mai</button>` : "";
+  bar.hidden = false;
+  bar.innerHTML = `<span class="why">${why}</span>${shortActs}
+    <button class="btn" id="b-lsave" ${!dirty || busy || locked ? "disabled" : ""}>Lưu bố cục</button>
+    <button class="btn primary" id="b-lcont" ${busy || (probs.length && !locked) ? "disabled" : ""}>Dựng video theo bố cục này</button>
+    ${current.can_cancel_layout && !locked ? `<button class="btn quiet" id="b-lcancel" ${busy ? "disabled" : ""}>Bỏ các chỗ vừa sửa</button>` : ""}`;
+  $("#b-lsave").onclick = async () => {
+    if (await layoutSave()) { banner = { kind: "ok", html: "Đã lưu bố cục." }; renderLayout(); say("Đã lưu"); }
+    else { showBanner("bad", L.err.msg); renderLayout(); }
+  };
+  $("#b-lcont").onclick = () => layoutContinue(false);
+  if ($("#b-lcancel")) $("#b-lcancel").onclick = () => askCancelLayout();
+}
+
+function lsceneMarkup(s, i) {
+  const n = L.scenes.length, open = L.open === i, empty = !norm(s.line);
+  const tag = i === 0 && s.kind !== "cta" ? "Mở đầu" : KINDS[s.kind] || "Cảnh";
+  const err = L.err && L.err.idx === i ? L.err.msg : "";
+  let body = "";
+  if (open) {
+    const imgs = current.product_images || [];
+    let pick = "";
+    if (s.kind === "product" || s.kind === "topic") {
+      pick = imgs.length
+        ? `<label class="f">Ảnh cảnh này <small>mặc định "Tự chọn"</small></label><div class="imgpick">
+            <label><input type="radio" name="l-img" value="" ${s.image_slot === null ? "checked" : ""}><span class="auto">Tự chọn</span></label>
+            ${imgs.map((p) => `<label><input type="radio" name="l-img" value="${p.slot}" ${s.image_slot === p.slot ? "checked" : ""}>${
+              p.url ? `<img src="${esc(p.url)}" alt="Ảnh ${p.slot + 1}">` : `<span class="auto">Ảnh ${p.slot + 1}</span>`}</label>`).join("")}</div>`
+        : `<div class="hint">Chưa có ảnh nào, video sẽ dùng nền trơn. ${current.can_cancel_layout
+            ? "Muốn thêm ảnh: bấm 'Dựng video theo bố cục này' trước, rồi tải ảnh ở màn xem video và dựng lại."
+            : '<button type="button" class="linkbtn" style="color:var(--info)" data-l-addimg>Thêm ảnh sản phẩm</button>'}</div>`;
+    }
+    const lock = s.locked ? `<div class="hint">${esc(s.locked_reason)}</div>` : "";
+    const canUp = !s.locked && i > 0 && !L.scenes[i - 1].locked, canDown = !s.locked && i < n - 1 && !L.scenes[i + 1].locked;
+    const prev = s.sid && L.prev[s.sid]
+      ? `<button type="button" class="btn small" data-l-undo>Dùng lại câu cũ</button>` : "";
+    body = `<div class="lbody">
+      <label class="f" for="l-line">Lời đọc <small>giọng sẽ đọc</small></label>
+      <textarea id="l-line" rows="3" class="${empty ? "invalid" : ""}">${esc(s.line)}</textarea>
+      <div class="ferr" id="l-empty" ${empty ? "" : "hidden"}>Chưa có lời đọc, bấm 'AI viết lại cảnh này' hoặc tự gõ</div>
+      ${err ? `<div class="ferr">${esc(err)}</div>` : ""}
+      <label class="f" for="l-text">Chữ trên hình <small>chữ lớn trên video</small></label>
+      <input type="text" id="l-text" value="${esc(s.text)}">
+      <details><summary>Ý cảnh <small>để AI hiểu, không hiện trong video</small></summary>
+        <textarea id="l-brief" rows="2">${esc(s.brief)}</textarea></details>
+      ${pick}
+      ${lock}
+      <div class="lacts">
+        <button type="button" class="btn" data-l-up ${canUp ? "" : "disabled"} aria-label="Đưa cảnh lên">↑</button>
+        <button type="button" class="btn" data-l-down ${canDown ? "" : "disabled"} aria-label="Đưa cảnh xuống">↓</button>
+        <button type="button" class="btn" data-l-del ${s.locked || n <= LAYOUT_MIN ? "disabled" : ""}>Xoá cảnh</button>
+      </div>
+      <label class="f" for="l-instr">Yêu cầu cho AI <small>không bắt buộc, ví dụ: ngắn hơn, vui hơn</small></label>
+      <input type="text" id="l-instr" maxlength="500">
+      <div class="lacts"><button type="button" class="btn" data-l-rewrite>AI viết lại cảnh này</button>${prev}</div>
+    </div>`;
+  }
+  return `<div class="lscene ${open ? "open" : ""} ${empty ? "bad" : ""}" data-l="${i}">
+    <button type="button" class="lhead" data-l-toggle="${i}" aria-expanded="${open}">
+      <b>Cảnh ${i + 1}</b><span class="chip">${esc(tag)}</span>
+      <span class="chip re" data-l-re ${needsVoice(s) && !empty ? "" : "hidden"}>Cần đọc giọng</span>
+      <span class="lsum ${empty ? "err" : ""}">${empty ? "Chưa có lời đọc" : esc(shorten(s.line))}</span></button>${body}</div>`;
+}
+
+function renderLayout() {
+  const v = current, main = $("#main");
+  if (!L || L.folder !== v.folder) layoutFromDetail(v);
+  const n = L.scenes.length, lastLocked = n && L.scenes[n - 1].locked;
+  const addBtn = (pos) => (pos === n && lastLocked ? "" :
+    `<button type="button" class="add-here" data-l-add="${pos}" ${n >= LAYOUT_MAX ? `disabled title="Tối đa ${LAYOUT_MAX} cảnh"` : ""}>+ Thêm cảnh ở đây</button>`);
+  const scenes = L.scenes.map((s, i) => addBtn(i) + lsceneMarkup(s, i)).join("") + addBtn(n);
+  const player = v.video_url
+    ? `<div class="player"><video id="vid" controls playsinline preload="metadata" src="${esc(v.video_url)}#t=0.1"></video>
+        <div class="hint">Video cũ, chưa theo bố cục mới</div></div>`
+    : `<div class="player"><div class="noplayer">Chưa dựng video</div></div>`;
+  main.innerHTML = `
+    <button class="btn small back" id="back">← Danh sách</button>
+    <div class="title-row"><h2>${esc(v.title)}</h2><span class="badge b-layout">${LABELS.layout}</span></div>
+    ${stepsMarkup(1)}
+    <div id="banner">${banner ? bannerMarkup() : ""}</div>
+    ${v.interrupted ? '<div class="banner warn">Lần dựng trước bị ngắt giữa chừng nên chưa sửa bố cục được. Bấm <b>Dựng video theo bố cục này</b> để làm tiếp, rồi sửa sau.</div>' : ""}
+    <div class="detail">${player}<div>
+      <div class="card"><h3>Các cảnh (${n})</h3>
+        <p class="sub">Mỗi cảnh là một đoạn của video. Bấm vào cảnh để sửa. Thêm, xoá hoặc đổi chỗ cảnh được; chưa tốn lượt giọng cho tới khi bạn bấm dựng.</p>
+        ${scenes}</div>
+      <div class="card"><h3>Chữ chung của video</h3>
+        <label class="f" for="l-hook">Câu mở đầu (chữ lớn ở cảnh 1)</label><input type="text" id="l-hook" value="${esc(L.hook)}">
+        <label class="f" for="l-caption">Lời giới thiệu đăng kèm</label><textarea id="l-caption" rows="3">${esc(L.caption)}</textarea>
+        <label class="f" for="l-hashtags">Hashtag</label><input type="text" id="l-hashtags" value="${esc(L.hashtags)}">
+        <div class="hint">Cách nhau bằng dấu cách.</div></div>
+      <div class="card"><h3>Nhờ AI viết lại cả kịch bản</h3>
+        <label class="f" for="l-instr-all">Yêu cầu cho AI <small>không bắt buộc</small></label>
+        <input type="text" id="l-instr-all" maxlength="500">
+        <div class="lacts"><button type="button" class="btn" data-l-rewrite-all>AI viết lại cả kịch bản</button></div></div>
+    </div></div>`;
+  L.err = null;
+  $("#back").addEventListener("click", goBackToList);
+  main.querySelectorAll("input, textarea").forEach((el) => el.addEventListener("input", () => {
+    dirty = true; syncLayoutFromDom(); paintSceneFlags(); updateLayoutBar();
+  }));
+  main.querySelectorAll("input[type=radio]").forEach((el) => el.addEventListener("change", () => { dirty = true; updateLayoutBar(); }));
+  updateLayoutBar();
+}
+
+async function goBackToList() {
+  if (!(await leaveOk())) return;
+  current = null; mode = null; dirty = false; banner = null; L = null;
+  history.replaceState(null, "", location.pathname);
+  document.body.classList.remove("has-detail");
+  $("#bar").hidden = true;
+  $("#main").innerHTML = '<p class="empty">Chọn một video ở danh sách bên trái hoặc bấm <b>+ Tạo video mới</b>.</p>';
+  loadList();
+}
+
+// Typing: only the flags of the open scene change; the page is not rebuilt (keeps the cursor)
+function paintSceneFlags() {
+  const s = L.scenes[L.open], el = $(`[data-l="${L.open}"]`);
+  if (!s || !el) return;
+  const empty = !norm(s.line);
+  el.classList.toggle("bad", empty);
+  $("#l-line")?.classList.toggle("invalid", empty);
+  if ($("#l-empty")) $("#l-empty").hidden = !empty;
+  const sum = el.querySelector(".lsum");
+  sum.classList.toggle("err", empty);
+  sum.textContent = empty ? "Chưa có lời đọc" : shorten(s.line);
+  el.querySelector("[data-l-re]").hidden = empty || !needsVoice(s);
+}
+
+function pickLayoutImage() {
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = "image/png,image/jpeg,image/webp";
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) { showBanner("bad", "Ảnh quá lớn (tối đa 15 MB)."); return; }
+    if (!(await layoutSaveOrShow())) return;
+    try {
+      const idx = Math.min((current.product_images || []).length, MAX_PRODUCT_IMAGES - 1);
+      current = await api(`/videos/${enc(current.folder)}/image?target=product&index=${idx}`,
+        { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream" } });
+      layoutFromDetail(current);
+      banner = { kind: "ok", html: "Đã nhận ảnh. Chọn ảnh cho từng cảnh nếu muốn." };
+      renderLayout();
+    } catch (e) { showBanner("bad", e.message); }
+  };
+  input.click();
+}
+
+document.addEventListener("click", (e) => {
+  if (!L || !current || !current.stage || mode !== "detail") return;
+  const t = e.target.closest("button"), root = $("#main");
+  if (!t || !root.contains(t)) return;
+  const idx = L.open;
+  if (t.dataset.lToggle !== undefined) { syncLayoutFromDom(); L.open = L.open === +t.dataset.lToggle ? -1 : +t.dataset.lToggle; renderLayout(); }
+  else if (t.dataset.lAdd !== undefined) layoutAdd(+t.dataset.lAdd);
+  else if (t.hasAttribute("data-l-up")) layoutMove(idx, -1);
+  else if (t.hasAttribute("data-l-down")) layoutMove(idx, 1);
+  else if (t.hasAttribute("data-l-del")) layoutDelete(idx);
+  else if (t.hasAttribute("data-l-rewrite")) layoutRewrite(idx);
+  else if (t.hasAttribute("data-l-rewrite-all")) layoutRewriteAll();
+  else if (t.hasAttribute("data-l-addimg")) pickLayoutImage();
+  else if (t.hasAttribute("data-l-undo")) {
+    const s = L.scenes[idx], p = L.prev[s.sid];
+    if (p) { s.line = p.line; s.text = p.text; delete L.prev[s.sid]; dirty = true; renderLayout(); }
+  }
+});
+document.addEventListener("click", (e) => {   // buttons of the bottom bar and of banners
+  const b = e.target.closest("button");
+  if (!b || !L) return;
+  if (b.dataset.lJump !== undefined) layoutJump(+b.dataset.lJump);
+  else if (b.dataset.act === "cont-edge") askContinueFree();
+  else if (b.dataset.act === "later") { banner = { kind: "info", html: "Được. Bố cục đã giữ nguyên, bạn quay lại bấm dựng vào ngày mai." }; paintBanner(); }
+  else if (b.dataset.act === "dismiss") { banner = null; paintBanner(); }
+});
+
+async function askContinueFree() {
+  const ok = await ask({ title: "Dùng giọng miễn phí cho cả video?", yes: "Dùng giọng miễn phí",
+    text: "Cả video sẽ được đọc lại bằng giọng miễn phí, giọng mọi cảnh sẽ thay đổi và kém tự nhiên hơn Gemini. Không tốn lượt Gemini." });
+  if (ok) layoutContinue(true);
+}
+
+// continue / rewrite jobs ended
+async function layoutJobFinished(job, log) {
+  const f = job.folder || (current && current.folder), vi = /[À-ỹ]/;
+  const notes = (job.notices || []).map((l) => l.replace(/^(\[[A-Z_]+\]|❌)\s*/, ""));
+  if (job.state === "done") {
+    if (job.action === "rewrite") {
+      if (L) L.afterRewrite = L.pending || { sid: null };
+      banner = { kind: "ok", html: "Đã viết lại. Đọc lại các cảnh rồi bấm Dựng video theo bố cục này." };
+    } else {
+      banner = { kind: "ok", html: "Đã dựng xong. Xem hết video và kiểm tra lời đọc trước khi bấm Duyệt & lưu." };
+      L = null;
+    }
+    say(job.action === "rewrite" ? "Đã viết lại" : "Đã dựng xong video");
+    await openVideo(f, true);
+    return;
+  }
+  const kind = job.error_kind;
+  if (L) L.pending = null;
+  let html;
+  if (kind === "rewrite_failed") html = "AI đang bận hoặc trả lời lỗi, kịch bản chưa đổi. Thử lại sau ít phút.";
+  else if (kind === "fact_check") {
+    html = "Con số trong video chưa khớp nguồn." + (notes.length ? `<pre>${esc(notes.slice(0, 6).join("\n"))}</pre>` : " ")
+      + "Sửa số hoặc thêm link nguồn rồi bấm Dựng video theo bố cục này.";
+  } else if (kind === "layout_not_ready") {
+    const why = [...notes].reverse().find((l) => vi.test(l));
+    html = why ? `Chưa dựng được: ${esc(why.replace(/\.$/, ""))}. Sửa rồi bấm lại.`
+      : "Chưa dựng được vì bố cục chưa hợp lệ hoặc video không còn ở bước soạn bố cục. Tải lại trang rồi thử lại.";
+  } else if (kind === "revoice") {
+    html = "Đọc giọng bị lỗi, chưa đổi gì. Chọn: thử lại sau, hoặc đọc lại toàn bộ video bằng giọng miễn phí (giọng mọi cảnh sẽ thay đổi)."
+      + `<div class="acts"><button class="btn small" data-act="cont-edge">Dùng giọng miễn phí cho cả video</button>`
+      + `<button class="btn small" data-act="dismiss">Để sau</button></div>`;
+  } else html = "Việc này chưa xong, dữ liệu của bạn vẫn nguyên. Thử lại sau ít phút.";
+  banner = { kind: "bad", html: html + (kind === "revoice" || kind === "rewrite_failed" ? "" : log) };
+  if (videos.some((v) => v.folder === f) || (current && current.folder === f)) await openVideo(f, true); else paintBanner();
 }
 
 // ---------------- banner ----------------

@@ -19,11 +19,11 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api import studio_travel
 from app.core.config import settings
@@ -34,6 +34,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 DEMO = REPO_ROOT / "demo.py"
+import layout_rules  # noqa: E402  (root module, stdlib only; shared with demo.py, DR-0014)
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp")
 PIL_FORMATS = {"PNG": ".png", "JPEG": ".jpg", "MPO": ".jpg", "WEBP": ".webp"}
 MAX_UPLOAD = 15 * 1024 * 1024
@@ -43,7 +44,14 @@ STAGING_FILE = re.compile(r"^anh_sp_([1-9]|10)\.(png|jpg|jpeg|webp)$")  # 1..MAX
 LOCAL_HOSTS = {"127.0.0.1", "localhost"}
 
 # demo.py exit codes (EXIT_REVOICE_FAILED, EXIT_NOT_READY; travel: 5 wrong number, 6 stale facts)
-ERROR_KINDS = {3: "revoice", 4: "not_ready", 5: "fact_check", 6: "facts_stale", 7: "drive_failed"}
+ERROR_KINDS = {3: "revoice", 4: "not_ready", 5: "fact_check", 6: "facts_stale", 7: "drive_failed",
+               9: "layout_not_ready", 12: "rewrite_failed"}
+JOB_NAMES = {"create": "viết kịch bản", "render": "dựng lại video", "approve": "duyệt video",
+             "capcut": "xuất CapCut", "rewrite": "AI viết lại", "continue": "dựng video theo bố cục"}
+BACKUP = "script.before-layout.json"   # written by "Sửa bố cục", removed by demo.py --continue (C-0014-10)
+LOCK_REASONS = {"product": "Cảnh này cố định vì video sản phẩm phải kết bằng lời kêu gọi mua",
+                "topic": "Cảnh này cố định vì video luôn kết bằng lời chào kênh"}
+STAGED_MSG = "Video đang soạn bố cục. Hãy bấm Dựng video theo bố cục này trước."
 
 
 def _validate_price(price: Optional[int]) -> Optional[int]:
@@ -147,7 +155,9 @@ def _folders() -> List[Path]:
     root = _videos_root()
     if not root.is_dir():
         return []
-    return sorted((p for p in root.iterdir() if (p / "video.mp4").is_file()),
+    # a folder still in the layout step has no video.mp4 yet (DR-0014)
+    return sorted((p for p in root.iterdir()
+                   if (p / "video.mp4").is_file() or (p.is_dir() and _read_json(p / "script.json").get("stage"))),
                   key=lambda p: p.name, reverse=True)
 
 
@@ -194,6 +204,8 @@ def _title(folder: Path, product: dict, script: dict) -> str:
 def _label(folder: Path) -> str:
     if not _editable(folder):
         return "view_only"
+    if _read_json(folder / "script.json").get("stage"):
+        return "layout"
     if (folder / "prompts.txt").is_file():
         return "needs_images"
     if (folder / "post.txt").is_file():
@@ -201,7 +213,14 @@ def _label(folder: Path) -> str:
     return "review"
 
 
-def _scene_image(folder: Path, index: int) -> Optional[str]:
+def _scene_image(folder: Path, index: int, seg: Optional[dict] = None) -> Optional[str]:
+    """canh_{index+1}. In the layout step the position is not the file's owner: the scene's audio_path
+    says which canh_N it owns (C-0014-1), a scene without audio has no image yet."""
+    if seg is not None:
+        m = re.match(r"^audio_(\d+)\.mp3$", Path(seg.get("audio_path") or "").name)
+        if not m:
+            return None
+        index = int(m.group(1))
     for ext in IMAGE_EXTS:
         if (folder / f"canh_{index + 1}{ext}").is_file():
             return f"canh_{index + 1}{ext}"
@@ -261,7 +280,7 @@ def _voice(script: dict) -> dict:
     demo.generate_voiceovers) and tts_provider. No quota rule lives here.
     voice_role: "main" | "backup" | "free" | None (older folders with nothing recorded)."""
     segments = [s for s in (script.get("segments") or []) if isinstance(s, dict)]
-    first = segments[0] if segments else {}
+    first = next((s for s in segments if "tts_model" in s), segments[0] if segments else {})   # as demo.py does
     if "tts_model" in first:
         model, reason = first.get("tts_model"), first.get("tts_fallback")
         role = "free" if not model else "backup" if reason else "main"
@@ -286,6 +305,12 @@ def _editable_or_409(folder: Path) -> None:
         raise HTTPException(status_code=409, detail="Video này chỉ xem được, không sửa được trên Studio")
 
 
+def _not_staged_or_409(folder: Path) -> None:
+    """C-0014-9: while the layout step is open, files follow the old layout; only the layout screen may act."""
+    if _read_json(folder / "script.json").get("stage"):
+        raise HTTPException(status_code=409, detail=STAGED_MSG)
+
+
 # ---------------------------------------------------------------------------
 # Background job (one at a time)
 # ---------------------------------------------------------------------------
@@ -301,13 +326,18 @@ def _job_running() -> bool:
 
 def _no_job_or_409() -> None:
     if _job_running():
-        raise HTTPException(status_code=409, detail="Đang có việc chạy, đợi xong rồi thử lại")
+        what = JOB_NAMES.get(_job.get("action", ""), "")
+        raise HTTPException(status_code=409,
+                            detail=f"Đang có một việc khác chạy{f' ({what})' if what else ''}. Đợi xong rồi thử lại sau ít phút.")
 
 
-def _start_job(action: str, folder: Path, args: list) -> dict:
+def _start_job(action: str, folder: Path, args: list, before=None) -> dict:
+    """before(): writes/validation that must happen under the same lock as the job start (C-0014-14)."""
     global _proc
     with _job_lock:
         _no_job_or_409()
+        if before:
+            before()
         _logs_root().mkdir(parents=True, exist_ok=True)
         log_path = _logs_root() / f"{folder.name}.log"
         log = open(log_path, "w", encoding="utf-8")
@@ -361,7 +391,7 @@ def job_status():
         return {"state": "idle"}
     lines = _log_lines(_job["log"], n=80)
     folder = _job["folder"]
-    if _job["action"] == "create":
+    if _job["action"] in ("create", "continue"):   # both print "Studio folder: <name>"
         found = next(
             (line.split("Studio folder:", 1)[1].strip() for line in reversed(lines) if "Studio folder:" in line),
             None,
@@ -377,7 +407,8 @@ def job_status():
         drive = next((line.split("Drive:", 1)[1].strip() for line in lines if "Drive:" in line), None)
         return {**status, "state": "done", "drive_link": drive,
                 "folder_kept": bool(folder and (_videos_root() / folder).is_dir())}
-    notices = [l.strip() for l in lines if l.strip().startswith(("[FACT_CHECK] ", "[FACTS_STALE] ", "[DRIVE_FAILED] "))]
+    prefixes = ["[FACT_CHECK] ", "[FACTS_STALE] ", "[DRIVE_FAILED] "] + (["❌ "] if code == 9 else [])
+    notices = [l.strip() for l in lines if l.strip().startswith(tuple(prefixes))]
     return {**status, "state": "error", "error_kind": ERROR_KINDS.get(code, "failed"),
             "notices": notices[-8:], "repo_root": str(REPO_ROOT)}
 
@@ -413,10 +444,32 @@ def list_videos():
             "folder": folder.name,
             "title": _title(folder, product, script),
             "label": _label(folder),
-            "updated": int((folder / "video.mp4").stat().st_mtime),
+            "updated": int(((folder / "video.mp4") if (folder / "video.mp4").is_file()
+                            else (folder / "script.json")).stat().st_mtime),
             "voice_role": _voice(script)["voice_role"],
+            "has_video": (folder / "video.mp4").is_file(),
         })
     return {"videos": items, "drive": bool(settings.DRIVE_FOLDER_ID)}
+
+
+def _kind_of(path: Path, product: dict) -> str:
+    return "travel" if studio_travel.is_travel(path) else "topic" if product.get("kind") == "topic" else "product"
+
+
+def _scene_state(path: Path, seg: dict, kind: str, last: bool) -> dict:
+    """Layout-step fields of one scene (DR-0014 4.2). Nothing here writes."""
+    has_audio = bool(re.match(r"^audio_\d+\.mp3$", Path(seg.get("audio_path") or "").name)
+                     and (path / Path(seg["audio_path"]).name).is_file())
+    line = seg.get("line", "")
+    locked = last and kind in LOCK_REASONS and seg.get("kind") == layout_rules.LOCKED_LAST[kind]
+    return {"sid": seg.get("sid"), "brief": seg.get("brief", ""), "image_slot": seg.get("image_slot"),
+            "has_audio": has_audio,
+            "needs_voice": (not has_audio) or norm_line(line) != norm_line(seg.get("audio_line") or line),
+            "locked": locked, "locked_reason": LOCK_REASONS[kind] if locked else ""}
+
+
+# One normaliser for Studio and demo.py (layout_rules, DR-0014 A2)
+norm_line = layout_rules.norm_line
 
 
 @router.get("/videos/{folder}")
@@ -425,11 +478,17 @@ def video_detail(folder: str):
     script = _read_json(path / "script.json")
     product = _read_json(path / "product.json")
     hashtags = " ".join(script.get("hashtags") or [])
+    has_video = (path / "video.mp4").is_file()
     detail = {
         "folder": path.name,
         "title": _title(path, product, script),
         "label": _label(path),
-        "video_url": f"/api/studio/videos/{path.name}/video?v={int((path / 'video.mp4').stat().st_mtime)}",
+        "stage": script.get("stage"),
+        "has_video": has_video,
+        "can_cancel_layout": bool(script.get("stage")) and (path / BACKUP).is_file(),
+        "interrupted": (path / "_rename_plan.json").is_file(),   # an earlier --continue was cut short
+        "video_url": (f"/api/studio/videos/{path.name}/video?v={int((path / 'video.mp4').stat().st_mtime)}"
+                      if has_video else None),
         "caption": (script.get("caption") or "").strip(),
         "hashtags": hashtags,
         "post_text": f"{(script.get('caption') or '').strip()} {hashtags}".strip(),
@@ -440,11 +499,16 @@ def video_detail(folder: str):
         return detail
 
     engine, known = _voice_engine(script)
+    kind = _kind_of(path, product)
+    staged = bool(script.get("stage"))
+    if staged and not script.get("tts_provider") and product.get("voice") in ("edge", "gemini"):
+        engine, known = product["voice"], True   # not voiced yet: the engine the operator picked
     prompts = _image_prompts(path)
     segments = []
     for i, seg in enumerate(script["segments"]):
-        image = _scene_image(path, i) if seg.get("kind") == "story" else None
+        image = (_scene_image(path, i, seg if staged else None)) if seg.get("kind") == "story" else None
         segments.append({
+            **(_scene_state(path, seg, kind, i == len(script["segments"]) - 1) if kind != "travel" else {}),
             "index": i,
             "kind": seg.get("kind", "product"),
             "speaker": seg.get("speaker", "narrator"),
@@ -456,6 +520,7 @@ def video_detail(folder: str):
         })
     result = {
         **detail,
+        "kind": kind,
         "hook": script.get("hook", ""),
         "price": int(product.get("price") or 0),
         "style": script.get("style", ""),
@@ -473,6 +538,8 @@ def video_detail(folder: str):
 
 @router.get("/videos/{folder}/video")
 def video_file(folder: str):
+    if not (_folder_or_404(folder) / "video.mp4").is_file():
+        raise HTTPException(status_code=404, detail="Chưa dựng video")
     return FileResponse(_folder_or_404(folder) / "video.mp4", media_type="video/mp4",
                         headers={"Cache-Control": "no-store"})
 
@@ -514,9 +581,15 @@ def _clean_hashtags(raw: str) -> list:
 
 @router.put("/videos/{folder}", dependencies=[Depends(require_studio)])
 def save_video(folder: str, edit: VideoEdit):
+    with _job_lock:
+        _no_job_or_409()
+        return _save_video(folder, edit)
+
+
+def _save_video(folder: str, edit: VideoEdit):
     path = _folder_or_404(folder)
     _editable_or_409(path)
-    _no_job_or_409()
+    _not_staged_or_409(path)
     script = _read_json(path / "script.json")
     product = _read_json(path / "product.json")
     travel = studio_travel.is_travel(path)
@@ -588,17 +661,30 @@ def _replace_image(folder: Path, stem: str, ext: str, data: bytes) -> str:
 async def upload_image(folder: str, target: str, index: int, request: Request):
     """Raw image bytes in the body. target=scene: index = scene (segment) index, saved as canh_{index+1}.
     target=product: index = product image slot 0-9, saved as anh_sp_{index+1} and set in product.json."""
+    if int(request.headers.get("content-length") or 0) > MAX_UPLOAD:
+        raise HTTPException(status_code=413, detail="Ảnh quá lớn (tối đa 15 MB)")
+    data = await request.body()   # no await while the lock is held
+    if len(data) > MAX_UPLOAD:
+        raise HTTPException(status_code=413, detail="Ảnh quá lớn (tối đa 15 MB)")
+    with _job_lock:
+        _no_job_or_409()
+        return _upload_image(folder, target, index, data)
+
+
+def _upload_image(folder: str, target: str, index: int, data: bytes):
     path = _folder_or_404(folder)
     _editable_or_409(path)
     if studio_travel.is_travel(path):
         raise HTTPException(status_code=400, detail="Video du lịch dùng clip tự động, không tải ảnh lên được")
-    _no_job_or_409()
-    if int(request.headers.get("content-length") or 0) > MAX_UPLOAD:
-        raise HTTPException(status_code=413, detail="Ảnh quá lớn (tối đa 15 MB)")
-    data = await request.body()
-    if len(data) > MAX_UPLOAD:
-        raise HTTPException(status_code=413, detail="Ảnh quá lớn (tối đa 15 MB)")
     script = _read_json(path / "script.json")
+    staged = bool(script.get("stage"))
+    if staged and target == "scene":   # canh_N still follows the old order (C-0014-9)
+        raise HTTPException(status_code=409,
+                            detail="Hãy dựng video theo bố cục mới trước, rồi tải ảnh nhân vật")
+    if staged and target == "product" and (path / BACKUP).is_file():
+        # "Bỏ các chỗ vừa sửa" only restores script.json, so a new photo would stay on the old video
+        raise HTTPException(status_code=409, detail="Đang sửa bố cục video đã dựng nên chưa thêm ảnh được. "
+                            "Hãy dựng video theo bố cục mới trước, rồi tải ảnh.")
 
     if target == "scene":
         segments = script["segments"]
@@ -620,8 +706,9 @@ async def upload_image(folder: str, target: str, index: int, request: Request):
     else:
         raise HTTPException(status_code=400, detail="target phải là scene hoặc product")
 
-    script["needs_render"] = True
-    _write_json(path / "script.json", script)
+    if not staged:   # in the layout step every change is rendered by --continue anyway
+        script["needs_render"] = True
+        _write_json(path / "script.json", script)
     return video_detail(folder)
 
 
@@ -640,7 +727,7 @@ def render(folder: str, req: RenderRequest = RenderRequest()):
             raise HTTPException(status_code=400,
                                 detail="Chỉ đọc lại toàn bộ được bằng giọng miễn phí hoặc giọng Gemini")
         args = ["--revoice-all", req.revoice_all, "--render-only"]
-    return _start_job("render", path, args)
+    return _start_job("render", path, args, lambda: _not_staged_or_409(path))
 
 
 @router.post("/videos/{folder}/capcut", dependencies=[Depends(require_studio)])
@@ -648,11 +735,11 @@ def export_capcut(folder: str):
     """DR-0013: build a CapCut draft from the folder's existing files (no AI calls, C-0013-1)."""
     path = _folder_or_404(folder)
     _editable_or_409(path)
-    if not (path / "product.json").is_file():
+    if not (path / "product.json").is_file() or _read_json(path / "product.json").get("kind") == "topic":   # C-0014-7
         raise HTTPException(status_code=409, detail="Chỉ xuất được video sản phẩm sang CapCut")
     if _read_json(path / "script.json").get("needs_render"):
         raise HTTPException(status_code=409, detail="Bạn đã sửa video, hãy bấm Dựng lại video trước khi xuất CapCut")
-    return _start_job("capcut", path, ["--capcut"])
+    return _start_job("capcut", path, ["--capcut"], lambda: _not_staged_or_409(path))
 
 
 @router.post("/videos/{folder}/approve", dependencies=[Depends(require_studio)])
@@ -663,7 +750,174 @@ def approve(folder: str):
         raise HTTPException(status_code=409, detail="Bạn đã sửa video, hãy bấm Dựng lại video trước khi duyệt")
     if _label(path) == "needs_images":
         raise HTTPException(status_code=409, detail="Còn cảnh chưa có ảnh nhân vật, chưa duyệt được")
-    return _start_job("approve", path, ["--approve"])
+    return _start_job("approve", path, ["--approve"], lambda: _not_staged_or_409(path))
+
+
+
+# ---------------------------------------------------------------------------
+# Layout step (DR-0014): edit the scene list before any voice or render
+# ---------------------------------------------------------------------------
+
+class SceneIn(BaseModel):
+    # Loose caps stop oversized bodies; the exact limits (layout_rules) answer in Vietnamese (400)
+    sid: Optional[str] = Field(None, max_length=12)
+    kind: str = Field("", max_length=20)
+    brief: str = Field("", max_length=600)
+    line: str = Field("", max_length=1000)
+    text: str = Field("", max_length=300)
+    image_slot: Optional[int] = Field(None, ge=0, le=MAX_PRODUCT_IMAGES - 1)
+
+
+class LayoutEdit(BaseModel):
+    scenes: List[SceneIn] = Field(max_length=40)
+    hook: Optional[str] = Field(None, max_length=300)
+    caption: Optional[str] = Field(None, max_length=2200)
+    hashtags: Optional[str] = Field(None, max_length=500)
+
+
+def _layout_context(folder: str, need_stage: bool = True, allow_interrupted: bool = False):
+    """(path, script, product) of a product/topic folder; 409 when it cannot be in / is not in the layout step."""
+    path = _folder_or_404(folder)
+    _editable_or_409(path)
+    if (path / "_rename_plan.json").is_file() and not allow_interrupted:   # only --continue may finish it (C-0014-11)
+        raise HTTPException(status_code=409, detail="Lần dựng trước bị ngắt giữa chừng. Chưa sửa bố cục được, "
+                                                     "hãy bấm Dựng video theo bố cục này để làm tiếp.")
+    if studio_travel.is_travel(path):
+        raise HTTPException(status_code=409, detail="Video du lịch chưa sửa bố cục được trên Studio")
+    script = _read_json(path / "script.json")
+    if need_stage and script.get("stage") != "script_review":
+        raise HTTPException(status_code=409, detail="Video này không ở bước soạn bố cục")
+    return path, script, _read_json(path / "product.json")
+
+
+def _write_layout(path: Path, edit: LayoutEdit, script: dict, product: dict) -> None:
+    old = {s["sid"]: s for s in script["segments"] if layout_rules.valid_sid(s.get("sid"))}
+    nxt = max(int(script.get("next_sid") or 0), 1 + max([int(k[1:]) for k in old] or [0]))
+    seen, segments = set(), []
+    for i, new in enumerate(edit.scenes):
+        sid = new.sid
+        if sid:   # C-0014-12: only a sid that already exists here, once
+            if not layout_rules.valid_sid(sid) or sid not in old or sid in seen:
+                raise HTTPException(status_code=400, detail=f"Cảnh {i + 1} có mã không hợp lệ, hãy tải lại trang")
+            seg = dict(old[sid])
+        else:
+            if nxt > 9999:
+                raise HTTPException(status_code=400, detail="Không thêm được cảnh mới")
+            sid, nxt = f"s{nxt}", nxt + 1
+            seg = {"sid": sid, "kind": new.kind, "speaker": "narrator"}
+        seen.add(sid)
+        if seg.get("audio_path"):   # a scene that has a voice keeps the line it was voiced with
+            seg.setdefault("audio_line", seg.get("line", ""))
+        seg["line"], seg["text"], seg["brief"] = norm_line(new.line), new.text.strip(), new.brief.strip()
+        if new.image_slot is None:
+            seg.pop("image_slot", None)
+        else:
+            seg["image_slot"] = new.image_slot
+        segments.append(seg)
+    kind = "topic" if product.get("kind") == "topic" else "product"
+    errors = layout_rules.check_layout(segments, kind, script.get("style") or "simple", product.get("price"))
+    if errors:
+        raise HTTPException(status_code=400, detail=" ".join(errors))
+    if edit.hook is not None:
+        script["hook"] = edit.hook.strip()
+    if edit.caption is not None:
+        script["caption"] = edit.caption.strip()
+    if edit.hashtags is not None:
+        script["hashtags"] = _clean_hashtags(edit.hashtags)
+    script["segments"], script["next_sid"] = segments, nxt
+    script.pop("rewrite_request", None)   # a failed --rewrite may leave it behind; no job runs now
+    _write_json(path / "script.json", script)
+
+
+@router.put("/videos/{folder}/layout", dependencies=[Depends(require_studio)])
+def save_layout(folder: str, edit: LayoutEdit):
+    with _job_lock:
+        _no_job_or_409()
+        path, script, product = _layout_context(folder)
+        _write_layout(path, edit, script, product)
+        return video_detail(folder)
+
+
+@router.post("/videos/{folder}/layout/open", dependencies=[Depends(require_studio)])
+def open_layout(folder: str):
+    """Reopen the layout of a rendered, not yet approved video. Only JSON is written; the old video stays."""
+    with _job_lock:
+        _no_job_or_409()
+        path, script, product = _layout_context(folder, need_stage=False)
+        if script.get("stage"):
+            raise HTTPException(status_code=409, detail="Video này đang soạn bố cục rồi")
+        if (path / "post.txt").is_file():
+            raise HTTPException(status_code=409, detail="Video đã duyệt, không sửa bố cục được")
+        if not (path / "video.mp4").is_file():
+            raise HTTPException(status_code=409, detail="Video này chưa dựng")
+        shutil.copyfile(path / "script.json", path / (BACKUP + ".tmp"))
+        (path / (BACKUP + ".tmp")).replace(path / BACKUP)
+        segments = script["segments"]
+        nxt = int(script.get("next_sid") or 0)
+        for k in (int(s["sid"][1:]) for s in segments if layout_rules.valid_sid(s.get("sid"))):
+            nxt = max(nxt, k)
+        for seg in segments:   # folders made before DR-0014: ids by position, the machine hands them out
+            if not layout_rules.valid_sid(seg.get("sid")):
+                nxt += 1
+                seg["sid"] = f"s{nxt}"
+        script["next_sid"], script["stage"] = nxt + 1, "script_review"
+        _write_json(path / "script.json", script)
+        return video_detail(folder)
+
+
+@router.post("/videos/{folder}/layout/cancel", dependencies=[Depends(require_studio)])
+def cancel_layout(folder: str):
+    with _job_lock:
+        _no_job_or_409()
+        path, _script, _product = _layout_context(folder)
+        if not (path / BACKUP).is_file():   # --continue already removed it (C-0014-10)
+            raise HTTPException(status_code=409, detail="Bố cục mới đã được dựng một phần, không quay về video cũ "
+                                                         "được nữa. Hãy bấm Dựng video theo bố cục này.")
+        (path / BACKUP).replace(path / "script.json")
+        return video_detail(folder)
+
+
+class RewriteRequest(BaseModel):
+    scenes: Union[List[str], str] = Field(max_length=40)   # ["s2", ...] or "all"
+    instruction: str = Field("", max_length=500)
+
+
+@router.post("/videos/{folder}/rewrite", dependencies=[Depends(require_studio)])
+def rewrite(folder: str, req: RewriteRequest):
+    path, _script, _product = _layout_context(folder)
+
+    def before() -> None:   # runs under the job lock
+        _layout_context(folder)   # the folder may have changed since the check above (under the lock now)
+        script = _read_json(path / "script.json")
+        sids = [s.get("sid") for s in script.get("segments") or []]
+        if req.scenes != "all" and (not isinstance(req.scenes, list) or not req.scenes
+                                    or not all(layout_rules.valid_sid(x) and x in sids for x in req.scenes)):
+            raise HTTPException(status_code=400, detail="Cảnh cần viết lại không hợp lệ, hãy tải lại trang")
+        script["rewrite_request"] = {"scenes": req.scenes, "instruction": req.instruction.strip()}
+        _write_json(path / "script.json", script)
+
+    return _start_job("rewrite", path, ["--rewrite"], before)
+
+
+class ContinueRequest(BaseModel):
+    revoice_all: Optional[str] = None   # "edge" = read every scene again with the free voice
+
+
+@router.post("/videos/{folder}/continue", dependencies=[Depends(require_studio)])
+def continue_layout(folder: str, req: ContinueRequest = ContinueRequest()):
+    if req.revoice_all not in (None, "", "edge"):
+        raise HTTPException(status_code=400, detail="Chỉ đọc lại toàn bộ được bằng giọng miễn phí")
+    path, _script, _product = _layout_context(folder, allow_interrupted=True)
+
+    def before() -> None:   # fail fast with the same rules demo.py enforces
+        script, product = _read_json(path / "script.json"), _read_json(path / "product.json")
+        errors = layout_rules.check_layout(script.get("segments") or [], _kind_of(path, product),
+                                           script.get("style") or "simple", product.get("price"), strict_lines=True)
+        if errors:
+            raise HTTPException(status_code=400, detail="Chưa dựng được: " + " ".join(errors))
+
+    args = ["--revoice-all", "edge", "--continue"] if req.revoice_all else ["--continue"]
+    return _start_job("continue", path, args, before)
 
 
 # ---------------------------------------------------------------------------
@@ -678,17 +932,22 @@ class PreviewRequest(BaseModel):
 
 
 class CreateVideoRequest(BaseModel):
+    kind: str = Field("product", max_length=20)   # "product" | "topic" (DR-0014)
     sheet_row: Optional[int] = None
-    product_url: Optional[str] = None
-    name: Optional[str] = None
+    product_url: Optional[str] = Field(None, max_length=2000)
+    name: Optional[str] = Field(None, max_length=300)
     price: Optional[int] = None
-    images: Optional[List[str]] = None
-    style: str = "simple"
-    category: Optional[str] = None
-    selling_points: Optional[str] = None
-    notes: Optional[str] = None
-    tab: str = "Tiktok"
-    voice: Optional[str] = None  # DR-0013: None = default engine, "edge" = free voice (no Gemini)
+    images: Optional[List[str]] = Field(None, max_length=30)
+    style: str = Field("simple", max_length=20)
+    category: Optional[str] = Field(None, max_length=100)
+    selling_points: Optional[str] = Field(None, max_length=3000)
+    notes: Optional[str] = Field(None, max_length=2000)
+    tab: str = Field("Tiktok", max_length=60)
+    voice: Optional[str] = Field(None, max_length=10)  # DR-0013: None = default engine, "edge" = free voice (no Gemini)
+    # topic videos (no selling): one outline line = one scene
+    audience: Optional[str] = Field(None, max_length=200)
+    outline: Optional[str] = Field(None, max_length=4000)
+    voice_gender: Optional[str] = Field(None, max_length=10)   # auto | nam_bac | nu_nam
 
 
 @router.get("/sheet-rows")
@@ -722,8 +981,9 @@ def list_sheet_rows(tab: str = "Tiktok"):
 def product_preview(req: PreviewRequest):
     import product_sources
 
-    _no_job_or_409()
-    _clear_staging()
+    with _job_lock:
+        _no_job_or_409()
+        _clear_staging()
 
     use_sheet = req.source == "sheet" or (req.sheet_row is not None and not (req.product_url or "").strip())
     if use_sheet:
@@ -858,22 +1118,23 @@ def product_preview(req: PreviewRequest):
 
 @router.post("/staging-image", dependencies=[Depends(require_studio)])
 async def upload_staging_image(request: Request, slot: int = 0):
-    _no_job_or_409()
     if not 0 <= slot < MAX_PRODUCT_IMAGES:
         raise HTTPException(status_code=400, detail="Vị trí ảnh sản phẩm không hợp lệ")
     if int(request.headers.get("content-length") or 0) > MAX_UPLOAD:
         raise HTTPException(status_code=413, detail="Ảnh quá lớn (tối đa 15 MB)")
-    data = await request.body()
+    data = await request.body()   # no await while the lock is held
     if not data:
         raise HTTPException(status_code=400, detail="Chưa có dữ liệu ảnh")
     if len(data) > MAX_UPLOAD:
         raise HTTPException(status_code=413, detail="Ảnh quá lớn (tối đa 15 MB)")
     ext = _sniff_image(data)
-    _staging_root().mkdir(parents=True, exist_ok=True)
-    name = _replace_image(_staging_root(), f"anh_sp_{slot + 1}", ext, data)
-    meta = _read_slots_meta()
-    meta["overrides"][str(slot)] = name
-    _write_slots_meta(meta)
+    with _job_lock:
+        _no_job_or_409()
+        _staging_root().mkdir(parents=True, exist_ok=True)
+        name = _replace_image(_staging_root(), f"anh_sp_{slot + 1}", ext, data)
+        meta = _read_slots_meta()
+        meta["overrides"][str(slot)] = name
+        _write_slots_meta(meta)
     stamp = int((_staging_root() / name).stat().st_mtime)
     return {
         "slot": slot,
@@ -885,15 +1146,16 @@ async def upload_staging_image(request: Request, slot: int = 0):
 
 @router.delete("/staging-image", dependencies=[Depends(require_studio)])
 def delete_staging_image(slot: int = 0):
-    _no_job_or_409()
     if not 0 <= slot < MAX_PRODUCT_IMAGES:
         raise HTTPException(status_code=400, detail="Vị trí ảnh sản phẩm không hợp lệ")
-    if _staging_root().is_dir():
-        for ext in IMAGE_EXTS:
-            (_staging_root() / f"anh_sp_{slot + 1}{ext}").unlink(missing_ok=True)
-    meta = _read_slots_meta()
-    meta["overrides"][str(slot)] = ""
-    _write_slots_meta(meta)
+    with _job_lock:
+        _no_job_or_409()
+        if _staging_root().is_dir():
+            for ext in IMAGE_EXTS:
+                (_staging_root() / f"anh_sp_{slot + 1}{ext}").unlink(missing_ok=True)
+        meta = _read_slots_meta()
+        meta["overrides"][str(slot)] = ""
+        _write_slots_meta(meta)
     return {"slot": slot, "deleted": True}
 
 
@@ -948,11 +1210,41 @@ def _normalize_create_images(req_images: Optional[List[str]], base_images: List[
     return [s for s in slots if s]
 
 
+def _create_topic(req: CreateVideoRequest) -> dict:
+    """Topic video (no selling): validate here so a bad request never starts a job or makes a folder (D-19)."""
+    name = norm_line(req.name)
+    if not 1 <= len(name) <= 120:
+        raise HTTPException(status_code=400, detail="Tên chủ đề cần từ 1 đến 120 ký tự")
+    outline = layout_rules.clean_outline(req.outline or "")
+    errors = layout_rules.check_outline(outline)
+    if errors:
+        n = len(outline)
+        hint = (f" Xoá bớt {n - layout_rules.OUTLINE_MAX} dòng." if n > layout_rules.OUTLINE_MAX
+                else " Thêm ý cho đủ dòng." if n < layout_rules.OUTLINE_MIN else "")
+        raise HTTPException(status_code=400, detail=" ".join(errors) + hint)
+    voice, gender = (req.voice or "edge"), (req.voice_gender or "auto")
+    if voice not in ("edge", "gemini"):
+        raise HTTPException(status_code=400, detail="Giọng đọc phải là Gemini hoặc miễn phí (edge-tts)")
+    if gender not in ("auto", "nam_bac", "nu_nam"):
+        raise HTTPException(status_code=400, detail="Giọng đọc phải là Tự chọn, Nam hoặc Nữ")
+    if len(req.notes or "") > 500:
+        raise HTTPException(status_code=400, detail="Điều cần tránh dài quá 500 ký tự")
+    images = _normalize_create_images(req.images or [], [])
+    return _start_create_job({"kind": "topic", "name": name, "outline": outline,
+                              "audience": norm_line(req.audience)[:200], "notes": (req.notes or "").strip() or None,
+                              "images": images, "voice": voice, "voice_gender": gender,
+                              "output_dir": str(_videos_root())})
+
+
 @router.post("/create", dependencies=[Depends(require_studio)])
 def create_video(req: CreateVideoRequest):
     import product_sources
 
     _no_job_or_409()
+    if req.kind == "topic":
+        return _create_topic(req)
+    if req.kind != "product":
+        raise HTTPException(status_code=400, detail="Loại video chưa hỗ trợ")
     if req.style not in ("story", "simple"):
         raise HTTPException(status_code=400, detail="Kiểu video phải là story hoặc simple")
     if req.voice not in (None, "", "gemini", "edge"):
