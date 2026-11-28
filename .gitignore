@@ -24,3 +24,6 @@ google-credentials.json
 client_secret*.json
 google-oauth-client.json
 google-drive-token.json
+
+# setuptools build output of tools/capcut-mcp
+tools/capcut-mcp/build/

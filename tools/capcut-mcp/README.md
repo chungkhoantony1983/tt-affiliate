@@ -19,10 +19,10 @@ và tự dựng video quảng cáo:
 1. Cài **CapCut desktop từ capcut.com** (không dùng bản Mac App Store). Mở CapCut, đăng nhập,
    tạo thử 1 dự án trống rồi đóng lại, để CapCut tạo thư mục dự án.
 2. Cài [Homebrew](https://brew.sh) nếu chưa có.
-3. Tải thư mục `capcut-mcp` này về máy (ví dụ vào `~/capcut-mcp`), mở Terminal và chạy:
+3. Mở Terminal ở thư mục repo `tiktok_affiliate` và chạy (cài editable từ chính `tools/capcut-mcp`, sửa code ở đây là server nhận luôn):
 
    ```bash
-   cd ~/capcut-mcp
+   cd tools/capcut-mcp
    bash install_mac.sh
    ```
 
