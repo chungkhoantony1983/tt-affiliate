@@ -105,6 +105,7 @@ Việc cần làm:
 - [ ] (Khi có doanh thu) Bật billing Gemini API → `IMAGE_PROVIDER=gemini` để tự động hoá; truyền ảnh cảnh trước làm tham chiếu để giữ nhân vật
 - [ ] Đưa tín hiệu trend vào prompt (cột `notes`: hook của video trend đang chạy)
 - [ ] (Sau) Dạng `scenes[]` chi tiết theo `affiliate-skills-main/skills/content/tiktok-script-writer/SKILL.md`; hỗ trợ clip video sản phẩm
+- [x] Bug #41 (2026-11-28): ghi chú quyết định câu chuyện và giọng nam/nữ (`scripts/check_persona.py`). Còn lại: kịch bản có thể bỏ sót chứng chỉ/chứng nhận → người vận hành sửa tay khi duyệt
 
 ### M2b — Giọng đọc, lưu trữ (2026-11-11)
 - [x] Giọng Gemini TTS có chỉ dẫn cảm xúc thay edge-tts; tự cắt tiếng xoẹt ở mép mỗi câu

@@ -121,6 +121,20 @@ SIMPLE_STRUCTURE = """Cấu trúc "segments" (tổng 20-30 giây), tất cả sp
 3. 1 segment kind="cta": kêu gọi bấm GIỎ HÀNG VÀNG ở góc dưới video. Không nhắc "link bio"."""
 
 
+# Issue #41: the operator's notes beat the default structure (notes may also hold constraints only).
+NOTES_PRIORITY = """ƯU TIÊN GHI CHÚ: nếu "Ghi chú" nêu câu chuyện, nhân vật, người kể, tông giọng hay cảm xúc thì kịch bản PHẢI theo đúng
+Ghi chú, thay cho phần tương ứng trong cấu trúc segments ở trên (kể cả tiểu phẩm gia đình: không tự thêm mẹ, con gái hay
+nhân vật khác mà Ghi chú không nhắc tới).
+- speaker chỉ được là: narrator, con_gai, con_trai, me, bo, ba, ong. Lời dẫn kể về một người, hoặc một người tự kể, thì dùng
+  speaker="narrator" cho cả video (kể cả segment kind="story"), image_prompt tả đúng nhân vật trong Ghi chú.
+- Vẫn giữ: hook ở đầu, nêu lợi ích sản phẩm, CTA cuối, và MỌI quy tắc bên dưới.
+- TUYỆT ĐỐI không tự đặt tên người, tên hay ví dụ nguyên liệu, địa điểm không có trong "Ghi chú" hoặc "Điểm nổi bật". Ghi chú
+  chỉ nói chung chung (vd "thảo dược") thì lời thoại và image_prompt cũng chỉ nói chung chung.
+- Lời thoại PHẢI nhắc đủ mọi ý chính trong Ghi chú (kể cả chứng chỉ, chứng nhận, dòng sản phẩm đa dạng nếu có); yêu cầu về
+  giọng đọc thì làm theo, không đọc ra. Nhiều ý thì thêm segment, được vượt số segment và thời lượng ở trên.
+- Chứng chỉ, chứng nhận, cam kết: chỉ nói đúng mức Ghi chú nêu, không tự đặt tên chứng chỉ, cơ quan cấp hay số hiệu."""
+
+
 def generate_script(product: dict, style: str) -> dict:
     """Generate a segmented TikTok Shop affiliate script using Groq API."""
     from groq import Groq
@@ -140,6 +154,8 @@ Danh mục: {product['category']}
 Ghi chú: {product.get('notes') or '-'}
 
 {structure}
+
+{NOTES_PRIORITY if product.get('notes') else ''}
 
 Quy tắc:
 - "line" là lời thoại được đọc thành giọng nói: ≤ 15 từ, tiếng Việt đời thường, tự nhiên, KHÔNG emoji, không ký hiệu.
@@ -275,11 +291,28 @@ def _has_phrase(text: str, phrase: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", text) is not None
 
 
+def _persona_from_notes(notes: str):
+    """'giọng nam' / 'giọng nữ' in notes -> persona; None if absent, only negated, or both are asked."""
+    # shortcut: needs diacritics ("giống nam giới" must not match); add phrasings when operators use others
+    found = set()
+    gender = r"(?:nam|nữ)\b(?! bộ| định)"
+    pattern = (r"\bgiọng(?: đọc| kể| thuyết minh)?(?: phải| nên)?(?: là)?(?: của)?\s*:?\s*"
+               rf"({gender}(?:\s*(?:hay|hoặc|và|/|-)?\s*(?:giọng )?{gender})*)")  # "nam hay nữ" captures both
+    for clause in re.split(r"[.,;!?\n]|\bmà\b|\bnhưng\b", unicodedata.normalize("NFC", notes.lower())):
+        for m in re.finditer(pattern, clause):
+            if not re.search(r"\b(không|đừng|tránh|chẳng)\b", clause[:m.start()]):
+                found.update("nam_bac" if g == "nam" else "nu_nam" for g in re.findall("nam|nữ", m.group(1)))
+    return found.pop() if len(found) == 1 else None
+
+
 def choose_persona(product: dict) -> str:
-    """Pick the narrator persona for a product. GEMINI_TTS_PERSONA in .env forces one for every video."""
+    """Pick the narrator persona: GEMINI_TTS_PERSONA in .env, then a voice asked in notes, then product type."""
     forced = os.environ.get("GEMINI_TTS_PERSONA", "").strip()
     if forced in GEMINI_NARRATORS:
         return forced
+    asked = _persona_from_notes(product.get("notes") or "")
+    if asked:
+        return asked
     for field in (product.get("category", ""), product.get("name", "")):
         text = _plain(field)
         for persona in ("nu_nam", "nam_bac"):
