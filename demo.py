@@ -135,6 +135,20 @@ def assign_sids(script: dict) -> None:
     script["next_sid"] = len(script["segments"]) + 1
 
 
+# Issue #41: the operator's notes beat the default structure (notes may also hold constraints only).
+NOTES_PRIORITY = """ƯU TIÊN GHI CHÚ: nếu "Ghi chú" nêu câu chuyện, nhân vật, người kể, tông giọng hay cảm xúc thì kịch bản PHẢI theo đúng
+Ghi chú, thay cho phần tương ứng trong cấu trúc segments ở trên (kể cả tiểu phẩm gia đình: không tự thêm mẹ, con gái hay
+nhân vật khác mà Ghi chú không nhắc tới).
+- speaker chỉ được là: narrator, con_gai, con_trai, me, bo, ba, ong. Lời dẫn kể về một người, hoặc một người tự kể, thì dùng
+  speaker="narrator" cho cả video (kể cả segment kind="story"), image_prompt tả đúng nhân vật trong Ghi chú.
+- Vẫn giữ: hook ở đầu, nêu lợi ích sản phẩm, CTA cuối, và MỌI quy tắc bên dưới.
+- TUYỆT ĐỐI không tự đặt tên người, tên hay ví dụ nguyên liệu, địa điểm không có trong "Ghi chú" hoặc "Điểm nổi bật". Ghi chú
+  chỉ nói chung chung (vd "thảo dược") thì lời thoại và image_prompt cũng chỉ nói chung chung.
+- Lời thoại PHẢI nhắc đủ mọi ý chính trong Ghi chú (kể cả chứng chỉ, chứng nhận, dòng sản phẩm đa dạng nếu có); yêu cầu về
+  giọng đọc thì làm theo, không đọc ra. Nhiều ý thì thêm segment, được vượt số segment và thời lượng ở trên.
+- Chứng chỉ, chứng nhận, cam kết: chỉ nói đúng mức Ghi chú nêu, không tự đặt tên chứng chỉ, cơ quan cấp hay số hiệu."""
+
+
 def generate_script(product: dict, style: str) -> dict:
     """Generate a segmented TikTok Shop affiliate script using Groq API."""
     from groq import Groq
@@ -154,6 +168,8 @@ Danh mục: {product['category']}
 Ghi chú: {product.get('notes') or '-'}
 
 {structure}
+
+{NOTES_PRIORITY if product.get('notes') else ''}
 
 Quy tắc:
 - "line" là lời thoại được đọc thành giọng nói: ≤ 15 từ, tiếng Việt đời thường, tự nhiên, KHÔNG emoji, không ký hiệu.
@@ -480,11 +496,28 @@ def _has_phrase(text: str, phrase: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", text) is not None
 
 
+def _persona_from_notes(notes: str):
+    """'giọng nam' / 'giọng nữ' in notes -> persona; None if absent, only negated, or both are asked."""
+    # shortcut: needs diacritics ("giống nam giới" must not match); add phrasings when operators use others
+    found = set()
+    gender = r"(?:nam|nữ)\b(?! bộ| định)"
+    pattern = (r"\bgiọng(?: đọc| kể| thuyết minh)?(?: phải| nên)?(?: là)?(?: của)?\s*:?\s*"
+               rf"({gender}(?:\s*(?:hay|hoặc|và|/|-)?\s*(?:giọng )?{gender})*)")  # "nam hay nữ" captures both
+    for clause in re.split(r"[.,;!?\n]|\bmà\b|\bnhưng\b", unicodedata.normalize("NFC", notes.lower())):
+        for m in re.finditer(pattern, clause):
+            if not re.search(r"\b(không|đừng|tránh|chẳng)\b", clause[:m.start()]):
+                found.update("nam_bac" if g == "nam" else "nu_nam" for g in re.findall("nam|nữ", m.group(1)))
+    return found.pop() if len(found) == 1 else None
+
+
 def choose_persona(product: dict) -> str:
-    """Pick the narrator persona for a product. GEMINI_TTS_PERSONA in .env forces one for every video."""
+    """Pick the narrator persona: GEMINI_TTS_PERSONA in .env, then a voice asked in notes, then product type."""
     forced = os.environ.get("GEMINI_TTS_PERSONA", "").strip()
     if forced in GEMINI_NARRATORS:
         return forced
+    asked = _persona_from_notes(product.get("notes") or "")
+    if asked:
+        return asked
     for field in (product.get("category", ""), product.get("name", "")):
         text = _plain(field)
         for persona in ("nu_nam", "nam_bac"):
@@ -950,10 +983,23 @@ def batch_quota_line_vi():
     return f"Lượt Gemini còn đủ cho khoảng {videos} video. Các video sau sẽ dùng giọng miễn phí."
 
 
+def _tts_too_long(text: str, seconds: float) -> bool:
+    """A clip this long for its line means Gemini also read the director's notes aloud (issue #40).
+    Digits count as extra words because a number is read as several."""
+    words = len(text.split()) + sum(c.isdigit() for c in text)
+    # shortcut: duration only, so a short leak inside a long line (25+ words) can pass; transcribe if it does.
+    return seconds > 3.0 + 0.45 * words
+
+
+# Self-check on measured clips: the leaked one (8 words, 10.13s) and the slowest good one per word (5 words, 2.9s)
+assert _tts_too_long("w " * 8, 10.13) and not _tts_too_long("w " * 5, 2.9)
+
+
 def _gemini_tts(text: str, speaker: str, kind: str, output_path: str, persona: str = "nu_nam",
                 model: str = None) -> None:
-    """One Gemini TTS request → output_path (mp3). Does not touch the quota ledger: the caller
-    reserves and refunds. A per-minute 429 is waited out and retried once."""
+    """One Gemini TTS clip → output_path (mp3). The caller reserves and refunds one request; only the
+    single re-read of an abnormally long clip reserves another here. A per-minute 429 is waited out and
+    retried once. Raises GeminiTTSError, writing nothing, if no re-read is possible or it is still too long."""
     import wave
 
     key = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -966,22 +1012,36 @@ def _gemini_tts(text: str, speaker: str, kind: str, output_path: str, persona: s
             "generationConfig": {"responseModalities": ["AUDIO"],
                                  "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
     url = f"{base_url}/models/{model}:generateContent"
-    try:
-        data = _gemini_tts_post(url, body, key)
-    except GeminiQuotaError as e:
-        if e.kind != "minute":
-            raise
-        wait = e.retry_after if e.retry_after is not None else 30.0
-        print(f"   ⏳ Gemini per-minute limit: waiting {wait:.0f}s, then one retry")
-        time.sleep(wait)
+
+    def request() -> bytes:
         try:
             data = _gemini_tts_post(url, body, key)
-        except GeminiQuotaError as again:
-            if again.kind == "daily":
+        except GeminiQuotaError as e:
+            if e.kind != "minute":
                 raise
-            raise GeminiQuotaError("unknown", None, "still 429 after waiting") from None
-    pcm = base64.b64decode(data["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
-    pcm = _trim_gemini_edges(pcm)
+            wait = e.retry_after if e.retry_after is not None else 30.0
+            print(f"   ⏳ Gemini per-minute limit: waiting {wait:.0f}s, then one retry")
+            time.sleep(wait)
+            try:
+                data = _gemini_tts_post(url, body, key)
+            except GeminiQuotaError as again:
+                if again.kind == "daily":
+                    raise
+                raise GeminiQuotaError("unknown", None, "still 429 after waiting") from None
+        pcm = base64.b64decode(data["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
+        return _trim_gemini_edges(pcm)
+
+    spoken = _clean_tts_text(text)
+    for attempt in (1, 2):
+        pcm = request()
+        seconds = len(pcm) / 2 / GEMINI_TTS_RATE
+        if not _tts_too_long(spoken, seconds):
+            break
+        problem = f"clip is {seconds:.1f}s for {len(spoken.split())} words (director's notes read aloud?)"
+        if attempt == 2 or not quota_reserve(model, 1):
+            raise GeminiTTSError(f"{problem}; clip rejected")
+        print(f"   ⚠️  {problem} → reading it once more (1 extra request)")
+        time.sleep(7)
 
     wav_path = str(Path(output_path).with_suffix(".wav"))
     with wave.open(wav_path, "wb") as w:
