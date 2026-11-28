@@ -20,7 +20,7 @@ Bạn có 4 chế độ. Người điều phối sẽ nói rõ dùng chế độ
 | 3 | Review video du lịch, văn hoá, ẩm thực Việt Nam tiếng Anh (DR-0002) | Skill `travel-review` (file `.claude/commands/travel-review.md`) |
 | 4 | Phân tích hiệu quả bài đăng và mức tiếp cận người xem | Skill `post-analytics` (file `.claude/commands/post-analytics.md`) |
 
-Chế độ 1 dùng thêm skill `audio-check` (file `.claude/commands/audio-check.md`) để có bằng chứng máy cho phần âm thanh (chép lời Whisper đặt ngôn ngữ `vi`, chưa dùng cho video travel tiếng Anh). Nội dung skill chưa có trong ngữ cảnh thì đọc file tương ứng trước khi làm.
+Chế độ 1 và 3 dùng thêm skill `audio-check` (file `.claude/commands/audio-check.md`) để có bằng chứng máy cho phần âm thanh (`transcript_check.py` nay tự động nhận `vi` cho video sản phẩm/bài tập và `en` cho video travel tiếng Anh). Nội dung skill chưa có trong ngữ cảnh thì đọc file tương ứng trước khi làm.
 
 ---
 

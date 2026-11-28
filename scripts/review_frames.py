@@ -3,7 +3,8 @@ Extract still frames from a rendered video for content review (marketing agent, 
 
   .venv/bin/python scripts/review_frames.py storage/videos/<folder>
 
-Writes storage/review-frames/<folder>/:
+Writes storage/review-frames/<folder>/ (a copy outside storage/videos/, e.g. a sandbox_render.py
+--keep dir, writes storage/review-frames/<folder>__sandbox/ instead, same rule as audio_seams.py):
   scene_<N>_start.jpg, scene_<N>_mid.jpg   one pair per script segment (first 0.3 s and middle)
   facts.json                                duration, size, codecs, per-scene timing, line/text per scene
 
@@ -14,6 +15,9 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from audio_seams import output_dir  # noqa: E402  (one rule for where review results go, C-0004-5)
 
 GAP, END_HOLD = 0.25, 0.8   # must match demo.py
 FRAME_WIDTH = 540            # half of 1080, enough to read on-screen text
@@ -65,8 +69,7 @@ def main() -> None:
     script = json.loads((folder / "script.json").read_text(encoding="utf-8"))
     segments = script.get("segments") or []
 
-    repo = Path(__file__).resolve().parent.parent
-    out = repo / "storage" / "review-frames" / folder.name
+    out, _sandbox = output_dir(folder, None)
     out.mkdir(parents=True, exist_ok=True)
     for old in out.glob("scene_*.jpg"):
         old.unlink()

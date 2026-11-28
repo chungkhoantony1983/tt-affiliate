@@ -3,7 +3,7 @@ description: Kiểm âm thanh của một video bằng máy (khung hình, tiến
 argument-hint: <storage/videos/<thư mục>> [--scenes 1,2]
 ---
 
-Mã nạp: audio-check/1
+Mã nạp: audio-check/2
 
 Skill này là **sổ tay dùng chung của `tester`, `marketing`, `dev`**. Agent không nghe được âm thanh, nên skill này lấy **bằng chứng máy** cho phần nghe. Kết quả chỉ là **tín hiệu** (C-0004-3): không đánh PASS hay "Đạt" phần nghe chỉ dựa vào máy. Câu bị gắn cờ → "Cần người kiểm" kèm câu trích.
 
@@ -14,11 +14,10 @@ PY=$(git rev-parse --path-format=absolute --git-common-dir)/../.venv/bin/python
 D=<thư mục video>      # nên là bản sao (skill sandbox-render --keep); script chỉ đọc thư mục này
 ```
 
-Kết quả ghi vào `storage/review-frames/<thư mục>/` cho video thật, `storage/review-frames/<thư mục>__sandbox/` cho bản sao (trừ Bước 1, xem lưu ý dưới). Cả hai đều gitignored, không lên Drive. Thư mục video không bị ghi gì (C-0004-5).
+Kết quả ghi vào `storage/review-frames/<thư mục>/` cho video thật, `storage/review-frames/<thư mục>__sandbox/` cho bản sao. Cả hai đều gitignored, không lên Drive. Thư mục video không bị ghi gì (C-0004-5).
 
-- Thư mục **không** nằm trong `<repo>/storage/videos/` (vd bản sao trong thư mục tạm của `sandbox-render --keep`): `audio_seams.py` và `transcript_check.py` mặc định ghi vào `storage/review-frames/<thư mục>__sandbox/`, và JSON có `"sandbox": true`, `"source": "copy"`. Nhờ vậy kết quả của bản sao không ghi đè, không bị đọc nhầm là kết quả của video thật (video thật: `"sandbox": false`, `"source": "storage/videos"`).
+- Thư mục **không** nằm trong `<repo>/storage/videos/` (vd bản sao trong thư mục tạm của `sandbox-render --keep`): `review_frames.py`, `audio_seams.py` và `transcript_check.py` đều mặc định ghi vào `storage/review-frames/<thư mục>__sandbox/`, và JSON có `"sandbox": true`, `"source": "copy"`. Nhờ vậy kết quả của bản sao không ghi đè, không bị đọc nhầm là kết quả của video thật (video thật: `"sandbox": false`, `"source": "storage/videos"`).
 - `--out-dir` nằm trong thư mục video hoặc trong bất kỳ `storage/videos/` nào thì bị từ chối (exit 1). Muốn ghi chỗ khác thì chọn thư mục ngoài `storage/videos/` (vd trong thư mục tạm).
-- Lưu ý: `review_frames.py` (Bước 1) chưa tách như vậy, vẫn ghi vào `storage/review-frames/<thư mục>/` kể cả với bản sao, nên khung hình của bản sao ghi đè khung hình của video thật cùng tên (đã ghi `TODO.md`). Khung hình và `facts.json` đọc ở `<thư mục>/`, `seams.json` và `transcript.json` của bản sao đọc ở `<thư mục>__sandbox/`.
 
 ## Bước 1. Khung hình
 
@@ -53,7 +52,7 @@ $PY scripts/transcript_check.py "$D" --scenes 1,2     # chỉ các cảnh chọn
 - "%" được đọc là "phần trăm": lời "giảm 50%" và bản chép "giảm năm mươi phần trăm" không bị gắn cờ.
 - HTTP 429 hoặc 5xx: script tự thử lại **1 lần** sau thời gian `retry-after` (mặc định 2 giây; server đòi chờ quá 20 giây thì không thử lại). Lần thử lại cũng tính là 1 lượt Groq.
 - Lỗi mạng, thiếu khoá, HTTP 429/5xx sau lần thử lại → exit ≠ 0, `transcript.json` cũ bị xoá. Khi đó ghi "Chưa chép lời được: <lý do>", **không** coi là đạt.
-- **Video du lịch** (có `topic.json`, lời tiếng Anh): script từ chối (exit ≠ 0, 0 lượt Groq) vì ngôn ngữ chép lời đang cố định tiếng Việt. Bỏ Bước 3, ghi phần chép lời là "Cần người kiểm".
+- **Video du lịch** (có `topic.json`, lời tiếng Anh): script tự động dùng ngôn ngữ Whisper `en` kèm chuẩn hoá tiếng Anh (số chữ/số, $ -> dollar, % -> percent, bỏ dấu như 'phở' -> 'pho'); có thể đổi bằng `--language vi|en` (1 lượt Groq/cảnh). Whisper nghe sai tên tiếng Việt (như 'pho' -> 'Fa') là tín hiệu phát âm: một từ không bị gắn cờ, nên người vận hành vẫn cần nghe kiểm tra tên tiếng Việt (T8, "Cần người kiểm").
 - Đếm số lượt Groq đã gọi (`groq_calls` trong `transcript.json`, gồm cả lần thử lại) để báo lại.
 
 ## Dùng theo vai trò

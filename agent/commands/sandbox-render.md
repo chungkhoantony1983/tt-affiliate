@@ -3,7 +3,7 @@ description: Dựng lại một thư mục video có sẵn trên bản sao trong
 argument-hint: <storage/videos/<thư mục>> [--revoice-all-edge] [--keep]
 ---
 
-Mã nạp: sandbox-render/1
+Mã nạp: sandbox-render/2
 
 Skill này là **sổ tay dùng chung của `dev`, `tester` và người điều phối** (chuẩn bị bản sao cho `marketing`, vì marketing không chạy `demo.py`). Dùng mỗi khi cần dựng lại một video **đã có** mà không làm hỏng dữ liệu thật và không tốn lượt Gemini (C-0004-2).
 
@@ -28,7 +28,7 @@ $PY scripts/sandbox_render.py <repo gốc>/storage/videos/<thư mục> [--revoic
 2. Chạy với thư mục làm việc là `T`: không có `.env`, không có `google-credentials.json`, và đặt rõ `GEMINI_API_KEY= GROQ_API_KEY= PIXABAY_API_KEY= DRIVE_FOLDER_ID= SPREADSHEET_ID= TTS_PROVIDER=edge APPROVAL_MODE=web IMAGE_PROVIDER=manual` (không gọi Gemini, Groq, Pixabay hay API tạo ảnh).
 3. **Video sản phẩm** (có `product.json`): có câu `line != audio_line` mà không có `--revoice-all-edge` thì **dừng trước** (exit ≠ 0), liệt kê số cảnh. Lý do: `revoice_changed()` đọc lại theo `script.json → tts_provider`, không theo `TTS_PROVIDER` (xem `voice-rules`). Không có gì cần đọc lại thì chạy `demo.py --render-only <bản sao>` bằng subprocess.
 4. **Video bài tập** (không có `product.json`, `script.json` có `series_id`): chép `content/exercise_curriculum.json` và `storage/clips/<series_id>/` sang `T`, chặn `approval_step` (trả `False`), `exercise.mark_done` và `move_to_drive` (ném lỗi), rồi gọi `exercise.rerender`. Kết quả mong đợi `status=rejected`: dựng xong nhưng không tới bước đánh dấu giáo trình hay Drive.
-5. **Video du lịch** (có `topic.json`, không có `product.json`): **chưa hỗ trợ** trong sandbox-render (xem `TODO.md`). Script dừng trước khi chép (exit 2) và báo rõ lý do. Cách thay thế: xem mục "Video du lịch" bên dưới.
+5. **Video du lịch** (có `topic.json`, không có `product.json`): chép sang `T`, chạy `demo.py --render-only <bản sao>` với môi trường an toàn (thêm `PEXELS_API_KEY=`). Travel chỉ dùng edge-tts nên không từ chối khi có câu đã sửa; `--revoice-all-edge` cũng hoạt động. Kết quả mong đợi `status=review`, JSON trả về `kind="travel"` (video bài tập vẫn từ chối `--revoice-all-edge`).
 6. In JSON: `sandbox_dir`, `status`, đường dẫn `video.mp4` trong bản sao, thời lượng, danh sách `audio_N.mp3` đã đổi, `post_txt_existed` (bản sao đã có sẵn `post.txt` chép từ bản gốc), `post_txt_created` (lần dựng này có tạo hoặc ghi lại `post.txt` không), `original_unchanged` (so hash mọi file của thư mục gốc trước và sau).
 
 ## Đọc kết quả
@@ -37,8 +37,7 @@ $PY scripts/sandbox_render.py <repo gốc>/storage/videos/<thư mục> [--revoic
 |---------|----------|
 | `original_unchanged: false` | **Lỗi nghiêm trọng**: bản gốc bị đổi. Dừng, báo người điều phối ngay |
 | Exit 2 kèm danh sách cảnh | Bản sao có câu đã sửa. Chạy lại với `--revoice-all-edge` nếu ca test cho phép đổi giọng |
-| Exit 2, lỗi "travel folder (topic.json) is not supported" | Video du lịch, chưa hỗ trợ. Dùng cách thay thế ở mục "Video du lịch" |
-| `status=review` (sản phẩm) / `status=rejected` (bài tập), exit 0 | Bình thường |
+| `status=review` (sản phẩm/du lịch) / `status=rejected` (bài tập), exit 0 | Bình thường |
 | `post_txt_created: true` (exit 1) | **Sai**: lần dựng đã tới bước duyệt. Báo người điều phối |
 | `post_txt_existed: true`, `post_txt_created: false` | Bình thường: `post.txt` chép sẵn từ bản gốc (video bài tập đã duyệt), lần dựng không ghi lại. Với video sản phẩm, `demo.py --render-only` xoá `post.txt` cũ của bản sao (cần duyệt lại), cũng không tính là lỗi |
 | `status=timeout`, `timed_out: true` (exit 1) | `demo.py` chạy quá 540 giây (edge-tts hoặc ffmpeg bị treo), đã bị dừng cả nhóm tiến trình. Chạy lại một lần; lặp lại thì báo kèm `render.log` (dùng `--keep`) |
@@ -52,19 +51,10 @@ Sau khi dựng: xem khung hình bằng `$PY scripts/review_frames.py <video tron
 - Skill này **chỉ** thay phần dựng lại thư mục có sẵn. Test API Studio bằng TestClient, bật giao diện, hay tạo video mới bằng `--product` thì vẫn dùng khối biến môi trường trong `dev-selfcheck` / `tester.md`.
 - Không bao giờ trỏ `--output-dir` hay chạy `demo.py` trực tiếp trên `storage/videos/` thật.
 
-## Video du lịch (chưa hỗ trợ)
+## Video du lịch
 
-Thư mục có `topic.json` bị từ chối (exit 2): sandbox-render chưa hỗ trợ travel, việc này đang ghi ở `TODO.md`. Cách thay thế, theo khối biến môi trường trong `dev-selfcheck` (§ Chuẩn bị):
-
-```bash
-WT=<worktree đang test, hoặc repo gốc>; PY=<repo gốc>/.venv/bin/python
-T=$(mktemp -d); mkdir -p "$T/storage/videos"
-cp -R <repo gốc>/storage/videos/<thư mục travel> "$T/storage/videos/"
-export TTS_PROVIDER=edge GEMINI_API_KEY= GROQ_API_KEY= PIXABAY_API_KEY= DRIVE_FOLDER_ID= SPREADSHEET_ID= APPROVAL_MODE=web IMAGE_PROVIDER=manual
-cd "$T" && $PY $WT/demo.py --render-only "$T/storage/videos/<thư mục travel>"
-```
-
-- Travel chỉ dùng edge-tts nên không tốn Gemini. Không chạy `--approve` (tải Drive) hay `--refresh-facts` (gọi mạng) trên bản sao nếu ca test không cần.
-- Tự so hash thư mục gốc trước và sau, tự dọn `$T`: không có `original_unchanged` hay tự xoá như script.
-- Chép lời (`transcript_check.py`) cũng không nhận thư mục travel (lời tiếng Anh), xem `audio-check`.
-- Dọn thư mục tạm khi xong nếu đã dùng `--keep`.
+Thư mục có `topic.json` đã được hỗ trợ trực tiếp trong sandbox-render:
+- Script chép thư mục sang `T` và chạy `demo.py --render-only` trên bản sao với môi trường an toàn (thêm `PEXELS_API_KEY=`): không tìm hay tải clip/ảnh (đã có sẵn trong thư mục), không Sheet/Drive; chỉ edge-tts gọi mạng (miễn phí) khi đọc lại câu.
+- Travel chỉ dùng edge-tts nên các câu đã sửa không bị từ chối; `--revoice-all-edge` cũng hoạt động bình thường (video bài tập vẫn từ chối `--revoice-all-edge`).
+- Kết quả mong đợi `status=review`, trường JSON trả về có `kind: "travel"`. Không chạy `--approve` (Drive) hay `--refresh-facts` (gọi mạng) trên bản sao.
+- Khi dùng `--keep`, kết quả khung hình và kiểm tra âm thanh được ghi vào `storage/review-frames/<thư mục>__sandbox/`.
